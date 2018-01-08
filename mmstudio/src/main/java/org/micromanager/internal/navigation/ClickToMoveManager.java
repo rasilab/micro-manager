@@ -26,7 +26,6 @@ import java.awt.event.KeyEvent;
 import java.util.HashMap;
 import mmcorej.CMMCore;
 import mmcorej.MMCoreJ;
-//import org.micromanager.display.DisplayDestroyedEvent;
 import org.micromanager.display.internal.displaywindow.DisplayController;
 import org.micromanager.events.internal.MouseMovesStageEvent;
 import org.micromanager.internal.MMStudio;
@@ -64,8 +63,6 @@ public final class ClickToMoveManager {
          keyListener = new StageShortcutListener();
       }
       // TODO
-      // display.getCanvas().removeKeyListener(IJ.getInstance());
-      // display.getCanvas().addKeyListener(keyListener);
       displayToDragListener_.put(display, dragListener);
       displayToKeyListener_.put(display, keyListener);
    }
@@ -87,8 +84,6 @@ public final class ClickToMoveManager {
                KeyAdapter keyListener = displayToKeyListener_.get(display);
                if (keyListener != null) {
                   // TODO
-                  // display.getCanvas().removeKeyListener(keyListener);
-                  // display.getCanvas().addKeyListener(IJ.getInstance());
                }
                // Still need to keep track of the display so we can reactivate
                // it later if necessary.
@@ -101,17 +96,6 @@ public final class ClickToMoveManager {
          studio_.logs().logError(e, "Error updating mouse-moves-stage info");
       }
    }
-
-   // TOD
-   /*
-   @Subscribe
-   public void onDisplayDestroyed(DisplayDestroyedEvent event) {
-      DisplayController display = (DisplayController) event.getDisplay();
-      display.unregisterForEvents(this);
-      displayToDragListener_.remove(display);
-      displayToKeyListener_.remove(display);
-   }
-   */
 
    public static ClickToMoveManager getInstance() {
       return staticInstance_;

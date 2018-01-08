@@ -40,20 +40,6 @@ public final class CenterAndDragListener implements MouseListener,
       studio_ = studio;
       core_ = core;
       // TODO
-      /*
-      canvas_ = display.getCanvas();
-      if (!Arrays.asList(canvas_.getMouseListeners()).contains(this)) {
-         canvas_.addMouseListener(this);
-      }
-      if (!Arrays.asList(canvas_.getMouseMotionListeners()).contains(this)) {
-         canvas_.addMouseMotionListener(this);
-      }
-      if (!Arrays.asList(display.getAsWindow().getWindowListeners()).contains(this)) {
-         display.getAsWindow().addWindowListener(this);
-      }
-
-      getOrientation();
-      */
    }
 
    public void stop() {

@@ -51,7 +51,6 @@ import org.micromanager.internal.MMStudio;
 import org.micromanager.internal.utils.EventBusExceptionLogger;
 import org.micromanager.internal.utils.ReportingUtils;
 import org.micromanager.display.DisplayWindowControlsFactory;
-//import org.micromanager.display.RequestToCloseEvent;
 import org.micromanager.display.internal.link.LinkManager;
 import org.micromanager.display.internal.link.internal.DefaultLinkManager;
 
@@ -186,43 +185,6 @@ public final class DefaultDisplayManager implements DisplayManager {
             contrastMins, contrastMaxes, gammas, isVisible);
    }
 
-   /* TODO
-   @Override
-   public HistogramData calculateHistogram(Image image, int component,
-         int binPower, int bitDepth, double extremaPercentage,
-         boolean shouldCalcStdDev) {
-      
-      Boolean shouldScaleWithROI = getStandardDisplaySettings().getShouldScaleWithROI();
-      if (shouldScaleWithROI == null) {
-         shouldScaleWithROI = true;
-      }
-      
-      return ContrastCalculator.calculateHistogram(image, null, component,
-            binPower, bitDepth, extremaPercentage, shouldCalcStdDev, shouldScaleWithROI);
-   }
-
-   @Override
-   public HistogramData calculateHistogramWithSettings(Image image,
-         int component, DisplaySettings settings) {
-      return ContrastCalculator.calculateHistogramWithSettings(image, null,
-            component, settings);
-   }
-
-   @Override
-   public void updateHistogramDisplays(List<Image> images, DataViewer viewer) {
-      for (Image image : images) {
-         ArrayList<HistogramData> datas = new ArrayList<HistogramData>();
-         for (int i = 0; i < image.getNumComponents(); ++i) {
-            HistogramData data = calculateHistogramWithSettings(image, i,
-                  viewer.getDisplaySettings());
-            datas.add(data);
-         }
-         viewer.postEvent(
-               new NewHistogramsEvent(image.getCoords().getChannel(), datas));
-      }
-   }
-   */
-
    @Override
    public PropertyMap.Builder getPropertyMapBuilder() {
       return PropertyMaps.builder();
@@ -303,14 +265,7 @@ public final class DefaultDisplayManager implements DisplayManager {
       String path = store.getSavePath();
       ArrayList<DisplayWindow> result = new ArrayList<DisplayWindow>();
       if (path != null) {
-         /*
-          List<DisplaySettings> allSettings = DefaultDisplaySettings.load(path);
-         for (DisplaySettings settings : allSettings) {
-            DisplayWindow tmp = createDisplay(store);
-            tmp.setDisplaySettings(settings);
-            result.add(tmp);
-         }
-         */
+         // TODO Load display settings
       }
       if (result.isEmpty()) {
          // No path, or no display settings at the path.  Just create a blank
@@ -381,49 +336,6 @@ public final class DefaultDisplayManager implements DisplayManager {
       }
       return true;
    }
-
-   /**
-    * Check if this is the last display for a Datastore that we are managing,
-    * and verify closing without saving (if appropriate).
-    *
-   @Subscribe
-   public void onRequestToClose(RequestToCloseEvent event) {
-      DisplayWindow display = event.getDisplay();
-      Datastore store = display.getDatastore();
-      List<DisplayWindow> displays;
-      synchronized (this) {
-         if (!storeToDisplays_.containsKey(store)) {
-            // This should never happen.
-            ReportingUtils.logError("Somehow got notified of a request to close for a display that isn't associated with a datastore that we are managing.");
-            return;
-         }
-         displays = getDisplays(store);
-         if (!displays.contains(display)) {
-            // This should also never happen.
-            ReportingUtils.logError("Got notified of a request to close for a display that we didn't know was associated with datastore " + store);
-         }
-      }
-
-      if (displays.size() > 1) {
-         // Not last display, so it's fine to remove it.
-         removeDisplay(display);
-         return;
-      }
-      // Last display; check for saving now.
-      if (store.getSavePath() != null) {
-         // No problem with saving.
-         removeDisplay(display);
-         return;
-      }
-      // Prompt the user to save their data.
-      if (promptToSave(store, display)) {
-         removeDisplay(display);
-         store.freeze();
-         // This will invoke our onDatastoreClosed() method.
-         store.close();
-      }
-   }
-   */
 
    // TODO Why do we need both store and display?
    @Override

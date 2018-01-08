@@ -27,7 +27,6 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import mmcorej.CMMCore;
 import org.micromanager.display.DisplayWindow;
-//import org.micromanager.events.DisplayAboutToShowEvent;
 import org.micromanager.internal.MMStudio;
 import org.micromanager.internal.interfaces.LiveModeListener;
 import org.micromanager.internal.utils.ReportingUtils;
@@ -46,27 +45,6 @@ public final class ZWheelListener implements MouseWheelListener, LiveModeListene
       core_ = core;
       studio_ = studio;
    }
-   /**
-    * Even when the live mode manager starts live mode, the ZWheel Listener
-    * can only attach to an existing window.  Therefore, listen for the formation
-    * of a new display.  If the listener has been started and there was no window
-    * 
-    * @param datse Handle to the new display
-    */
-   // TODO
-   /*
-   @Subscribe
-   public synchronized void onNewDisplay(DisplayAboutToShowEvent datse) {
-      try {
-      ImageWindow win = datse.getDisplay().getImagePlus().getWindow();
-      if (waitingForWindow_) {
-         start(win);
-      }
-      } catch (NullPointerException npe) {
-         studio_.logs().logError(npe, "New display has no ImageJ Window in ZWheelListener");
-      }
-   }
-   */
 
    /**
     * We can only start if there is a live window

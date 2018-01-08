@@ -56,7 +56,6 @@ import org.micromanager.data.internal.DefaultSummaryMetadata;
 import org.micromanager.data.internal.StorageRAM;
 import org.micromanager.data.internal.StorageSinglePlaneTiffSeries;
 import org.micromanager.data.internal.multipagetiff.StorageMultipageTiff;
-//import org.micromanager.display.DisplayDestroyedEvent;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.events.AcquisitionEndedEvent;
 import org.micromanager.events.internal.DefaultEventManager;
@@ -64,7 +63,6 @@ import org.micromanager.internal.utils.JavaUtils;
 import org.micromanager.internal.utils.MDUtils;
 import org.micromanager.internal.utils.ReportingUtils;
 import org.micromanager.display.DisplayWindowControlsFactory;
-//import org.micromanager.display.RequestToCloseEvent;
 import org.micromanager.internal.propertymap.NonPropertyMapJSONFormats;
 
 /**
@@ -242,14 +240,6 @@ public final class MMAcquisition {
          studio_ = studio;
       }
 
-      /*
-      @Subscribe
-      public void onDisplayDestroyed(DisplayDestroyedEvent e) {
-         DefaultEventManager.getInstance().unregisterForEvents(this);
-         e.getDisplay().unregisterForEvents(this);
-      }
-      */
-
       @Subscribe
       public void onAcquisitionEnded(AcquisitionEndedEvent e) {
          if (studio_.acquisitions().isOurAcquisition(e.getSource())) {
@@ -319,38 +309,6 @@ public final class MMAcquisition {
          }
       };
    }
-
-   /*
-   @Subscribe
-   public void onRequestToClose(RequestToCloseEvent event) {
-      // Prompt to stop the acquisition if it's still running. Only if our
-      // display is the display for the current active acquisition.
-      if (eng_.getAcquisitionDatastore() == store_) {
-         if (!eng_.abortRequest()) {
-            // User cancelled abort.
-            return;
-         }
-      }
-      if (store_.getSavePath() != null ||
-            studio_.displays().promptToSave(store_, display_)) {
-         // Datastore is saved, or user declined to save.
-         display_.forceClosed();
-         try {
-            store_.close();
-         }
-         catch (IOException e) {
-            // TODO XXX Report
-         }
-      }
-   }
-*/
-/*
-   @Subscribe
-   public void onDisplayDestroyed(DisplayDestroyedEvent event) {
-      display_.unregisterForEvents(this);
-      display_ = null;
-   }
-*/
 
    @Subscribe
    public void onAcquisitionEnded(AcquisitionEndedEvent event) {

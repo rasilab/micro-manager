@@ -70,7 +70,6 @@ import org.micromanager.internal.utils.performance.PerformanceMonitor;
 import org.micromanager.internal.utils.performance.gui.PerformanceMonitorUI;
 import org.micromanager.quickaccess.internal.QuickAccessFactory;
 import org.micromanager.display.DisplayWindowControlsFactory;
-//import org.micromanager.display.RequestToCloseEvent;
 
 /**
  * This class is responsible for all logic surrounding live mode and the
@@ -772,18 +771,6 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager {
       }
       return display_;
    }
-/*
-   @Subscribe
-   public void onRequestToClose(RequestToCloseEvent event) {
-      // Closing is fine by us, but we need to stop live mode first.
-      setLiveMode(false);
-      event.getDisplay().forceClosed();
-      // Force a reset for next time, in case of changes that we don't pick up
-      // on (e.g. a processor that failed to notify us of changes in image
-      // parameters.
-      shouldForceReset_ = true;
-   }
-*/
 
    @Subscribe
    public void onPipelineChanged(NewPipelineEvent event) {
