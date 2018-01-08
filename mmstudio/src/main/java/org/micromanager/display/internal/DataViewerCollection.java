@@ -49,13 +49,9 @@ public class DataViewerCollection implements EventPublisher {
    // Access: only on EDT
    private final Set<DataViewer> viewers_ = new HashSet<DataViewer>();
 
-   // Viewers in most-recently-activated order. The first element is the
-   // currently active viewer.
-   // Invariant: elements are unique
-   // Invariant: elements are in viewers_
+   // The currently active viewer, or null if none is active.
    // Access: only onEDT
-   private final Deque<DataViewer> activeViewerStack_ =
-         new ArrayDeque<DataViewer>();
+   private DataViewer activeViewer_;
 
    private final EventBus eventBus_ = new EventBus(EventBusExceptionLogger.getInstance());
 
@@ -91,19 +87,8 @@ public class DataViewerCollection implements EventPublisher {
       viewers_.remove(viewer);
       if (viewer == getActiveDataViewer()) {
          eventBus_.post(DataViewerDidBecomeInactiveEvent.create(viewer));
+         activeViewer_ = null;
       }
-      activeViewerStack_.remove(viewer);
-
-      // By having removed this viewer, the top of the active viewer stack
-      // is now the viewer that should now become active.
-      // TODO Is the following needed? Should we not only activate a viewer
-      // based on window activation events?
-      // BUG: The current code can cause duplicate DataViewerDidBecomeActiveEvents.
-      DataViewer activeViewer = getActiveDataViewer();
-      if (activeViewer != null) {
-         eventBus_.post(DataViewerDidBecomeActiveEvent.create(activeViewer));
-      }
-      
    }
 
    @MustCallOnEDT
@@ -113,12 +98,7 @@ public class DataViewerCollection implements EventPublisher {
 
    @MustCallOnEDT
    public DataViewer getActiveDataViewer() {
-      for (DataViewer viewer : activeViewerStack_) {
-         if (viewer.isVisible()) {
-            return viewer;
-         }
-      }
-      return null;
+      return activeViewer_;
    }
 
    @Subscribe
@@ -144,8 +124,7 @@ public class DataViewerCollection implements EventPublisher {
          eventBus_.post(DataViewerDidBecomeInactiveEvent.create(previous));
       }
 
-      activeViewerStack_.remove(e.getDataViewer());
-      activeViewerStack_.addFirst(e.getDataViewer());
+      activeViewer_ = e.getDataViewer();
 
       eventBus_.post(e);
    }
