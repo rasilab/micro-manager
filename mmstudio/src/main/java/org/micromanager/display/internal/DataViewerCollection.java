@@ -29,11 +29,15 @@ import org.micromanager.internal.utils.MustCallOnEDT;
  *
  * Manages all data viewers in the application, and keeps track of the
  * currently active viewer. Also publishes all viewer events.
- * 
- * NS: The definition of "active" is ambiguous.  Does this mean the
- * front-most visible viewer?  Or all viewers that are on the screen?  This 
- * ambiguity creates problems downstream. 
- * 
+ * <p>
+ * The active viewer is the viewer currently selected by the user: for viewers
+ * contained in their own window and it is the front window, that viewer is
+ * active. Viewers that are subcomponents of other windows are active when
+ * their containing window is in front (and the viewer is explicitly selected,
+ * in the case where the window contains more than one viewer).
+ * <p>
+ * It is possible to have no active viewer (e.g. if the active window does not
+ * contain any viewer).
  * <p>
  * This class handles generic {@code DataViewer}s and does not perform tasks
  * that are specific to {@code DisplayWindow}s.
@@ -89,9 +93,12 @@ public class DataViewerCollection implements EventPublisher {
          eventBus_.post(DataViewerDidBecomeInactiveEvent.create(viewer));
       }
       activeViewerStack_.remove(viewer);
-      // An event needs to be generated for the newly front-most Dataviewer
-      // even though it may already have been "active", it is not in front
-      // and event consumers (like the Inspector) will need to know about this.
+
+      // By having removed this viewer, the top of the active viewer stack
+      // is now the viewer that should now become active.
+      // TODO Is the following needed? Should we not only activate a viewer
+      // based on window activation events?
+      // BUG: The current code can cause duplicate DataViewerDidBecomeActiveEvents.
       DataViewer activeViewer = getActiveDataViewer();
       if (activeViewer != null) {
          eventBus_.post(DataViewerDidBecomeActiveEvent.create(activeViewer));
