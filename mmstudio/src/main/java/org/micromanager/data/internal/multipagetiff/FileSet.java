@@ -151,12 +151,12 @@ class FileSet {
          ifdCount_ = 0;
          tiffWriters_.add(new MultipageTiffWriter(masterStorage_,
                img, currentTiffFilename_));
-         
+
          //Add new filename to image tags
          img = img.copyWithMetadata(img.getMetadata().
                copyBuilderPreservingUUID().fileName(currentTiffFilename_).
                build());
-      }      
+      }
 
       //write image
       tiffWriters_.getLast().writeImage(img);
