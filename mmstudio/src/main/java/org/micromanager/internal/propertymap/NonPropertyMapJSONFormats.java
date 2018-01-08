@@ -14,7 +14,6 @@ import org.micromanager.PropertyMap;
 import org.micromanager.PropertyMaps;
 import org.micromanager.data.internal.PropertyKey;
 import static org.micromanager.data.internal.PropertyKey.*;
-import org.micromanager.internal.MMStudio;
 
 /**
  * High-level format conversion between MM1-style JSON and modern property maps.
@@ -117,6 +116,8 @@ public abstract class NonPropertyMapJSONFormats {
                USER_DATA,
                FILE_NAME))
          {
+            // We do NOT check for exceptions here, because there should be
+            // none unless this method is used incorrectly
             key.extractFromGsonObject(je.getAsJsonObject(), builder);
          }
          return builder.build();
@@ -145,11 +146,9 @@ public abstract class NonPropertyMapJSONFormats {
                USER_DATA,
                FILE_NAME))
          {
-            try {
+            // We do NOT check for exceptions here, because there should be
+            // none unless this method is used incorrectly
             key.storeInGsonObject(pmap, jo);
-            } catch (NullPointerException npe) {
-               MMStudio.getInstance().logs().logError(npe, "Key: " + key);
-            }
          }
       }
    }
@@ -215,17 +214,10 @@ public abstract class NonPropertyMapJSONFormats {
                PIXEL_TYPE, // compat
                WIDTH, // compat
                HEIGHT, // compat
-               USER_DATA,
-               DISPLAY_SETTINGS))
+               USER_DATA /*,
+               DISPLAY_SETTINGS */)) // TODO (Need to implement DisplaySettings below)
          {
-            try {
-               key.storeInGsonObject(pmap, jo);
-            } catch (NullPointerException npe) {
-               //MMStudio.getInstance().logs().logError(npe, "Key: " + key);
-            } catch (UnsupportedOperationException uoe) {
-               //MMStudio.getInstance().logs().logError(uoe, "Key: " + key);
-            }
-         
+            key.storeInGsonObject(pmap, jo);
          }
       }
    }

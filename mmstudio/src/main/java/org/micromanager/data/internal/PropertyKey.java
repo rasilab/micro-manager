@@ -33,7 +33,6 @@ import org.micromanager.data.Coords;
 import org.micromanager.data.Image;
 import org.micromanager.data.Metadata;
 import org.micromanager.data.SummaryMetadata;
-import org.micromanager.internal.MMStudio;
 import org.micromanager.internal.propertymap.NonPropertyMapJSONFormats;
 import org.micromanager.internal.propertymap.MM1JSONSerializer;
 import org.micromanager.internal.propertymap.PropertyMapJSONSerializer;
@@ -246,7 +245,7 @@ public enum PropertyKey {
 
       @Override
       protected JsonElement convertToGson(PropertyMap pmap) {
-         return new JsonPrimitive(pmap.getString(key(), null));
+         return makeGsonPrimitiveOrNull(pmap.getString(key(), null));
       }
    },
 
@@ -335,7 +334,7 @@ public enum PropertyKey {
 
       @Override
       protected JsonElement convertToGson(PropertyMap pmap) {
-         return new JsonPrimitive(pmap.getString(key(), null));
+         return makeGsonPrimitiveOrNull(pmap.getString(key(), null));
       }
    },
 
@@ -370,7 +369,7 @@ public enum PropertyKey {
 
       @Override
       protected JsonElement convertToGson(PropertyMap pmap) {
-         return new JsonPrimitive(pmap.getString(key(), null));
+         return makeGsonPrimitiveOrNull(pmap.getString(key(), null));
       }
    },
 
@@ -521,21 +520,7 @@ public enum PropertyKey {
       @Override
       protected void convertFromGson(JsonElement je, PropertyMap.Builder dest) {
          // User simple JSON object (axis => coord)
-         PropertyMap fromGson = MM1JSONSerializer.fromGson(je);
-         // The MM1JSON Serializer makes longs out of numbers.
-         // We need them here as ints, so convert
-         PropertyMap.Builder builder = PropertyMaps.builder();
-         for (String key : fromGson.keySet()) {
-            if (fromGson.containsLong(key)) {
-               builder.putInteger(key, fromGson.getLong(key).intValue());
-            } else {
-               // NS: not sure how to handle this.  Can we be sure only to 
-               // receive the correct keys?  I see no straight forward way 
-               // to copy other properties
-               MMStudio.getInstance().logs().showError("Found weird key in Intended dimensiona: " + key);
-            }
-         }
-         dest.putPropertyMap(key(), builder.build());
+         dest.putPropertyMap(key(), MM1JSONSerializer.fromGson(je));
       }
 
       @Override
@@ -619,7 +604,7 @@ public enum PropertyKey {
 
       @Override
       protected JsonElement convertToGson(PropertyMap pmap) {
-         return new JsonPrimitive(pmap.getString(key(), null));
+         return makeGsonPrimitiveOrNull(pmap.getString(key(), null));
       }
    },
 
@@ -894,7 +879,7 @@ public enum PropertyKey {
 
       @Override
       protected JsonElement convertToGson(PropertyMap pmap) {
-         return new JsonPrimitive(pmap.getString(key(), null));
+         return makeGsonPrimitiveOrNull(pmap.getString(key(), null));
       }
    },
 
@@ -914,7 +899,7 @@ public enum PropertyKey {
          // To enable re-saving old data set, do not require this key
          String receivedTime = pmap.getString(key(), null);
          if (receivedTime != null) {
-            return new JsonPrimitive(receivedTime);
+            return makeGsonPrimitiveOrNull(receivedTime);
          }
          return null;
       }
@@ -1182,7 +1167,7 @@ public enum PropertyKey {
 
       @Override
       protected JsonElement convertToGson(PropertyMap pmap) {
-         return new JsonPrimitive(pmap.getString(key(), null));
+         return makeGsonPrimitiveOrNull(pmap.getString(key(), null));
       }
    },
 
@@ -1385,7 +1370,7 @@ public enum PropertyKey {
       }
    },
 
-   ;
+   ; // End of enum values
 
    private final String canonical_;
    private final String[] historical_;
@@ -1552,4 +1537,7 @@ public enum PropertyKey {
       return ALL_SPELLINGS.contains(key);
    }
 
+   private static JsonElement makeGsonPrimitiveOrNull(String s) {
+      return s == null ? null : new JsonPrimitive(s);
+   }
 }
