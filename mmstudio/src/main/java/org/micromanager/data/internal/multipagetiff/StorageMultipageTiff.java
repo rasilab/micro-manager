@@ -280,10 +280,6 @@ public final class StorageMultipageTiff implements Storage {
       }
       catch (MMException e) {
          ReportingUtils.showError(e, "Failed to write image at " + image.getCoords());
-      } catch (InterruptedException e) {
-         ReportingUtils.showError(e, "Failed to write image at " + image.getCoords());
-      } catch (ExecutionException e) {
-         ReportingUtils.showError(e, "Failed to write image at " + image.getCoords());
       } catch (IOException e) {
          ReportingUtils.showError(e, "Failed to write image at " + image.getCoords());
       }
@@ -294,7 +290,7 @@ public final class StorageMultipageTiff implements Storage {
       finished();
    }
 
-   private void writeImage(DefaultImage image, boolean waitForWritingToFinish) throws MMException, InterruptedException, ExecutionException, IOException {
+   private void writeImage(DefaultImage image, boolean waitForWritingToFinish) throws MMException, IOException {
       writeImage(image);
       if (waitForWritingToFinish) {
          Future f = writingExecutor_.submit(new Runnable() {
@@ -302,7 +298,15 @@ public final class StorageMultipageTiff implements Storage {
             public void run() {
             }
          });
-         f.get();
+         try {
+            f.get();
+         }
+         catch (InterruptedException shouldntHappen) {
+         }
+         catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            throw cause instanceof IOException ? (IOException) cause : new IOException(cause);
+         }
       }
    }
 
@@ -627,9 +631,10 @@ public final class StorageMultipageTiff implements Storage {
       return maxIndices_;
    }
 
-   /**
-    * TODO: Check that summaryMetadata is a reliable source for this information
-    */
+   
+   // TODO: Check that summaryMetadata is a reliable source for this information
+   // TODO: This is suspicious. We should get ordered axes, yes, but we should
+   // make sure to return the axes actually contained in the Datastore.
    @Override
    public List<String> getAxes() {
       return summaryMetadata_.getOrderedAxes();

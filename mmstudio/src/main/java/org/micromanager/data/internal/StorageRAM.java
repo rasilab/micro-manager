@@ -117,6 +117,7 @@ public final class StorageRAM implements RewritableStorage {
    }
 
    // TODO: check that metadata axis are a reliable source of information
+   // TODO: Also make sure we aren't adding spurious (unused) axes here.
    @Override
    public List<String> getAxes() {
       return summaryMetadata_.getOrderedAxes();

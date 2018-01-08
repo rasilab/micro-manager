@@ -677,10 +677,11 @@ public final class DisplayUIController implements Closeable, WindowListener,
             scrollableLengths.add(displayedAxisLengths_.get(i));
          }
       }
+
       // Reorder scrollable axes to match axis order of data provider
       Collections.sort(scrollableAxes, new Comparator<String>() {
+         // TODO: This logic might belong in Datastore
          @Override
-         // This could be comverted in a utility function
          public int compare(String o1, String o2) {
             if (o1.equals(o2)) { 
                return 0;
@@ -693,6 +694,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
             return axisMap.get(o1) > axisMap.get(o2) ? 1 : -1;
          }
       });
+
       scrollBarPanel_.setAxes(scrollableAxes);
       for (int i = 0; i < scrollableAxes.size(); ++i) {
          scrollBarPanel_.setAxisLength(scrollableAxes.get(i),
