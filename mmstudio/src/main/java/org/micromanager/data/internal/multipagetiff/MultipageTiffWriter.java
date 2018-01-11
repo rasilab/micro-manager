@@ -54,14 +54,16 @@ import org.micromanager.data.internal.DefaultImage;
 import org.micromanager.data.internal.DefaultMetadata;
 import org.micromanager.data.internal.DefaultSummaryMetadata;
 import org.micromanager.data.internal.PropertyKey;
+import org.micromanager.display.ChannelDisplaySettings;
 import org.micromanager.display.DisplaySettings;
+import org.micromanager.display.internal.ChannelDisplayDefaults;
 import org.micromanager.display.internal.DefaultDisplaySettings;
-import org.micromanager.display.internal.RememberedChannelSettings;
 import org.micromanager.internal.MMStudio;
 import org.micromanager.internal.propertymap.MM1JSONSerializer;
 import org.micromanager.internal.propertymap.NonPropertyMapJSONFormats;
 import org.micromanager.internal.utils.ImageUtils;
 import org.micromanager.internal.utils.ReportingUtils;
+import org.micromanager.internal.utils.UserProfileStaticInterface;
 
 public final class MultipageTiffWriter {
 
@@ -773,25 +775,32 @@ public final class MultipageTiffWriter {
 
       SummaryMetadata summary = masterStorage_.getSummaryMetadata();
       String channelGroup = summary.getChannelGroup();
+      // TODO BUG File saving should not depend on user preferences!
+      // We should (some how) be using the actual current display settings here.
+      // Also, as of this writing there is no code storing the scaling range
+      // for channels (let alone multi-component images)
+      ChannelDisplayDefaults defaults = new ChannelDisplayDefaults(UserProfileStaticInterface.getInstance());
+
       // Store contrast min/max.
       for (int i = 0; i < numChannels; i++) {
          String name = summary.getSafeChannelName(i);
-         RememberedChannelSettings settings = RememberedChannelSettings.loadSettings(
-               name, channelGroup, Color.WHITE, new Integer[] {0},
-               new Integer[] {1}, true);
+         ChannelDisplaySettings settings = defaults.getSettingsForChannel(
+               channelGroup, name);
          // Display Ranges: For each channel, write min then max
          // TODO: doesn't handle multi-component images.
-         mdBuffer.putDouble(bufferPosition, settings.getHistogramMin(0));
+         mdBuffer.putDouble(bufferPosition, settings.getComponentSettings(
+               0).getScalingMinimum());
          bufferPosition += 8;
-         mdBuffer.putDouble(bufferPosition, settings.getHistogramMax(0));
+         mdBuffer.putDouble(bufferPosition, settings.getComponentSettings(
+               0).getScalingMaximum());
          bufferPosition += 8;
       }
 
       // Store LUTs for each channel.
       for (int i = 0; i < numChannels; ++i) {
          String name = summary.getSafeChannelName(i);
-         Color color = RememberedChannelSettings.getColorForChannel(
-               name, channelGroup, Color.WHITE);
+         Color color = defaults.getSettingsForChannel(channelGroup, name).getColor();
+
          // HACK: defaulting to a gamma range of 1.0, as display settings
          // aren't available here and that's the only place we can access that
          // information.

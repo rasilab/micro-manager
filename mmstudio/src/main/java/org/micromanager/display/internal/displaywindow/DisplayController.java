@@ -44,7 +44,6 @@ import org.micromanager.display.overlay.Overlay;
 import org.micromanager.display.overlay.OverlayListener;
 import org.micromanager.display.inspector.internal.panels.intensity.ImageStatsPublisher;
 import org.micromanager.display.internal.DefaultDisplaySettings;
-import org.micromanager.display.internal.RememberedChannelSettings;
 import org.micromanager.display.internal.animate.AnimationController;
 import org.micromanager.display.internal.animate.DataCoordsAnimationState;
 import org.micromanager.display.internal.event.DefaultDisplayDidShowImageEvent;
@@ -69,7 +68,10 @@ import org.micromanager.internal.utils.performance.PerformanceMonitor;
 import org.micromanager.internal.utils.performance.gui.PerformanceMonitorUI;
 import org.micromanager.data.DataProviderHasNewImageEvent;
 import org.micromanager.data.DataProviderHasNewNameEvent;
+import org.micromanager.display.ChannelDisplaySettings;
 import org.micromanager.display.DataViewerDelegate;
+import org.micromanager.display.internal.ChannelDisplayDefaults;
+import org.micromanager.internal.utils.UserProfileStaticInterface;
 
 /**
  * Main controller for the standard image viewer.
@@ -199,13 +201,20 @@ public final class DisplayController extends DisplayWindowAPIAdapter
    {
       DisplaySettings initialDisplaySettings = builder.displaySettings_;
       if (initialDisplaySettings == null) {
-         initialDisplaySettings = RememberedChannelSettings.updateSettings(
-               builder.dataProvider_.getSummaryMetadata(),
-               DefaultDisplaySettings.builder().build(),
-               builder.dataProvider_.getAxisLength(Coords.CHANNEL));
-      }
-      if (initialDisplaySettings == null) {
-         initialDisplaySettings = new DefaultDisplaySettings.LegacyBuilder().build();
+         // TODO Should this be handled by upstream code?
+         ChannelDisplayDefaults defaults = new ChannelDisplayDefaults(UserProfileStaticInterface.getInstance());
+         DisplaySettings.Builder settingsBuilder = DefaultDisplaySettings.builder();
+         int numChannels = builder.dataProvider_.getAxisLength(Coords.CHANNEL);
+         String groupName = builder.dataProvider_.getSummaryMetadata().getChannelGroup();
+         for (int i = 0; i < numChannels; ++i) {
+            String channelName = builder.dataProvider_.getSummaryMetadata().getSafeChannelName(i);
+            ChannelDisplaySettings channelSettings = defaults.getSettingsForChannel(
+                  groupName, channelName);
+            if (channelSettings != null) {
+               settingsBuilder.channel(i, channelSettings);
+            }
+         }
+         initialDisplaySettings = settingsBuilder.build();
       }
 
       final DisplayController instance =
