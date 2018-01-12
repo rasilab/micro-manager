@@ -358,8 +358,6 @@ public final class DisplayUIController implements Closeable, WindowListener,
          return;
       }
 
-      JFrame frame = fullScreenFrame_ == null ? frame_ : fullScreenFrame_;
-
       ijBridge_ = ImageJBridge.create(this);
 
       canvasPanel_.removeAll();
@@ -376,7 +374,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
       updateZoomUIState();
       canvasDidChangeSize();
-      
+
       // Need to set DisplaySettings now after the ijBridge has been created
       applyDisplaySettings(displayController_.getDisplaySettings());
    }
@@ -759,7 +757,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
       if (mouseLocationOnImage_ != null) {
          updatePixelInformation(); // TODO Can skip if identical images
       }
-      
+
       infoLabel_.setText(this.getInfoString()); // TODO, this should be invariant, so only need to do this for first image
 
       repaintScheduledForNewImages_.set(true);
@@ -767,12 +765,6 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
    @MustCallOnEDT
    public void applyDisplaySettings(DisplaySettings settings) {
-      // Note: This applies to color settings, zoom and playback fps
-      // Note that this function will be called every time the 
-      // uiController_.setDisplaySettings function is called, so make sure that
-      // function will not be called from within here, as an infinite loop will
-      // ensue.
-
       if (ijBridge_ == null) {
          return;
       }
@@ -853,11 +845,8 @@ public final class DisplayUIController implements Closeable, WindowListener,
             ijBridge_.mm2ijSetIntensityScaling(i, min, max);
          }
       }
-      
+
       ijBridge_.mm2ijSetZoom(settings.getZoomRatio());
-      
-      displayController_.setPlaybackSpeedFps(settings.getPlaybackFPS());
-      
    }
 
    @MustCallOnEDT
@@ -990,11 +979,9 @@ public final class DisplayUIController implements Closeable, WindowListener,
          fullScreenButton_.setToolTipText("View in full screen mode");
       }
    }
-   
 
    public void updateTitle() {
       if (frame_ != null) {
-         
             runnablePool_.invokeAsLateAsPossibleWithCoalescence(new CoalescentRunnable() {
                @Override
                public Class<?> getCoalescenceClass() {
@@ -1048,13 +1035,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
       }
    }
 
-   /**
-    * Callback for the ImageJ code.  Do not call directly.
-    * Used to update the Micro-Manager code of the new zoom factor.
-    * 
-    * @param factor Newly set Zoom factor.
-    */
-   public void uiDidSetZoom(double factor) {
+   public void zoomDidChange(double factor) {
       updateZoomUIState();
       displayController_.setDisplaySettings(displayController_.getDisplaySettings().
               copyBuilder().zoomRatio(factor).build());
@@ -1506,8 +1487,12 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
    private void handlePlaybackFpsSpinner(ChangeEvent event) {
       double fps = (Double) playbackFpsSpinner_.getValue();
-      displayController_.setDisplaySettings(displayController_.
-              getDisplaySettings().copyBuilder().playbackFPS(fps).build());
+      DisplaySettings oldSettings, newSettings;
+      do {
+         oldSettings = displayController_.getDisplaySettings();
+         newSettings = oldSettings.copyBuilder().playbackFPS(fps).build();
+      } while (!displayController_.compareAndSetDisplaySettings(oldSettings,
+            newSettings));
    }
 
    private void handleLockButton(ActionEvent event) {

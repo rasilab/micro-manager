@@ -501,6 +501,15 @@ public final class DisplayController extends DisplayWindowAPIAdapter
          });
       }
 
+      if (adjustedSettings.getPlaybackFPS() != oldSettings.getPlaybackFPS()) {
+         SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+               setPlaybackSpeedFps(adjustedSettings.getPlaybackFPS());
+            }
+         });
+      }
+
       runnablePool_.invokeAsLateAsPossibleWithCoalescence(new CoalescentRunnable() {
          @Override
          public Class<?> getCoalescenceClass() {
@@ -799,7 +808,11 @@ public final class DisplayController extends DisplayWindowAPIAdapter
       return animationController_.getAnimationRateFPS();
    }
 
+   @MustCallOnEDT
    public void setPlaybackSpeedFps(double fps) {
+      if (fps == animationController_.getAnimationRateFPS()) {
+         return;
+      }
       animationController_.setAnimationRateFPS(fps);
       int initialTickIntervalMs = Math.max(17, Math.min(500,
             (int) Math.round(1000.0 / fps)));

@@ -687,7 +687,7 @@ public final class ImageJBridge {
       if (canvas_ == null) {
          return; // In the process of swapping the canvas
       }
-      uiController_.uiDidSetZoom(factor);
+      uiController_.zoomDidChange(factor);
    }
 
    void ij2mmCanvasDidChangeSize() {
