@@ -305,17 +305,13 @@ public interface DisplayWindow extends DataViewer, Closeable {
    public Window getAsWindow();
 
    /**
-    * Add a custom extra string to the title of this display.
+    * Give the window a custom title.
     *
-    * The usual format for the window title is
-    * "#number: name (zoom ratio) (saved status)".
-    * If you call this method, then the name part will be replaced by your
-    * custom title. You can call this method with a null argument to revert to
-    * the default title, which is what {@link getName} returns.
+    * This allows you to set the window title to something different from the
+    * name of the data provider.
     *
-    * Calls are ignored if the display has closed.
-    *
-    * This method can be called from any thread.
+    * Calling this method does <b>not</b> change the data provider&quote;s
+    * name or the filename of the dataset.
     *
     * @param title a custom window title, or {@code null} to revert to the
     * default

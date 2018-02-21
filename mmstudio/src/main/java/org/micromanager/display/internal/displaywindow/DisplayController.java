@@ -94,6 +94,9 @@ public final class DisplayController extends DisplayWindowAPIAdapter
 {
    private final DataProvider dataProvider_;
 
+   private String customTitle_;
+   private static String DEFAULT_TITLE = "Untitled Image";
+
    // The actually painted images. Accessed only on EDT.
    private ImagesAndStats displayedImages_;
 
@@ -939,12 +942,20 @@ public final class DisplayController extends DisplayWindowAPIAdapter
       return (uiController_ == null);
    }
 
+   private String getDefaultTitle() {
+      if (dataProvider_ != null) {
+         return dataProvider_.getName();
+      }
+      else {
+         return DEFAULT_TITLE;
+      }
+   }
+
    @Override
    public String getName() {
-      // TODO: using the hashCode may be foolproof to provide a unique name, 
-      // but is not very useful to the end-user.
-      // Find a way to number viewers for one datastore sequentially instead
-      return dataProvider_.getName() + "-" + hashCode();
+      String title = customTitle_ != null ? customTitle_ : getDefaultTitle();
+      // TODO Replace the hashCode with the (a), (b), ... suffix
+      return title + "-" + hashCode();
    }
 
    @Override
@@ -1165,13 +1176,7 @@ public final class DisplayController extends DisplayWindowAPIAdapter
 
    @Override
    public void setCustomTitle(String title) {
-      // TODO: evaulate if this is as intended
-      if (dataProvider_ instanceof Datastore) {
-         if (dataProvider_ != null) {
-            ((Datastore) dataProvider_).setName(title);
-         } else {
-            // TODO: set default name, whatever that is and wherever that is decided
-         }
-      }
+      customTitle_ = title;
+      uiController_.updateTitle();
    }
 }
