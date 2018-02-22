@@ -58,7 +58,8 @@ public class PopupButton extends JToggleButton
    }
 
    private final EventListenerSupport<Listener> listeners_ =
-         EventListenerSupport.create(Listener.class);
+         new EventListenerSupport(Listener.class,
+               this.getClass().getClassLoader());
 
    private JPopupMenu popup_;
    private JComponent component_;

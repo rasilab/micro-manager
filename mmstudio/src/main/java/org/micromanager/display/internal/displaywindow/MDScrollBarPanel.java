@@ -54,7 +54,8 @@ public class MDScrollBarPanel extends JPanel implements AdjustmentListener {
    }
 
    private final EventListenerSupport<Listener> listeners_ =
-         EventListenerSupport.create(Listener.class);
+         new EventListenerSupport(Listener.class,
+               this.getClass().getClassLoader());
 
    private final ControlsFactory leftControlsFactory_;
    private final ControlsFactory rightControlsFactory_;

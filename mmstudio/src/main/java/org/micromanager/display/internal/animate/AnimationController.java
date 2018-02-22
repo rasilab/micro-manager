@@ -59,7 +59,8 @@ public final class AnimationController<P> {
    }
 
    private final EventListenerSupport<Listener> listeners_ =
-         EventListenerSupport.create(Listener.class);
+         new EventListenerSupport(Listener.class,
+               this.getClass().getClassLoader());
 
    private final AnimationStateDelegate<P> sequencer_;
 
