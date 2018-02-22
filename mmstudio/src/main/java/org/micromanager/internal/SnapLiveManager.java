@@ -53,6 +53,8 @@ import org.micromanager.data.PipelineErrorException;
 import org.micromanager.data.internal.DefaultImage;
 import org.micromanager.data.internal.DefaultRewritableDatastore;
 import org.micromanager.data.internal.StorageRAM;
+import org.micromanager.display.DataViewer;
+import org.micromanager.display.DataViewerDelegate;
 import org.micromanager.display.DisplaySettings;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.display.internal.DefaultDisplaySettings;
@@ -76,7 +78,7 @@ import org.micromanager.display.DisplayWindowControlsFactory;
  *
  * @author Chris Weisiger and Mark A. Tsuchida
  */
-public final class SnapLiveManager implements org.micromanager.SnapLiveManager {
+public final class SnapLiveManager implements org.micromanager.SnapLiveManager, DataViewerDelegate {
    private static final String TITLE = "Preview";
 
    private static final double MIN_GRAB_DELAY_MS = 1000.0 / 60.0;
@@ -476,6 +478,7 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager {
          display_.setDisplaySettings(settings);
       }
       display_.registerForEvents(this);
+      display_.setDelegate(this);
       display_.setCustomTitle(TITLE);
    }
 
@@ -783,5 +786,13 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager {
       if (!event.getIsCancelled()) {
          setLiveMode(false);
       }
+   }
+
+   @Override
+   public boolean dataViewerShouldClose(DataViewer viewer) {
+      if (viewer instanceof DisplayWindow && viewer.equals(display_)) {
+         setLiveMode(false);
+      }
+      return true;
    }
 }
