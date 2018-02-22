@@ -44,6 +44,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -162,11 +164,13 @@ public final class DisplayUIController implements Closeable, WindowListener,
          "/org/micromanager/icons/pause.png");
    private static final Icon UNLOCKED_ICON = IconLoader.getIcon(
          "/org/micromanager/icons/lock_open.png");
+   // TODO: Make Icons same size so that they are not moving around when changing
    private static final Icon BLACK_LOCKED_ICON = IconLoader.getIcon(
          "/org/micromanager/icons/lock_locked.png");
    private static final Icon RED_LOCKED_ICON = IconLoader.getIcon(
          "/org/micromanager/icons/lock_super.png");
-
+   
+   private final Insets buttonInsets_ = new Insets(0, 5, 0, 5);
 
    private ImageJBridge ijBridge_;
 
@@ -470,10 +474,11 @@ public final class DisplayUIController implements Closeable, WindowListener,
       int width = 16 + playbackFpsButton_.getFontMetrics(
             playbackFpsButton_.getFont()).stringWidth("Playback: 9999.0 fps");
       Dimension fpsButtonSize = new Dimension(width,
-            fpsLabel_.getPreferredSize().height);
+            fpsLabel_.getPreferredSize().height + 4);
       playbackFpsButton_.setMinimumSize(fpsButtonSize);
       playbackFpsButton_.setMaximumSize(fpsButtonSize);
       playbackFpsButton_.setPreferredSize(fpsButtonSize);
+      playbackFpsButton_.setMargin(buttonInsets_);
       playbackFpsButton_.addPopupButtonListener(new PopupButton.Listener() {
          @Override
          public void popupButtonWillShowPopup(PopupButton button) {
@@ -503,7 +508,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
       panel.add(scrollBarPanel_, new CC().growX().pushX().split(2));
 
       axisLockButton_ = new JButton();
-      Dimension size = new Dimension(MDScrollBarPanel.ROW_HEIGHT, MDScrollBarPanel.ROW_HEIGHT);
+      Dimension size = new Dimension(UNLOCKED_ICON.getIconWidth() + 6, MDScrollBarPanel.ROW_HEIGHT);
       axisLockButton_.setMinimumSize(size);
       axisLockButton_.setPreferredSize(size);
       axisLockButton_.setIcon(UNLOCKED_ICON);
@@ -550,7 +555,9 @@ public final class DisplayUIController implements Closeable, WindowListener,
       if (animateButton == null) {
          animateButton = new JToggleButton(axis.substring(0, 1));
          animateButton.setFont(animateButton.getFont().deriveFont(10.0f));
-         Dimension size = new Dimension(2 * height, height);
+         int width = 22 + PLAY_ICON.getIconWidth() + animateButton .getFontMetrics(animateButton .getFont()).
+               stringWidth("z");
+         Dimension size = new Dimension(width, height);
          animateButton.setMinimumSize(size);
          animateButton.setMaximumSize(size);
          animateButton.setPreferredSize(size);
@@ -558,6 +565,8 @@ public final class DisplayUIController implements Closeable, WindowListener,
          animateButton.setHorizontalTextPosition(SwingConstants.RIGHT);
          animateButton.setIcon(PLAY_ICON);
          animateButton.setSelectedIcon(PAUSE_ICON);
+         animateButton.setBorderPainted(false);
+         animateButton.setMargin(buttonInsets_);
          animateButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -586,6 +595,8 @@ public final class DisplayUIController implements Closeable, WindowListener,
          positionButton.setMinimumSize(size);
          positionButton.setMaximumSize(size);
          positionButton.setPreferredSize(size);
+         positionButton.setBorderPainted(false);
+         positionButton.setMargin(buttonInsets_);
          axisPositionButtons_.add(new AbstractMap.SimpleEntry(
                axis, positionButton));
       }
@@ -658,8 +669,6 @@ public final class DisplayUIController implements Closeable, WindowListener,
          }
       }
 
-      // TODO XXX Reorder scrollable axes to match axis order of data provider
-
       List<String> scrollableAxes = new ArrayList<String>();
       List<Integer> scrollableLengths = new ArrayList<Integer>();
       for (int i = 0; i < displayedAxes_.size(); ++i) {
@@ -668,6 +677,22 @@ public final class DisplayUIController implements Closeable, WindowListener,
             scrollableLengths.add(displayedAxisLengths_.get(i));
          }
       }
+      // Reorder scrollable axes to match axis order of data provider
+      Collections.sort(scrollableAxes, new Comparator<String>() {
+         @Override
+         // This could be comverted in a utility function
+         public int compare(String o1, String o2) {
+            if (o1.equals(o2)) { 
+               return 0;
+            } 
+            List<String> ordered = displayController_.getOrderedAxes();
+            Map<String, Integer> axisMap = new HashMap<String, Integer>(ordered.size());
+            for (int i = 0; i < ordered.size(); i++) {
+               axisMap.put(ordered.get(i), i);
+            }
+            return axisMap.get(o1) > axisMap.get(o2) ? 1 : -1;
+         }
+      });
       scrollBarPanel_.setAxes(scrollableAxes);
       for (int i = 0; i < scrollableAxes.size(); ++i) {
          scrollBarPanel_.setAxisLength(scrollableAxes.get(i),
@@ -848,24 +873,27 @@ public final class DisplayUIController implements Closeable, WindowListener,
       newImageIndicator_.setVisible(show);
    }
 
-   private void updateAxisPositionIndicator(String axis, int position, int length) {
-      if (length < 0) {
+   private void updateAxisPositionIndicator(final String axis, 
+           final int position, final int length) {
+      int checkedLength = length;
+      if (checkedLength < 0) {
          int axisIndex = displayedAxes_.indexOf(axis);
          if (axisIndex < 0) {
             return;
          }
-         length = displayedAxisLengths_.get(axisIndex);
+         checkedLength = displayedAxisLengths_.get(axisIndex);
       }
-      if (length <= 1) {
+      if (checkedLength <= 1) {
          return; // Not displayed
       }
-      if (position < 0) {
-         position = scrollBarPanel_.getAxisPosition(axis);
+      int checkedPosition = position;
+      if (checkedPosition < 0) {
+         checkedPosition = scrollBarPanel_.getAxisPosition(axis);
       }
       for (Map.Entry<String, PopupButton> e : axisPositionButtons_) {
          if (axis.equals(e.getKey())) {
             e.getValue().setText(String.format("% 5d/% 5d",
-                  position + 1, length));
+                  checkedPosition + 1, checkedLength));
             break;
          }
       }
