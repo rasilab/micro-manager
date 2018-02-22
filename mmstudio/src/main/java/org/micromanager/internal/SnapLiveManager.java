@@ -40,6 +40,7 @@ import mmcorej.CMMCore;
 import mmcorej.TaggedImage;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.micromanager.PropertyMaps;
 import org.micromanager.Studio;
 import org.micromanager.data.Coordinates;
 import org.micromanager.data.Coords;
@@ -52,6 +53,7 @@ import org.micromanager.data.Pipeline;
 import org.micromanager.data.PipelineErrorException;
 import org.micromanager.data.internal.DefaultImage;
 import org.micromanager.data.internal.DefaultRewritableDatastore;
+import org.micromanager.data.internal.PropertyKey;
 import org.micromanager.data.internal.StorageRAM;
 import org.micromanager.display.DataViewer;
 import org.micromanager.display.DataViewerDelegate;
@@ -89,6 +91,8 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
    // up to optimum. Too low can cause jittery display due to frames being
    // skipped.
    private static final double DISPLAY_INTERVAL_ESTIMATE_Q = 0.25;
+
+   private static final String DISPLAY_SETTINGS_PROFILE_KEY = "DisplaySettings";
 
    private final Studio studio_;
    private final CMMCore core_;
@@ -465,19 +469,13 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
       display_ = new DisplayController.Builder(store_).
             controlsFactory(controlsFactory).
             shouldShow(true).build();
+      DisplaySettings ds = DefaultDisplaySettings.fromPropertyMap(
+            studio_.profile().getSettings(getClass()).getPropertyMap(
+                  DISPLAY_SETTINGS_PROFILE_KEY,
+                  PropertyMaps.emptyPropertyMap()));
+      display_.setDisplaySettings(ds);
       studio_.displays().addViewer(display_);
 
-      // HACK: coerce single-camera setups to grayscale (instead of the
-      // default of composite mode) if there is no existing profile settings
-      // for the user and we do not have a multicamera setup.
-      DisplaySettings.ColorMode mode = DefaultDisplaySettings.getStandardColorMode(TITLE, null);
-      if (mode == null && numCameraChannels_ == 1) {
-         DisplaySettings settings = display_.getDisplaySettings();
-         settings = settings.copyBuilder()
-            .colorMode(DisplaySettings.ColorMode.GRAYSCALE)
-            .build();
-         display_.setDisplaySettings(settings);
-      }
       display_.registerForEvents(this);
       display_.setDelegate(this);
       display_.setCustomTitle(TITLE);
@@ -792,6 +790,11 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
    @Override
    public boolean dataViewerShouldClose(DataViewer viewer) {
       if (viewer instanceof DisplayWindow && viewer.equals(display_)) {
+         if (display_.getDisplaySettings() instanceof DefaultDisplaySettings) {
+            studio_.profile().getSettings(getClass()).putPropertyMap(
+                  DISPLAY_SETTINGS_PROFILE_KEY,
+                  ((DefaultDisplaySettings) display_.getDisplaySettings()).toPropertyMap());
+         }
          setLiveMode(false);
       }
       return true;

@@ -25,6 +25,7 @@ import java.awt.Color;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -790,6 +791,21 @@ public final class DefaultDisplaySettings implements DisplaySettings {
    }
 
    @Override
+   public Boolean getShouldAutostretch() {
+      return isAutostretchEnabled();
+   }
+
+   @Override
+   public Boolean getShouldScaleWithROI() {
+      return isROIAutoscaleEnabled();
+   }
+
+   @Override
+   public Double getExtremaPercentage() {
+      return getAutoscaleIgnoredPercentile();
+   }
+
+   @Override
    public DisplaySettings.Builder copyBuilder() {
       DisplaySettings.Builder ret = builder().zoomRatio(zoom_).playbackFPS(fps_).colorMode(mode_).
             uniformChannelScaling(uniformChannelScaling_).
@@ -961,49 +977,51 @@ public final class DefaultDisplaySettings implements DisplaySettings {
    }
 
    /**
-    * Restore DisplaySettings from a PropertyMap
+    * Restore DisplaySettings from a PropertyMap.
     * NS: Should this be in the api?
-    * @param pMap PropertyMap to be restored to DisplaySettings
+    * @param pmap PropertyMap to be restored to DisplaySettings
     * @return restored DisplaySettings.  Any missing component will be replaced 
     * with the (Builder's) default 
     */
-   public static DisplaySettings fromPropertyMap(PropertyMap pMap) {
-      DefaultDisplaySettings.Builder ddsb = new DefaultDisplaySettings.Builder();
-
-      // TODO: (NS) not sure if it is really necessary to test each key 
-      if (pMap.containsDouble(PropertyKey.ZOOM_RATIO.key())) {
-         ddsb.zoomRatio(pMap.getDouble(PropertyKey.ZOOM_RATIO.key(), ddsb.zoom_));
-      }
-      if (pMap.containsDouble(PropertyKey.PLAYBACK_FPS.key())) {
-         ddsb.playbackFPS(pMap.getDouble(PropertyKey.PLAYBACK_FPS.key(), ddsb.fps_));
-      }
-      if (pMap.containsStringForEnum(PropertyKey.COLOR_MODE.key(), ColorMode.class)) {
-         ddsb.colorMode(pMap.getStringAsEnum(PropertyKey.COLOR_MODE.key(),
-                 ColorMode.class, ddsb.mode_));
-      }
-      if (pMap.containsBoolean(PropertyKey.UNIFORM_CHANNEL_SCALING.key())) {
-         ddsb.uniformChannelScaling(pMap.getBoolean(
-                 PropertyKey.UNIFORM_CHANNEL_SCALING.key(), ddsb.useUniformChannelScaling_));
-      }
-      if (pMap.containsBoolean(PropertyKey.AUTOSTRETCH.key())) {
-         ddsb.autostretch(pMap.getBoolean(PropertyKey.AUTOSTRETCH.key(), ddsb.autostretch_));
-      }
-      if (pMap.containsBoolean(PropertyKey.ROI_AUTOSCALE.key())) {
-         ddsb.roiAutoscale(pMap.getBoolean(PropertyKey.ROI_AUTOSCALE.key(), ddsb.useROI_));
-      }
-      if (pMap.containsDouble(PropertyKey.ACUTOSCALE_IGNORED_QUANTILE.key())) {
-         ddsb.autoscaleIgnoredQuantile(pMap.getDouble(PropertyKey.ACUTOSCALE_IGNORED_QUANTILE.key(), 
-                 ddsb.extremaQuantile_));
+   public static DisplaySettings fromPropertyMap(PropertyMap pmap) {
+      DefaultDisplaySettings.Builder builder = new DefaultDisplaySettings.Builder();
+      if (pmap == null) {
+         return builder.build();
       }
 
-      if (pMap.containsPropertyMapList(PropertyKey.CHANNEL_SETTINGS.key())) {
-         List<PropertyMap> propertyMapList = pMap.getPropertyMapList(
-                 PropertyKey.CHANNEL_SETTINGS.key(), new ArrayList<PropertyMap>());
-         for (int i = 0; i < propertyMapList.size(); i++) {
-            ddsb.channel(i, DefaultChannelDisplaySettings.fromPropertyMap(propertyMapList.get(i)));
+      if (pmap.containsDouble(PropertyKey.ZOOM_RATIO.key())) {
+         builder.zoomRatio(pmap.getDouble(PropertyKey.ZOOM_RATIO.key(), builder.zoom_));
+      }
+      if (pmap.containsDouble(PropertyKey.PLAYBACK_FPS.key())) {
+         builder.playbackFPS(pmap.getDouble(PropertyKey.PLAYBACK_FPS.key(), builder.fps_));
+      }
+      if (pmap.containsStringForEnum(PropertyKey.COLOR_MODE.key(), ColorMode.class)) {
+         builder.colorMode(pmap.getStringAsEnum(PropertyKey.COLOR_MODE.key(),
+                 ColorMode.class, builder.mode_));
+      }
+      if (pmap.containsBoolean(PropertyKey.UNIFORM_CHANNEL_SCALING.key())) {
+         builder.uniformChannelScaling(pmap.getBoolean(
+                 PropertyKey.UNIFORM_CHANNEL_SCALING.key(), builder.useUniformChannelScaling_));
+      }
+      if (pmap.containsBoolean(PropertyKey.AUTOSTRETCH.key())) {
+         builder.autostretch(pmap.getBoolean(PropertyKey.AUTOSTRETCH.key(), builder.autostretch_));
+      }
+      if (pmap.containsBoolean(PropertyKey.ROI_AUTOSCALE.key())) {
+         builder.roiAutoscale(pmap.getBoolean(PropertyKey.ROI_AUTOSCALE.key(), builder.useROI_));
+      }
+      if (pmap.containsDouble(PropertyKey.ACUTOSCALE_IGNORED_QUANTILE.key())) {
+         builder.autoscaleIgnoredQuantile(pmap.getDouble(PropertyKey.ACUTOSCALE_IGNORED_QUANTILE.key(),
+                 builder.extremaQuantile_));
+      }
+      if (pmap.containsPropertyMapList(PropertyKey.CHANNEL_SETTINGS.key())) {
+         int i = 0;
+         for (PropertyMap channelPmap : pmap.getPropertyMapList(
+               PropertyKey.CHANNEL_SETTINGS.key(),
+               Collections.<PropertyMap>emptyList())) {
+            builder.channel(i++, DefaultChannelDisplaySettings.fromPropertyMap(channelPmap));
          }
       }
 
-      return ddsb.build();
+      return builder.build();
    }
 }

@@ -19,6 +19,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.eventbus.Subscribe;
 import ij.ImagePlus;
 import java.awt.Window;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -68,9 +69,11 @@ import org.micromanager.internal.utils.performance.PerformanceMonitor;
 import org.micromanager.internal.utils.performance.gui.PerformanceMonitorUI;
 import org.micromanager.data.DataProviderHasNewImageEvent;
 import org.micromanager.data.DataProviderHasNewNameEvent;
+import org.micromanager.data.Datastore;
 import org.micromanager.display.ChannelDisplaySettings;
 import org.micromanager.display.DataViewerDelegate;
 import org.micromanager.display.internal.ChannelDisplayDefaults;
+import org.micromanager.internal.utils.ReportingUtils;
 import org.micromanager.internal.utils.UserProfileStaticInterface;
 
 /**
@@ -206,12 +209,14 @@ public final class DisplayController extends DisplayWindowAPIAdapter
          DisplaySettings.Builder settingsBuilder = DefaultDisplaySettings.builder();
          int numChannels = builder.dataProvider_.getAxisLength(Coords.CHANNEL);
          String groupName = builder.dataProvider_.getSummaryMetadata().getChannelGroup();
-         for (int i = 0; i < numChannels; ++i) {
-            String channelName = builder.dataProvider_.getSummaryMetadata().getSafeChannelName(i);
-            ChannelDisplaySettings channelSettings = defaults.getSettingsForChannel(
-                  groupName, channelName);
-            if (channelSettings != null) {
-               settingsBuilder.channel(i, channelSettings);
+         if (groupName != null) {
+            for (int i = 0; i < numChannels; ++i) {
+               String channelName = builder.dataProvider_.getSummaryMetadata().getSafeChannelName(i);
+               ChannelDisplaySettings channelSettings = defaults.getSettingsForChannel(
+                     groupName, channelName);
+               if (channelSettings != null) {
+                  settingsBuilder.channel(i, channelSettings);
+               }
             }
          }
          initialDisplaySettings = settingsBuilder.build();
@@ -708,6 +713,9 @@ public final class DisplayController extends DisplayWindowAPIAdapter
 
    @Override
    public void overlayConfigurationChanged(Overlay overlay) {
+      if (uiController_ == null) {
+         return;
+      }
       if (overlay.isVisible()) {
          uiController_.overlaysChanged();
       }
@@ -715,6 +723,9 @@ public final class DisplayController extends DisplayWindowAPIAdapter
 
    @Override
    public void overlayVisibleChanged(Overlay overlay) {
+      if (uiController_ == null) {
+         return;
+      }
       uiController_.overlaysChanged();
    }
 
@@ -870,7 +881,7 @@ public final class DisplayController extends DisplayWindowAPIAdapter
          if (uiController_ == null) {
             return;
          }
-         uiController_.expandDisplayedRangeToInclude(coords_);
+            uiController_.expandDisplayedRangeToInclude(coords_);
       }
    }
 
@@ -929,8 +940,6 @@ public final class DisplayController extends DisplayWindowAPIAdapter
       // Find a way to number viewers for one datastore sequentially instead
       return dataProvider_.getName() + "-" + hashCode();
    }
-   
-
 
    @Override
    public void displayStatusString(String status) {
@@ -1034,13 +1043,36 @@ public final class DisplayController extends DisplayWindowAPIAdapter
    @Override
    public void close() {
       postEvent(DataViewerWillCloseEvent.create(this));
+      // TODO: We need to handle the case of multiple viewers. Of course, if
+      // the user closes one by one, only the last remaining viewer's settings
+      // will be saved; but if all closed at the same time...?
+      // TODO The display settings should be saved periodically, not just when
+      // closing the viewer (but handle multiple viewers carefully!)
+      if (dataProvider_ instanceof Datastore) {
+         Datastore ds = (Datastore) dataProvider_;
+         if (ds.getSavePath() != null) {
+            // TODO Better mechanism to handle these auxiliary files?
+            File displaySettingsFile = new File(ds.getSavePath() + File.separator + "DisplaySettings.json");
+            try {
+               ((DefaultDisplaySettings) getDisplaySettings()).
+                     toPropertyMap().
+                     saveJSON(displaySettingsFile, true, false);
+            }
+            catch (IOException e) {
+               // Not critical, so no error shown to user
+               ReportingUtils.logError(e, "Failed to save display settings: " + displaySettingsFile.getPath());
+            }
+         }
+      }
       try {
          computeQueue_.shutdown();
       } catch (InterruptedException ie) {
          // TODO: report exception
       }
       animationController_.shutdown();
-      uiController_.close();
+      if (uiController_ != null) {
+         uiController_.close();
+      }
       uiController_ = null;
       closeCompleted_ = true;
       dispose();
@@ -1052,12 +1084,12 @@ public final class DisplayController extends DisplayWindowAPIAdapter
 
    // TODO Generalize to DataProvider
    @Subscribe
-   public void onDatastoreClosed(DatastoreClosingEvent event) {
+   public void onDatastoreClosing(DatastoreClosingEvent event) {
       if (event.getDatastore().equals(dataProvider_)) {
          requestToClose();
       }
    }
-   
+
    @Subscribe 
    public void onNewDataProviderName(DataProviderHasNewNameEvent dpnne) {
       uiController_.updateTitle();

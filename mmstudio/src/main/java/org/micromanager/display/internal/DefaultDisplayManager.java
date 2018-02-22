@@ -28,6 +28,7 @@ import org.micromanager.display.internal.event.DataViewerDidBecomeVisibleEvent;
 import org.micromanager.display.internal.event.DataViewerDidBecomeInvisibleEvent;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -39,6 +40,7 @@ import org.micromanager.PropertyMaps;
 import org.micromanager.data.DataProvider;
 import org.micromanager.data.Datastore;
 import org.micromanager.data.Image;
+import org.micromanager.data.internal.PropertyKey;
 import org.micromanager.display.DataViewer;
 import org.micromanager.display.DataViewerDelegate;
 import org.micromanager.display.DisplayManager;
@@ -266,26 +268,41 @@ public final class DefaultDisplayManager implements DisplayManager, DataViewerDe
       viewers_.removeDataViewer(viewer);
    }
 
+   /*
+    * NS, 10/2017: Unlike documented in the interface, this only loads a single display
+    * Currently, there is only a mechanism to store a single file with one set
+    * of DisplaySettings to a datastore location. I can not think of an easy, quick,
+    * reliable way to store the displaysettings for multiple viewers.  Moreover,
+    * this seems a bit estoric and currently not worth the effort to implement.
+    */
+   /**
+    * @param store Datastore to open displays for
+    * @return List with opened DisplayWindows
+    * @throws IOException 
+    */
    @Override
    public List<DisplayWindow> loadDisplays(Datastore store) throws IOException {
       String path = store.getSavePath();
       ArrayList<DisplayWindow> result = new ArrayList<DisplayWindow>();
       if (path != null) {
-         // TODO Load display settings
+         // try to restore display settings
+         File displaySettingsFile = new File(store.getSavePath() + File.separator + 
+              "DisplaySettings.json");
+         DisplaySettings displaySettings = DefaultDisplaySettings.
+               fromPropertyMap(PropertyMaps.loadJSON(displaySettingsFile));
+         if (displaySettings == null) {
+            displaySettings = this.getStandardDisplaySettings();
+         }
+         DisplayWindow display = createDisplay(store);
+         display.setDisplaySettings(displaySettings);
+         result.add(display);
       }
       if (result.isEmpty()) {
          // No path, or no display settings at the path.  Just create a blank
          // new display.
          result.add(createDisplay(store));
       }
-      // HACK: our savefiles can't currently save contrast settings for
-      // multi-component images properly, so we must autostretch each display
-      // in those cases.
-      if (store.getAnyImage().getNumComponents() > 1) {
-         for (DisplayWindow display : result) {
-            display.autostretch();
-         }
-      }
+
       return result;
    }
 
@@ -347,16 +364,16 @@ public final class DefaultDisplayManager implements DisplayManager, DataViewerDe
    @Override
    public boolean promptToSave(Datastore store, DisplayWindow display) throws IOException {
       String[] options = {"Save", "Discard", "Cancel"};
-      int result = JOptionPane.showOptionDialog(display.getAsWindow(),
-            "Do you want to save this data set before closing?",
-            "MicroManager", JOptionPane.DEFAULT_OPTION,
+      int result = JOptionPane.showOptionDialog(display.getWindow(),
+            "<html>Do you want to save <i>" + store.getName() + "</i> before closing?",
+            "Micro-Manager", JOptionPane.DEFAULT_OPTION,
             JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
       if (result == 2 || result < 0) {
          // User cancelled.
          return false;
       }
       if (result == 0) { // I.e. not the "discard" option
-         if (!store.save(display.getAsWindow())) {
+         if (!store.save(display.getWindow())) {
             // Don't close the window, as saving failed.
             return false;
          }
@@ -400,7 +417,7 @@ public final class DefaultDisplayManager implements DisplayManager, DataViewerDe
          }
          else if (!shouldPromptToSave) {
             // Force display closed.
-            display.forceClosed();
+            display.close();
          }
       }
       return true;
@@ -414,7 +431,6 @@ public final class DefaultDisplayManager implements DisplayManager, DataViewerDe
             display.setDelegate(null);
          }
       }
-      display.close();
    }
 
    @Subscribe
@@ -497,14 +513,15 @@ public final class DefaultDisplayManager implements DisplayManager, DataViewerDe
             // Prompt the user to save their data.
             try {
                if (promptToSave(store, window)) {
-                  removeDisplay(window);
+                  window.close();
                   store.freeze();
                   // This will invoke our onDatastoreClosed() method.
                   store.close();
                   return true;
                }
             } catch (IOException ioe) {
-               ReportingUtils.logError(ioe, "Failed to save:");
+               ReportingUtils.showError(ioe, "Failed to save:");
+               return false;
             }
          }
          return false;

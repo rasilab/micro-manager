@@ -137,8 +137,9 @@ public abstract class AbstractOverlay implements Overlay {
     * Call this method to notify the system that the overlay has changed.
     * <p>
     * This only needs to be called when the overlay needs a repaint due to its
-    * configuration changing. The case when the displayed image has changed is
-    * automatically handled by the system.
+    * configuration changing. The case where the displayed image or the
+    * visibility of the overlay has changed is automatically handled by the
+    * system.
     *
     * @see OverlayListener#overlayConfigurationChanged
     */
