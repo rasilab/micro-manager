@@ -414,7 +414,7 @@ public final class DefaultDisplayManager implements DisplayManager, DataViewerDe
             display.setDelegate(null);
          }
       }
-      display.forceClosed();
+      display.close();
    }
 
    @Subscribe

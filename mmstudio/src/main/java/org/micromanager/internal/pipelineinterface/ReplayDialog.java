@@ -31,6 +31,7 @@ import javax.swing.ProgressMonitor;
 import net.miginfocom.swing.MigLayout;
 import org.micromanager.Studio;
 import org.micromanager.data.Coords;
+import org.micromanager.data.DataProvider;
 import org.micromanager.data.Datastore;
 import org.micromanager.data.DatastoreFrozenException;
 import org.micromanager.data.DatastoreRewriteException;
@@ -52,19 +53,19 @@ public final class ReplayDialog extends MMDialog {
       studio.events().registerForEvents(dialog);
    }
 
-   private Studio studio_;
-   private JComboBox input_;
-   private JRadioButton outputSingleplane_;
-   private JRadioButton outputMultipage_;
+   final private Studio studio_;
+   final private JComboBox input_;
+   final private JRadioButton outputSingleplane_;
+   final private JRadioButton outputMultipage_;
    private JRadioButton outputRam_;
    private JTextField outputPath_;
    private JTextField outputName_;
    private JButton browseButton_;
-   private JCheckBox showDisplay_;
+   final private JCheckBox showDisplay_;
 
    private ReplayDialog(Studio studio) {
       super("Process Existing Data");
-      setTitle("Process Existing Data");
+      super.setTitle("Process Existing Data");
       studio_ = studio;
 
       JPanel contents = new JPanel(new MigLayout("insets dialog"));
@@ -161,9 +162,9 @@ public final class ReplayDialog extends MMDialog {
          contents.add(cancelButton);
       }
 
-      add(contents);
-      pack();
-      setVisible(true);
+      super.add(contents);
+      super.pack();
+      super.setVisible(true);
    }
 
    @Override
@@ -183,11 +184,11 @@ public final class ReplayDialog extends MMDialog {
       input_.removeAllItems();
       // Don't add the same datastore twice (because it has multiple open
       // windows).
-      HashSet<Datastore> addedStores = new HashSet<Datastore>();
+      HashSet<DataProvider> addedProviders = new HashSet<DataProvider>();
       for (DisplayWindow display : studio_.displays().getAllImageWindows()) {
-         if (!addedStores.contains(display.getDatastore())) {
+         if (!addedProviders.contains(display.getDataProvider())) {
             input_.addItem(display.getName());
-            addedStores.add(display.getDatastore());
+            addedProviders.add(display.getDataProvider());
          }
       }
       input_.addItem(LOAD_FROM_DISK);
@@ -236,22 +237,25 @@ public final class ReplayDialog extends MMDialog {
             studio_.logs().showError(e, "Error loading data");
             return;
          }
-      }
-      else {
+      } else {
          // Find the display with matching name.
          for (DisplayWindow display : studio_.displays().getAllImageWindows()) {
             if (display.getName().contentEquals(input)) {
-               source = display.getDatastore();
+               if (display.getDataProvider() instanceof Datastore) {
+                  source = (Datastore) display.getDataProvider();
+               }
                break;
             }
          }
-         if (source == null) {
-            studio_.logs().showError("The data source named " + input + " is no longer available.");
-         }
       }
-
+ 
       // All inputs validated; time to process data.
       dispose();
+          
+      if (source == null) {
+         studio_.logs().showError("The data source named " + input + " is no longer available.");
+         return;
+      }
 
       if (showDisplay_.isSelected()) {
          studio_.displays().manage(destination);
@@ -260,6 +264,7 @@ public final class ReplayDialog extends MMDialog {
 
       ProgressMonitor monitor = new ProgressMonitor(this,
             "Processing images...", "", 0, source.getNumImages());
+      
       Pipeline pipeline = studio_.data().copyApplicationPipeline(
             destination, false);
       try {

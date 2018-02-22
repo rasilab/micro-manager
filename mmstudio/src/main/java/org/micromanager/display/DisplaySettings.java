@@ -75,24 +75,68 @@ public interface DisplaySettings {
       DisplaySettings build();
    }
 
+   /**
+    * Zoom level expressed as a ratio.
+    * <p>
+    * 1.0 denotes that each pixel in the  image occupies 1 pixel on the
+    * screen, 0.5 indicates that 4 image pixels are combined in 1 screen pixel.
+    * @return the zoom ratio
+    */
    double getZoomRatio();
+
    double getPlaybackFPS();
+
    /** Color mode or lookup table for displaying the image.
      * @return  ColorMode used by these DisplaySettings
      */
    ColorMode getColorMode();
+
    /** Whether to use the same intensity scaling for every channel.
      * @return true if all channels use the same intensity scaling
     */
    boolean isUniformChannelScalingEnabled();
+
    /** Whether to continuously apply autoscale.
-     * @return  true is AutoStretch is enabled
+     * @return  true if AutoStretch is enabled
      */
    boolean isAutostretchEnabled();
+
+   /**
+    * Whether to only look at the ROI when autoscaling or autostretching.
+    * @return true if only the ROI should be taken into account when autoscaling
+    */
    boolean isROIAutoscaleEnabled();
+
+   /**
+    * Get the fraction of ignored bright and dark pixels when autoscaling.
+    * <p>
+    * When autoscaling, the minimum value will have this fraction of pixels
+    * with lower intensities, and the maximum value will have this fraction
+    * of pixels with higher intensities.
+    *
+    * @return the fraction of ignored pixels at extreme intensity values
+    */
    double getAutoscaleIgnoredQuantile();
+
+   /**
+    * Get the percentile of ignored bright and dark pixels when autoscaling.
+    * <p>
+    * This is the same as {@code getAutoscaleIgnoredQuantile}, but returns the
+    * value as a percentage.
+    *
+    * @return the percentile of ignored pixels at extreme intensity values
+    */
    double getAutoscaleIgnoredPercentile();
+
+   /**
+    * Return the number of channels in this DisplaySettings.
+    * <p>
+    * Note that this number may be different from the number of the channels 
+    * in the image being shown
+    * @return the number of channels
+    */
    int getNumberOfChannels();
+
    ChannelDisplaySettings getChannelSettings(int channel);
    List<ChannelDisplaySettings> getAllChannelSettings();
 
@@ -464,7 +508,7 @@ public interface DisplaySettings {
     */
    @Deprecated
    public Boolean getShouldAutostretch();
-   
+ 
    /**
     * Whether histogram calculations should use only the pixels in the current ROI.
     * @return True if ROI should be used
