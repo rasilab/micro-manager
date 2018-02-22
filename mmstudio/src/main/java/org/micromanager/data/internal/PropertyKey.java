@@ -37,17 +37,20 @@ import org.micromanager.internal.propertymap.NonPropertyMapJSONFormats;
 import org.micromanager.internal.propertymap.MM1JSONSerializer;
 import org.micromanager.internal.propertymap.PropertyMapJSONSerializer;
 
+// TODO It will be awesome to be able to read info (description, history) for
+// each key in Javadoc.
+
 /**
  * Keys that appear in the JSON-formatted metadata (and a few other pieces of
  * data) in the Micro-Manager file format.
  * <p>
- * This is the single-source-of-truth for all JSON metadata keys. All knowledge
+ * This is the Single Source of Truth for all JSON metadata keys. All knowledge
  * about what (structure of data) is stored under each key should live here.
  * The affiliation of each key to data structures is defined by the subclasses
  * of {@link NonPropertyMapJSONFormats}.
  * <p>
  * To each key is associated knowledge of how to read and (if still used) write
- * the key to the non-property-map JSON formats. The canonical key strings are
+ * the key to the non-PropertyMap JSON formats. The canonical key strings are
  * also used in modern property maps.
  * <p>
  * When adding new keys, the key string should be camel-cased, starting with
@@ -59,6 +62,10 @@ import org.micromanager.internal.propertymap.PropertyMapJSONSerializer;
  */
 public enum PropertyKey {
    // Please maintain alphabetical order
+
+   // Please do not add keys that have nothing to do with JSON, properties,
+   // metadata, or other formats stored in files. In particular,
+   // preference/profile keys do not belong here!
 
    ACUTOSCALE_IGNORED_QUANTILE("AutoscaleIgnoredQuantile", DisplaySettings.class),
 
@@ -704,7 +711,7 @@ public enum PropertyKey {
                PropertyMap msp =
                      NonPropertyMapJSONFormats.multiStagePosition().
                      fromGson(jo);
-               
+
                if (msp.size() == 0) { // this may be an old format stage position
                   msp = NonPropertyMapJSONFormats.oldStagePosition().fromGson(jo);
                }
@@ -999,6 +1006,8 @@ public enum PropertyKey {
          }
          PropertyMap.Builder tmp = PropertyMaps.builder();
          if (SCOPE_DATA_KEYS.extractFromGsonObject(jo, tmp)) {
+            // TODO "PropVal" should not appear here directly; we should be
+            // using LegacyPropertyMap1Deserializer (if possible, at least)
             PropertyMap.Builder builder = PropertyMaps.builder();
             for (String key : tmp.build().getStringList(SCOPE_DATA_KEYS.key())) {
                String val = "";
@@ -1152,6 +1161,8 @@ public enum PropertyKey {
    STAGE_POSITION__NUMAXES("NumberOfAxes", "AXES", "numAxes", StagePosition.class) {
       @Override
       protected void convertFromGson(JsonElement je, PropertyMap.Builder dest) {
+         // TODO: why does having 3 axes translate to multiplying the number of
+         // axes by 3?
          dest.putInteger(key(), je.getAsInt() * 3); // old style stage positions always had 3 axes...
       }
    },
@@ -1301,7 +1312,8 @@ public enum PropertyKey {
    UUID("UUID", Metadata.class) {
       @Override
       public String getDescription() {
-         // TODO provide better definition
+         // TODO provide better definition (requires checking how UUID has been
+         // historically used)
          return "The Universally Unique Identifier assigned to this image";
       }
 
