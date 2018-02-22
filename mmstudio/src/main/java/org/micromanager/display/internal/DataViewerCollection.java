@@ -1,8 +1,4 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package org.micromanager.display.internal;
 
 import org.micromanager.display.internal.event.DataViewerDidBecomeInactiveEvent;
@@ -28,7 +24,7 @@ import org.micromanager.internal.utils.MustCallOnEDT;
  * The collection of data viewers.
  *
  * Manages all data viewers in the application, and keeps track of the
- * currently active viewer. Also publishes all viewer events.
+ * currently active viewer.
  * <p>
  * The active viewer is the viewer currently selected by the user: for viewers
  * contained in their own window and it is the front window, that viewer is

@@ -64,9 +64,9 @@ public final class DefaultDisplayManager implements DisplayManager {
 
    private final MMStudio studio_;
 
-   // Map from "managed" datastores to attached displays. Synchronized by
+   // Map from "managed" dataproviders to attached displays. Synchronized by
    // monitor on 'this'.
-   private final HashMap<Datastore, ArrayList<DisplayWindow>> storeToDisplays_;
+   private final HashMap<DataProvider, ArrayList<DisplayWindow>> providerToDisplays_;
 
    private final DataViewerCollection viewers_ = DataViewerCollection.create();
 
@@ -81,7 +81,7 @@ public final class DefaultDisplayManager implements DisplayManager {
 
    public DefaultDisplayManager(MMStudio studio) {
       studio_ = studio;
-      storeToDisplays_ = new HashMap<Datastore, ArrayList<DisplayWindow>>();
+      providerToDisplays_ = new HashMap<DataProvider, ArrayList<DisplayWindow>>();
       studio_.events().registerForEvents(this);
       staticInstance_ = this;
 
@@ -102,18 +102,18 @@ public final class DefaultDisplayManager implements DisplayManager {
    }
 
    @Override
-   public synchronized List<Datastore> getManagedDatastores() {
-      return new ArrayList<Datastore>(storeToDisplays_.keySet());
+   public synchronized List<DataProvider> getManagedDataProviders() {
+      return new ArrayList<DataProvider>(providerToDisplays_.keySet());
    }
 
    @Override
-   public synchronized void manage(Datastore store) {
+   public synchronized void manage(DataProvider store) {
       // Iterate over all display windows, find those associated with this
       // datastore, and manually associate them now.
       ArrayList<DisplayWindow> displays = new ArrayList<DisplayWindow>();
-      storeToDisplays_.put(store, displays);
+      providerToDisplays_.put(store, displays);
       for (DisplayWindow display : getAllImageWindows()) {
-         if (display.getDatastore() == store) {
+         if (display.getDataProvider() == store) {
             displays.add(display);
             display.registerForEvents(this);
          }
@@ -121,8 +121,8 @@ public final class DefaultDisplayManager implements DisplayManager {
    }
 
    @Override
-   public synchronized boolean getIsManaged(Datastore store) {
-      return storeToDisplays_.containsKey(store);
+   public synchronized boolean getIsManaged(DataProvider store) {
+      return providerToDisplays_.containsKey(store);
    }
 
    /**
@@ -136,9 +136,9 @@ public final class DefaultDisplayManager implements DisplayManager {
       ArrayList<DisplayWindow> displays = null;
       Datastore store = event.getDatastore();
       synchronized (this) {
-         if (storeToDisplays_.containsKey(store)) {
-            displays = storeToDisplays_.get(store);
-            storeToDisplays_.remove(store);
+         if (providerToDisplays_.containsKey(store)) {
+            displays = providerToDisplays_.get(store);
+            providerToDisplays_.remove(store);
          }
       }
       if (displays != null) {
@@ -151,6 +151,7 @@ public final class DefaultDisplayManager implements DisplayManager {
    /**
     * At shutdown, we give the user the opportunity to save data, and to cancel
     * shutdown if they don't want to decide yet.
+    * @param event
     */
    @Subscribe
    public void onShutdownCommencing(InternalShutdownCommencingEvent event) {
@@ -244,11 +245,11 @@ public final class DefaultDisplayManager implements DisplayManager {
          // TODO DisplayGroupManager.getInstance().addDisplay(viewer);
       }
 
-      Datastore store = viewer.getDatastore();
+      DataProvider store = viewer.getDataProvider();
       synchronized (this) {
          if (getIsManaged(store) && viewer instanceof DisplayWindow) {
             DisplayWindow display = (DisplayWindow) viewer;
-            storeToDisplays_.get(store).add(display);
+            providerToDisplays_.get(store).add(display);
          }
       }
    }
@@ -286,7 +287,7 @@ public final class DefaultDisplayManager implements DisplayManager {
 
    @Override
    public synchronized List<DisplayWindow> getDisplays(Datastore store) {
-      return new ArrayList<DisplayWindow>(storeToDisplays_.get(store));
+      return new ArrayList<DisplayWindow>(providerToDisplays_.get(store));
    }
 
    @Override
@@ -404,7 +405,7 @@ public final class DefaultDisplayManager implements DisplayManager {
    private void removeDisplay(DisplayWindow display) {
       Datastore store = display.getDatastore();
       synchronized (this) {
-         storeToDisplays_.get(store).remove(display);
+         providerToDisplays_.get(store).remove(display);
       }
       display.forceClosed();
    }
