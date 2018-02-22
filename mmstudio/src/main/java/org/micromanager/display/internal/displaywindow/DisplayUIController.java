@@ -767,8 +767,11 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
    @MustCallOnEDT
    public void applyDisplaySettings(DisplaySettings settings) {
-      // Note: This method only looks at changes in color settings. Others
-      // (e.g. zoom) are ignored.
+      // Note: This applies to color settings, zoom and playback fps
+      // Note that this function will be called every time the 
+      // uiController_.setDisplaySettings function is called, so make sure that
+      // function will not be called from within here, as an infinite loop will
+      // ensue.
 
       if (ijBridge_ == null) {
          return;
@@ -850,6 +853,11 @@ public final class DisplayUIController implements Closeable, WindowListener,
             ijBridge_.mm2ijSetIntensityScaling(i, min, max);
          }
       }
+      
+      ijBridge_.mm2ijSetZoom(settings.getZoomRatio());
+      
+      displayController_.setPlaybackSpeedFps(settings.getPlaybackFPS());
+      
    }
 
    @MustCallOnEDT
@@ -1023,12 +1031,10 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
    public void zoomIn() {
       ijBridge_.mm2ijZoomIn();
-      updateTitle();
    }
 
    public void zoomOut() {
       ijBridge_.mm2ijZoomOut();
-      updateTitle();
    }
 
    public void canvasNeedsSwap() {
@@ -1042,9 +1048,17 @@ public final class DisplayUIController implements Closeable, WindowListener,
       }
    }
 
+   /**
+    * Callback for the ImageJ code.  Do not call directly.
+    * Used to update the Micro-Manager code of the new zoom factor.
+    * 
+    * @param factor Newly set Zoom factor.
+    */
    public void uiDidSetZoom(double factor) {
       updateZoomUIState();
-      // TODO Update in DisplayController's DisplaySettings
+      displayController_.setDisplaySettings(displayController_.getDisplaySettings().
+              copyBuilder().zoomRatio(factor).build());
+      updateTitle();
    }
 
    public void canvasDidChangeSize() {
@@ -1492,7 +1506,8 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
    private void handlePlaybackFpsSpinner(ChangeEvent event) {
       double fps = (Double) playbackFpsSpinner_.getValue();
-      displayController_.setPlaybackSpeedFps(fps);
+      displayController_.setDisplaySettings(displayController_.
+              getDisplaySettings().copyBuilder().playbackFPS(fps).build());
    }
 
    private void handleLockButton(ActionEvent event) {
