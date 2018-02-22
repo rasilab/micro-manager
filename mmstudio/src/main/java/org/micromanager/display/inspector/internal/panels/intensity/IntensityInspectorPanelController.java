@@ -7,13 +7,15 @@ import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import javax.swing.JCheckBox;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
-import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
@@ -41,6 +43,7 @@ import org.micromanager.internal.utils.CoalescentEDTRunnablePool.CoalescentRunna
 import org.micromanager.internal.utils.ColorPalettes;
 import org.micromanager.internal.utils.MustCallOnEDT;
 import org.micromanager.data.DataProviderHasNewImageEvent;
+import org.micromanager.internal.utils.UserProfileStaticInterface;
 
 /**
  *
@@ -49,31 +52,24 @@ import org.micromanager.data.DataProviderHasNewImageEvent;
 public class IntensityInspectorPanelController
       extends AbstractInspectorPanelController
 {
+   public static final String HISTOGRAM_UPDATE_FREQUENCY = "HistogramUpdateFrequency";
    private final JPanel panel_ = new JPanel();
 
    private final JPopupMenu gearMenu_ = new JPopupMenu();
    private final JMenu gearMenuPaletteSubMenu_ =
          new JMenu("Channel Color Palette");
-   private final JMenuItem gearMenuColorblindFriendlyItem_ =
-         new JMenuItem("Colorblind-friendly");
-   private final JMenuItem gearMenuRGBCMYWItem_ =
-         new JMenuItem("RGBCMYW");
-   private final JMenuItem gearMenuCustomColorItem_ =
-         new JMenuItem("Custom");
+   private final JCheckBoxMenuItem gearMenuColorblindFriendlyItem_ =
+         new JCheckBoxMenuItem("Colorblind-friendly");
+   private final JCheckBoxMenuItem gearMenuRGBCMYWItem_ =
+         new JCheckBoxMenuItem("RGBCMYW");
+   private final JCheckBoxMenuItem gearMenuCustomColorItem_ =
+         new JCheckBoxMenuItem("Custom");
+   private final Map<String, JCheckBoxMenuItem> colorMenuMap_ = 
+           new LinkedHashMap<String, JCheckBoxMenuItem>(3);
    private final JMenu gearMenuUpdateRateSubMenu_ =
          new JMenu("Histogram Update Rate");
-   private final JMenuItem gearMenuHistogramEveryImageItem_ =
-         new JMenuItem("Every Displayed Image");
-   private final JMenuItem gearMenuHistogram5HzItem_ =
-         new JMenuItem("5 Hz");
-   private final JMenuItem gearMenuHistogram2HzItem_ =
-         new JMenuItem("2 Hz");
-   private final JMenuItem gearMenuHistogram1HzItem_ =
-         new JMenuItem("1 Hz");
-   private final JMenuItem gearMenuHistogramHalfHzItem_ =
-         new JMenuItem("0.5 Hz");
-   private final JMenuItem gearMenuHistogramNeverItem_ =
-         new JMenuItem("Never");
+   private final Map<String, Double> histogramMenuMap_ = 
+           new LinkedHashMap<String, Double>(6);
    private final JCheckBoxMenuItem gearMenuLogYAxisItem_ =
          new JCheckBoxMenuItem("Logarithmic Y Axis");
    private final JCheckBoxMenuItem gearMenuUseROIItem_ =
@@ -114,16 +110,57 @@ public class IntensityInspectorPanelController
    private void setUpGearMenu() {
       gearMenu_.add(gearMenuLogYAxisItem_);
       gearMenu_.add(gearMenuPaletteSubMenu_);
+      colorMenuMap_.put(gearMenuColorblindFriendlyItem_.getText(), 
+              gearMenuColorblindFriendlyItem_);
+      colorMenuMap_.put(gearMenuRGBCMYWItem_.getText(), 
+              gearMenuRGBCMYWItem_);
+      colorMenuMap_.put(gearMenuCustomColorItem_.getText(), 
+              gearMenuCustomColorItem_);
+      for (String key : colorMenuMap_.keySet()) {
+         gearMenuPaletteSubMenu_.add(colorMenuMap_.get(key));
+      }
+      
       gearMenuPaletteSubMenu_.add(gearMenuColorblindFriendlyItem_);
       gearMenuPaletteSubMenu_.add(gearMenuRGBCMYWItem_);
       gearMenuPaletteSubMenu_.add(gearMenuCustomColorItem_);
+      
       gearMenu_.add(gearMenuUpdateRateSubMenu_);
-      gearMenuUpdateRateSubMenu_.add(gearMenuHistogramEveryImageItem_);
-      gearMenuUpdateRateSubMenu_.add(gearMenuHistogram5HzItem_);
-      gearMenuUpdateRateSubMenu_.add(gearMenuHistogram2HzItem_);
-      gearMenuUpdateRateSubMenu_.add(gearMenuHistogram1HzItem_);
-      gearMenuUpdateRateSubMenu_.add(gearMenuHistogramHalfHzItem_);
-      gearMenuUpdateRateSubMenu_.add(gearMenuHistogramNeverItem_);
+      // Add/remove items to the histogramSubMenu here
+      histogramMenuMap_.put("Every Displayed Image", Double.POSITIVE_INFINITY);
+      histogramMenuMap_.put("5 Hz", 5.0);
+      histogramMenuMap_.put("2 Hz", 2.0);
+      histogramMenuMap_.put("1 Hz", 1.0);
+      histogramMenuMap_.put("0.5 Hz", 0.5);
+      histogramMenuMap_.put("Never", 0.0);
+      final String defaultUpdateFrequency = UserProfileStaticInterface.getInstance().getSettings(
+              IntensityInspectorPanelController.class).getString(HISTOGRAM_UPDATE_FREQUENCY, "1 Hz");
+      final List<JCheckBoxMenuItem> histogramMenuItems = new LinkedList<JCheckBoxMenuItem>();
+      for (final String key : histogramMenuMap_.keySet()) {
+         final JCheckBoxMenuItem jcmi = new JCheckBoxMenuItem(key);
+         if (key.equals(defaultUpdateFrequency)) {
+            jcmi.setSelected(true);
+            handleHistogramUpdateRate(histogramMenuMap_.get(key));
+         }
+         histogramMenuItems.add(jcmi);
+      }
+      final JCheckBoxMenuItem hmis[] = histogramMenuItems.toArray(new JCheckBoxMenuItem[6]);
+      for (final JCheckBoxMenuItem jbmi : histogramMenuItems) {
+         jbmi.addActionListener(new ActionListener(){
+            @Override
+            public void actionPerformed(ActionEvent e) {
+               for ( JCheckBoxMenuItem mi : hmis) { 
+                  mi.setSelected(false);
+               }
+               handleHistogramUpdateRate(histogramMenuMap_.get(jbmi.getText()));
+               jbmi.setSelected(true);
+               UserProfileStaticInterface.getInstance().getSettings(
+                       IntensityInspectorPanelController.class).putString(
+                               HISTOGRAM_UPDATE_FREQUENCY, jbmi.getText());
+            }
+         });
+         gearMenuUpdateRateSubMenu_.add(jbmi);
+      }
+
       gearMenu_.add(gearMenuUseROIItem_);
 
       gearMenuRGBCMYWItem_.addActionListener(new ActionListener() {
@@ -147,42 +184,7 @@ public class IntensityInspectorPanelController
             }
          }      
       });
-      gearMenuHistogramEveryImageItem_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            handleHistogramUpdateRate(Double.POSITIVE_INFINITY);
-         }
-      });
-      gearMenuHistogram5HzItem_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            handleHistogramUpdateRate(5.0);
-         }
-      });
-      gearMenuHistogram2HzItem_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            handleHistogramUpdateRate(2.0);
-         }
-      });
-      gearMenuHistogram1HzItem_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            handleHistogramUpdateRate(1.0);
-         }
-      });
-      gearMenuHistogramHalfHzItem_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            handleHistogramUpdateRate(0.5);
-         }
-      });
-      gearMenuHistogramNeverItem_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
-            handleHistogramUpdateRate(0.0);
-         }
-      });
+
       gearMenuLogYAxisItem_.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent e) {
@@ -304,8 +306,7 @@ public class IntensityInspectorPanelController
    }
 
    private void handleHistogramUpdateRate(double hz) {
-      // TODO Store this in prefs and subscribe to changes
-      // Also, need to either hide menu items for non-DisplayWindow, or else
+      // Need to either hide menu items for non-DisplayWindow, or else
       // add a standard interface
 
       if (viewer_ instanceof DisplayController) {
@@ -460,6 +461,12 @@ public class IntensityInspectorPanelController
                   viewer_.getDataProvider().getAxisLength(Coords.CHANNEL));
             newDisplaySettings(viewer_.getDisplaySettings());
             updateImageStats(((ImageStatsPublisher) viewer_).getCurrentImagesAndStats());
+            String updateRate = UserProfileStaticInterface.getInstance().
+                    getSettings(IntensityInspectorPanelController.class).
+                           getString(HISTOGRAM_UPDATE_FREQUENCY, "1 Hz");
+            if (histogramMenuMap_.get(updateRate) != null) {
+              handleHistogramUpdateRate(histogramMenuMap_.get(updateRate));
+            }
          }
       });
    }

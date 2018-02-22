@@ -32,6 +32,7 @@ import java.awt.MenuBar;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
 import java.awt.geom.Rectangle2D;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -842,6 +843,10 @@ public final class ImageJBridge {
    void ij2mmMouseMovedOnCanvas(MouseEvent e) {
       uiController_.mouseEventOnImage(e, 
             computeImageRectForCanvasPoint(e.getPoint()), getImageJTool());
+   }
+   
+   void ij2mmMouseWheelMoved(MouseWheelEvent e) {
+      uiController_.mouseWheelMoved(e);
    }
 
    private Rectangle computeImageRectForCanvasPoint(Point canvasPoint) {

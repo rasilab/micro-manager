@@ -35,6 +35,7 @@ import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.awt.geom.Rectangle2D;
@@ -97,6 +98,7 @@ import org.micromanager.internal.utils.performance.PerformanceMonitor;
 import org.micromanager.internal.utils.performance.TimeIntervalRunningQuantile;
 import org.micromanager.display.DisplayWindowControlsFactory;
 import org.micromanager.display.internal.event.DisplayMouseEvent;
+import org.micromanager.display.internal.event.DisplayMouseWheelEvent;
 import org.micromanager.display.internal.gearmenu.GearButton;
 import org.micromanager.display.overlay.Overlay;
 import org.micromanager.internal.MMStudio;
@@ -1194,6 +1196,10 @@ public final class DisplayUIController implements Closeable, WindowListener,
                updatePixelInformation();
             }
       }
+   }
+   
+   public void mouseWheelMoved(MouseWheelEvent e) {
+      displayController_.postDisplayEvent( new DisplayMouseWheelEvent(e));
    }
 
    private void updatePixelInformation() {

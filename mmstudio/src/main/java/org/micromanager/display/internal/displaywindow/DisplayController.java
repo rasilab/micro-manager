@@ -72,7 +72,7 @@ import org.micromanager.data.Datastore;
 import org.micromanager.display.ChannelDisplaySettings;
 import org.micromanager.display.DataViewerDelegate;
 import org.micromanager.display.internal.ChannelDisplayDefaults;
-import org.micromanager.internal.utils.ReportingUtils;
+import org.micromanager.display.internal.link.internal.DefaultLinkManager;
 import org.micromanager.internal.utils.UserProfileStaticInterface;
 
 /**
@@ -154,7 +154,7 @@ public final class DisplayController extends DisplayWindowAPIAdapter
    public static class Builder {
       private DataProvider dataProvider_;
       private DisplaySettings displaySettings_;
-      private LinkManager linkManager_;
+      private LinkManager linkManager_ = DefaultLinkManager.create();;
       private boolean shouldShow_;
       private DisplayWindowControlsFactory controlsFactory_;
 
@@ -1165,6 +1165,13 @@ public final class DisplayController extends DisplayWindowAPIAdapter
 
    @Override
    public void setCustomTitle(String title) {
-      // TODO
+      // TODO: evaulate if this is as intended
+      if (dataProvider_ instanceof Datastore) {
+         if (dataProvider_ != null) {
+            ((Datastore) dataProvider_).setName(title);
+         } else {
+            // TODO: set default name, whatever that is and wherever that is decided
+         }
+      }
    }
 }
