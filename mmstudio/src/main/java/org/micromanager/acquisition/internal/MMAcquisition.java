@@ -41,10 +41,10 @@ import org.json.JSONObject;
 import org.micromanager.Studio;
 import org.micromanager.alerts.UpdatableAlert;
 import org.micromanager.data.Coords;
+import org.micromanager.data.DataProviderHasNewImageEvent;
 import org.micromanager.data.Datastore;
 import org.micromanager.data.DatastoreFrozenException;
 import org.micromanager.data.DatastoreRewriteException;
-import org.micromanager.data.NewImageEvent;
 import org.micromanager.data.Pipeline;
 import org.micromanager.data.PipelineErrorException;
 import org.micromanager.data.Storage;
@@ -57,6 +57,7 @@ import org.micromanager.data.internal.StorageSinglePlaneTiffSeries;
 import org.micromanager.data.internal.multipagetiff.StorageMultipageTiff;
 import org.micromanager.display.ChannelDisplaySettings;
 import org.micromanager.display.DataViewer;
+import org.micromanager.display.DataViewerDelegate;
 import org.micromanager.display.DisplaySettings;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.events.AcquisitionEndedEvent;
@@ -66,7 +67,6 @@ import org.micromanager.internal.utils.MDUtils;
 import org.micromanager.internal.utils.ReportingUtils;
 import org.micromanager.display.DisplayWindowControlsFactory;
 import org.micromanager.internal.propertymap.NonPropertyMapJSONFormats;
-import org.micromanager.display.DataViewerDelegate;
 
 /**
  * This class is used to execute most of the acquisition and image display
@@ -385,7 +385,7 @@ public final class MMAcquisition implements DataViewerDelegate {
    }
 
    @Subscribe
-   public void onNewImage(NewImageEvent event) {
+   public void onNewImage(DataProviderHasNewImageEvent event) {
       imagesReceived_++;
       setProgressText();
    }

@@ -42,7 +42,6 @@ import javax.swing.JOptionPane;
 import org.micromanager.data.Coords;
 import org.micromanager.data.Datastore;
 import org.micromanager.data.Image;
-import org.micromanager.data.NewSummaryMetadataEvent;
 import org.micromanager.data.Storage;
 import org.micromanager.data.SummaryMetadata;
 import org.micromanager.data.internal.DefaultCoords;
@@ -54,6 +53,7 @@ import org.micromanager.internal.utils.UserProfileStaticInterface;
 import org.micromanager.internal.utils.MMException;
 import org.micromanager.internal.utils.ProgressBar;
 import org.micromanager.internal.utils.ReportingUtils;
+import org.micromanager.data.DataProviderHasNewSummaryMetadataEvent;
 
 
 /**
@@ -123,6 +123,7 @@ public final class StorageMultipageTiff implements Storage {
       amInWriteMode_ = amInWriteMode;
       directory_ = dir;
       store_.setSavePath(directory_);
+      store_.setName(new File(directory_).getName());
       coordsToReader_ = new HashMap<Coords, MultipageTiffReader>();
 
       if (amInWriteMode_) {
@@ -146,7 +147,7 @@ public final class StorageMultipageTiff implements Storage {
    }
 
    @Subscribe
-   public void onNewSummaryMetadata(NewSummaryMetadataEvent event) {
+   public void onNewSummaryMetadata(DataProviderHasNewSummaryMetadataEvent event) {
       try {
          setSummaryMetadata(event.getSummaryMetadata());
       }

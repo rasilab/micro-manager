@@ -55,7 +55,6 @@ import org.micromanager.data.Coordinates;
 import org.micromanager.data.Coords;
 import org.micromanager.data.Image;
 import org.micromanager.data.Metadata;
-import org.micromanager.data.NewSummaryMetadataEvent;
 import org.micromanager.data.Storage;
 import org.micromanager.data.SummaryMetadata;
 import org.micromanager.internal.propertymap.MM1JSONSerializer;
@@ -63,6 +62,7 @@ import org.micromanager.internal.propertymap.NonPropertyMapJSONFormats;
 import org.micromanager.internal.utils.JavaUtils;
 import org.micromanager.internal.utils.ReportingUtils;
 import org.micromanager.internal.utils.TextUtils;
+import org.micromanager.data.DataProviderHasNewSummaryMetadataEvent;
 
 /**
  * This class provides Image storage backed by a file system in which each
@@ -91,6 +91,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
       store_ = store;
       dir_ = directory;
       store_.setSavePath(dir_);
+      store_.setName(new File(dir_).getName());
       isDatasetWritable_ = newDataSet;
       if (isDatasetWritable_ && new File(dir_).exists()) {
          throw new IOException("Directory at " + dir_ + " already exists");
@@ -740,7 +741,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
    }
 
    @Subscribe
-   public void onNewSummaryMetadata(NewSummaryMetadataEvent event) {
+   public void onNewSummaryMetadata(DataProviderHasNewSummaryMetadataEvent event) {
       summaryMetadata_ = event.getSummaryMetadata();
    }
 

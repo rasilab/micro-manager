@@ -288,8 +288,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
                GUIUtils.getFullScreenBounds(frame.getGraphicsConfiguration()));
          frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
       }
-      String title = displayController_.getName();
-      frame.setTitle(title); // TODO Listen for changes to name, zoom, and disk/memory/save state
+      frame.setTitle(getFullWindowTitle());
       return frame;
    }
 
@@ -984,13 +983,53 @@ public final class DisplayUIController implements Closeable, WindowListener,
          fullScreenButton_.setToolTipText("View in full screen mode");
       }
    }
+   
+
+   public void updateTitle() {
+      if (frame_ != null) {
+         
+            runnablePool_.invokeAsLateAsPossibleWithCoalescence(new CoalescentRunnable() {
+               @Override
+               public Class<?> getCoalescenceClass() {
+                  return getClass();
+               }
+
+               @Override
+               public CoalescentRunnable coalesceWith(CoalescentRunnable later) {
+                  return later;
+               }
+
+               @Override
+               public void run() {
+                  frame_.setTitle(getFullWindowTitle());
+               }
+            });
+      }
+   }
+
+   @MustCallOnEDT
+   private String getFullWindowTitle() {
+      StringBuilder sb = new StringBuilder();
+      sb.append(displayController_.getName());
+      if (ijBridge_ != null) {
+              sb.append(" (").
+              append(NumberUtils.doubleToDisplayString(ijBridge_.getIJZoom() * 100)).
+              append("%)");
+      } else {
+         sb.append(" (100%)");
+      }
+      // TODO: add save status, and listen for changes
+      return sb.toString();
+   }
 
    public void zoomIn() {
       ijBridge_.mm2ijZoomIn();
+      updateTitle();
    }
 
    public void zoomOut() {
       ijBridge_.mm2ijZoomOut();
+      updateTitle();
    }
 
    public void canvasNeedsSwap() {
