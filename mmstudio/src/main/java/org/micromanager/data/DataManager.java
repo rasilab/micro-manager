@@ -37,6 +37,8 @@ public interface DataManager {
    /**
     * Generate a "blank" CoordsBuilder for use in constructing new Coords
     * instances.
+    * @deprecated - Use Coordinates.builder() instead.
+    * 
     * @return a CoordsBuilder used to construct new Coords instances.
     */
    @Deprecated

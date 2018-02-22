@@ -58,12 +58,14 @@ import org.micromanager.Studio;
 import org.micromanager.asidispim.ASIdiSPIM;
 import org.micromanager.asidispim.data.AcquisitionSettings;
 import org.micromanager.asidispim.data.Devices.Sides;
+import org.micromanager.data.Coordinates;
 import org.micromanager.data.Coords;
 import org.micromanager.data.Datastore;
 import org.micromanager.data.Image;
-import org.micromanager.data.SummaryMetadata.SummaryMetadataBuilder;
+import org.micromanager.data.SummaryMetadata;
+//import org.micromanager.data.SummaryMetadata.SummaryMetadataBuilder;
 import org.micromanager.display.DisplaySettings;
-import org.micromanager.display.DisplaySettings.DisplaySettingsBuilder;
+//import org.micromanager.display.DisplaySettings.DisplaySettingsBuilder;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.internal.utils.NumberUtils;
 import org.micromanager.internal.utils.ReportingUtils;
@@ -328,21 +330,20 @@ public class AutofocusUtils {
                Datastore store = null;
                if (showImages) {
                   if (gui_.displays().getAllImageWindows().contains(ourWindow_)) {
-                      ourWindow_.getDatastore().close();
+                      ourWindow_.getDataProvider().close();
                       ourWindow_.requestToClose();
-                      ourWindow_.forceClosed();
+                      ourWindow_.close();
                   }
                   store = gui_.data().createRAMDatastore();
+                  store.setName(acqName);
                   ourWindow_ = gui_.displays().createDisplay(store);
                   ourWindow_.toFront();
-                  DisplaySettingsBuilder dsb = ourWindow_.getDisplaySettings().copy();
-                  ourWindow_.setDisplaySettings(dsb.
-                          channelColorMode(DisplaySettings.ColorMode.GRAYSCALE).
+                  DisplaySettings.Builder dsb = ourWindow_.getDisplaySettings().copyBuilder();
+                  ourWindow_.setDisplaySettings(dsb.colorModeGrayscale().
                           build());
-                  SummaryMetadataBuilder smb = 
-                          DefaultSummaryMetadata.defaultBuilder(gui_, acqName);
-                  Coords dim = gui_.data().getCoordsBuilder().z(nrImages).
-                          channel(1).stagePosition(1).time(1).build();
+                  SummaryMetadata.Builder smb = gui_.data().getSummaryMetadataBuilder();
+                  Coords dim = Coordinates.builder().z(nrImages).
+                          channel(1).stagePosition(1).t(1).build();
                   store.setSummaryMetadata(smb.intendedDimensions(dim).build());
                }
                gui_.core().clearCircularBuffer();
@@ -416,7 +417,7 @@ public class AutofocusUtils {
                         timg.tags.put("SlicePosition", galvoPos);
                         timg.tags.put("ZPositionUm", piezoCenter);
                         Image img = gui_.data().convertTaggedImage(timg);
-                        Coords coords = gui_.data().getCoordsBuilder().
+                        Coords coords = Coordinates.builder().
                                 z(counter).build();
                         img = img.copyAtCoords(coords);
                         if (store != null)
@@ -511,9 +512,9 @@ public class AutofocusUtils {
                      store.freeze();
                   }
                   if (focusSuccess) {
-                     Coords coords = gui_.data().getCoordsBuilder().z(highestIndex).build();
+                     Coords coords = Coordinates.builder().z(highestIndex).build();
                      gui_.logs().logMessage("Highest Index was: " + highestIndex);
-                     ourWindow_.setDisplayedImageTo(coords);
+                     ourWindow_.setDisplayPosition(coords);
                   } 
                } else if (gui_.live().getDisplay() != null && focusSuccess) {
                   gui_.live().displayImage(gui_.data().convertTaggedImage(

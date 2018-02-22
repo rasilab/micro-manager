@@ -534,7 +534,7 @@ public enum PropertyKey {
    INTENDED_DIMENSIONS("IntendedDimensions", SummaryMetadata.class) {
       @Override
       protected void convertFromGson(JsonElement je, PropertyMap.Builder dest) {
-         // User simple JSON object (axis => coord)
+         // Use simple JSON object (axis => coord)
          dest.putPropertyMap(key(), MM1JSONSerializer.fromGson(je));
       }
 
