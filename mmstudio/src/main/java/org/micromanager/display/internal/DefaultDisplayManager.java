@@ -293,9 +293,12 @@ public final class DefaultDisplayManager implements DisplayManager, DataViewerDe
          if (displaySettings == null) {
             displaySettings = this.getStandardDisplaySettings();
          }
-         DisplayWindow display = createDisplay(store);
-         display.setDisplaySettings(displaySettings);
-         result.add(display);
+         // instead of using the createDisplay function, set the correct 
+         // displaySettings right away
+         DisplayWindow tmp = new DisplayController.Builder(store).
+            linkManager(linkManager_).shouldShow(true).initialDisplaySettings(displaySettings).build();
+         addViewer(tmp);
+         result.add(tmp);
       }
       if (result.isEmpty()) {
          // No path, or no display settings at the path.  Just create a blank

@@ -172,7 +172,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
          "/org/micromanager/icons/lock_locked.png");
    private static final Icon RED_LOCKED_ICON = IconLoader.getIcon(
          "/org/micromanager/icons/lock_super.png");
-   
+
    private final Insets buttonInsets_ = new Insets(0, 5, 0, 5);
 
    private ImageJBridge ijBridge_;
@@ -182,6 +182,8 @@ public final class DisplayUIController implements Closeable, WindowListener,
    private final List<String> displayedAxes_ = new ArrayList<String>();
    private final List<Integer> displayedAxisLengths_ = new ArrayList<Integer>();
    private ImagesAndStats displayedImages_;
+
+   private boolean infoLabelFilled_ = false;
 
    private BoundsRectAndMask lastSeenSelection_;
 
@@ -440,7 +442,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
       infoLabel_ = new JLabel("No Image yet");
       panel.add(infoLabel_, "wrap");
-      
+
       return panel;
    }
 
@@ -673,12 +675,15 @@ public final class DisplayUIController implements Closeable, WindowListener,
          noImagesMessageLabel_.setText("Preparing to Display...");
       }
 
+      boolean axesChanged = false;
+
       for (Coords c : coords) {
          for (String axis : c.getAxes()) {
             int index = c.getIndex(axis);
             int axisIndex = displayedAxes_.indexOf(axis);
             if (axisIndex == -1) {
                displayedAxes_.add(axis);
+               axesChanged = true;
                displayedAxisLengths_.add(index + 1);
             }
             else {
@@ -729,6 +734,9 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
       if (ijBridge_ != null) {
          ijBridge_.mm2ijEnsureDisplayAxisExtents();
+         if (axesChanged) {
+            applyDisplaySettings(displayController_.getDisplaySettings());
+         }
       }
    }
 
@@ -758,7 +766,10 @@ public final class DisplayUIController implements Closeable, WindowListener,
          updatePixelInformation(); // TODO Can skip if identical images
       }
 
-      infoLabel_.setText(this.getInfoString()); // TODO, this should be invariant, so only need to do this for first image
+      if (!infoLabelFilled_) {
+         infoLabel_.setText(this.getInfoString());
+         infoLabelFilled_ = true;
+      }
 
       repaintScheduledForNewImages_.set(true);
    }
