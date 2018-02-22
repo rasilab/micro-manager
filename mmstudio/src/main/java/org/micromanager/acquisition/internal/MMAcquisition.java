@@ -30,13 +30,12 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
-import mmcorej.TaggedImage;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.micromanager.Studio;
@@ -56,6 +55,8 @@ import org.micromanager.data.internal.DefaultSummaryMetadata;
 import org.micromanager.data.internal.StorageRAM;
 import org.micromanager.data.internal.StorageSinglePlaneTiffSeries;
 import org.micromanager.data.internal.multipagetiff.StorageMultipageTiff;
+import org.micromanager.display.ChannelDisplaySettings;
+import org.micromanager.display.DisplaySettings;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.events.AcquisitionEndedEvent;
 import org.micromanager.events.internal.DefaultEventManager;
@@ -75,40 +76,26 @@ public final class MMAcquisition {
     * Final queue of images immediately prior to insertion into the ImageCache.
     * Only used when running in asynchronous mode.
     */
-   private BlockingQueue<TaggedImage> outputQueue_ = null;
-   private boolean isAsynchronous_ = false;
-   private int numFrames_ = 0;
-   private int numChannels_ = 0;
-   private int numSlices_ = 0;
-   private int numPositions_ = 0;
-   protected String name_;
+
    protected int width_ = 0;
    protected int height_ = 0;
    protected int byteDepth_ = 1;
    protected int bitDepth_ = 8;    
    protected int multiCamNumCh_ = 1;
-   private boolean initialized_ = false;
-   private final String comment_ = "";
-   private String rootDirectory_;
    private Studio studio_;
    private DefaultDatastore store_;
    private Pipeline pipeline_;
    private DisplayWindow display_;
-   private final boolean virtual_;
    private AcquisitionEngine eng_;
    private final boolean show_;
-   private JSONObject summary_ = new JSONObject();
-   private final String NOTINITIALIZED = "Acquisition was not initialized";
 
    private int imagesReceived_ = 0;
    private int imagesExpected_ = 0;
    private UpdatableAlert alert_;
 
-   public MMAcquisition(Studio studio, String name, JSONObject summaryMetadata,
-         boolean diskCached, AcquisitionEngine eng, boolean show) {
+   public MMAcquisition(Studio studio, JSONObject summaryMetadata,
+         AcquisitionEngine eng, boolean show) {
       studio_ = studio;
-      name_ = name;
-      virtual_ = diskCached;
       eng_ = eng;
       show_ = show;
       store_ = new DefaultDatastore();
@@ -149,7 +136,8 @@ public final class MMAcquisition {
 
       try {
          // Compatibility hack: serialize to JSON, then parse as summary metadata JSON format
-         SummaryMetadata summary = DefaultSummaryMetadata.fromPropertyMap(NonPropertyMapJSONFormats.summaryMetadata().fromJSON(summaryMetadata.toString()));
+         SummaryMetadata summary = DefaultSummaryMetadata.fromPropertyMap(
+                 NonPropertyMapJSONFormats.summaryMetadata().fromJSON(summaryMetadata.toString()));
          pipeline_.insertSummaryMetadata(summary);
       }
       catch (DatastoreFrozenException e) {
@@ -177,6 +165,39 @@ public final class MMAcquisition {
          display_ = studio_.displays().createDisplay(
                store_, makeControlsFactory());
          display_.registerForEvents(this);
+         
+         // Color handling is a problem. They are no longer part of the summary 
+         // metadata.  However, they clearly need to be stored 
+         // with the dataset itself.  I guess that it makes sense to store them in 
+         // the display setting.  However, it then becomes essential that 
+         // display settings are stored with the (meta-)data.  
+         // Handling the conversion from colors in the summary metadat to display
+         // settings here seems clumsy, but I am not sure where else this belongs
+         
+         try {
+            if (summaryMetadata != null && summaryMetadata.has("ChColors")) {
+               JSONArray chColors = summaryMetadata.getJSONArray("ChColors");
+               DisplaySettings.Builder displaySettingsBuilder = 
+                       display_.getDisplaySettings().copyBuilder();
+               final int nrChannels = MDUtils.getNumChannels(summaryMetadata);
+               if (nrChannels == 1) {
+                  displaySettingsBuilder.colorModeGrayscale();
+               } else {
+                  displaySettingsBuilder.colorModeComposite();
+               }
+               for (int channelIndex = 0; channelIndex < nrChannels; channelIndex++) {
+                  ChannelDisplaySettings channelSettings
+                          = displaySettingsBuilder.getChannelSettings(channelIndex);
+                  Color chColor = new Color(chColors.getInt(channelIndex));
+                  displaySettingsBuilder.channel(channelIndex, 
+                          channelSettings.copyBuilder().color(chColor).build() );
+               }
+               display_.setDisplaySettings(displaySettingsBuilder.build());
+            }
+         } catch (JSONException je) {
+            // relatively harmless, but look here when display settings are unexpected
+         }
+         
          alert_ = studio_.alerts().postUpdatableAlert("Acquisition Progress", "");
          setProgressText();
       }
