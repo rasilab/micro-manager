@@ -339,34 +339,6 @@ public final class DefaultDisplaySettings implements DisplaySettings {
       return builder.build();
    }
 
-   /**
-    * Set new settings in the user's profile.
-    * @param key As with getStandardSettings, a specific key to use for
-    *        this type of display.
-    */
-   public static void setStandardSettings(DisplaySettings settings,
-         String key) {
-      UserProfile profile = UserProfileStaticInterface.getInstance();
-      key = key + "_";
-      profile.setDouble(DefaultDisplaySettings.class,
-            key + ANIMATION_FPS_DOUBLE,
-            settings.getPlaybackFPS());
-      if (settings.getChannelColorMode() != null) {
-         profile.setInt(DefaultDisplaySettings.class,
-               key + CHANNEL_COLOR_MODE,
-               settings.getChannelColorMode().getIndex());
-      }
-      profile.setDouble(DefaultDisplaySettings.class,
-            key + ZOOM_RATIO, settings.getZoomRatio());
-      profile.setBoolean(DefaultDisplaySettings.class,
-            key + SHOULD_SYNC_CHANNELS, settings.getShouldSyncChannels());
-      profile.setBoolean(DefaultDisplaySettings.class,
-            key + SHOULD_AUTOSTRETCH, settings.getShouldAutostretch());
-      profile.setBoolean(DefaultDisplaySettings.class,
-            key + SHOULD_SCALE_WITH_ROI, settings.getShouldScaleWithROI());
-      profile.setDouble(DefaultDisplaySettings.class,
-            key + EXTREMA_PERCENTAGE, settings.getExtremaPercentage());
-   }
 
    /**
     * Return the current color mode setting in the profile, or the provided
@@ -980,12 +952,17 @@ public final class DefaultDisplaySettings implements DisplaySettings {
       return result;
    }
 
+   /**
+    * Store these displaySettings in a propertyMap
+    * NS: Should this be in the API?
+    * @return PropertyMap containing these DisplaySettings
+    */
    public PropertyMap toPropertyMap() {
       List<PropertyMap> channelSettings = new ArrayList<PropertyMap>();
       for (ChannelDisplaySettings cs : channelSettings_) {
          channelSettings.add(((DefaultChannelDisplaySettings) cs).toPropertyMap());
       }
-      
+
       return PropertyMaps.builder().
             putDouble(PropertyKey.ZOOM_RATIO.key(), zoom_).
             putDouble(PropertyKey.PLAYBACK_FPS.key(), fps_).
@@ -996,5 +973,52 @@ public final class DefaultDisplaySettings implements DisplaySettings {
             putDouble(PropertyKey.ACUTOSCALE_IGNORED_QUANTILE.key(), extremaQuantile_).
             putPropertyMapList(PropertyKey.CHANNEL_SETTINGS.key(), channelSettings).
             build();
+   }
+
+   /**
+    * Restore DisplaySettings from a PropertyMap
+    * NS: Should this be in the api?
+    * @param pMap PropertyMap to be restored to DisplaySettings
+    * @return restored DisplaySettings.  Any missing component will be replaced 
+    * with the (Builder's) default 
+    */
+   public static DisplaySettings fromPropertyMap(PropertyMap pMap) {
+      DefaultDisplaySettings.Builder ddsb = new DefaultDisplaySettings.Builder();
+
+      // TODO: (NS) not sure if it is really necessary to test each key 
+      if (pMap.containsDouble(PropertyKey.ZOOM_RATIO.key())) {
+         ddsb.zoomRatio(pMap.getDouble(PropertyKey.ZOOM_RATIO.key(), ddsb.zoom_));
+      }
+      if (pMap.containsDouble(PropertyKey.PLAYBACK_FPS.key())) {
+         ddsb.playbackFPS(pMap.getDouble(PropertyKey.PLAYBACK_FPS.key(), ddsb.fps_));
+      }
+      if (pMap.containsStringForEnum(PropertyKey.COLOR_MODE.key(), ColorMode.class)) {
+         ddsb.colorMode(pMap.getStringAsEnum(PropertyKey.COLOR_MODE.key(),
+                 ColorMode.class, ddsb.mode_));
+      }
+      if (pMap.containsBoolean(PropertyKey.UNIFORM_CHANNEL_SCALING.key())) {
+         ddsb.uniformChannelScaling(pMap.getBoolean(
+                 PropertyKey.UNIFORM_CHANNEL_SCALING.key(), ddsb.useUniformChannelScaling_));
+      }
+      if (pMap.containsBoolean(PropertyKey.AUTOSTRETCH.key())) {
+         ddsb.autostretch(pMap.getBoolean(PropertyKey.AUTOSTRETCH.key(), ddsb.autostretch_));
+      }
+      if (pMap.containsBoolean(PropertyKey.ROI_AUTOSCALE.key())) {
+         ddsb.roiAutoscale(pMap.getBoolean(PropertyKey.ROI_AUTOSCALE.key(), ddsb.useROI_));
+      }
+      if (pMap.containsDouble(PropertyKey.ACUTOSCALE_IGNORED_QUANTILE.key())) {
+         ddsb.autoscaleIgnoredQuantile(pMap.getDouble(PropertyKey.ACUTOSCALE_IGNORED_QUANTILE.key(), 
+                 ddsb.extremaQuantile_));
+      }
+
+      if (pMap.containsPropertyMapList(PropertyKey.CHANNEL_SETTINGS.key())) {
+         List<PropertyMap> propertyMapList = pMap.getPropertyMapList(
+                 PropertyKey.CHANNEL_SETTINGS.key(), new ArrayList<PropertyMap>());
+         for (int i = 0; i < propertyMapList.size(); i++) {
+            ddsb.channel(i, DefaultChannelDisplaySettings.fromPropertyMap(propertyMapList.get(i)));
+         }
+      }
+
+      return ddsb.build();
    }
 }
