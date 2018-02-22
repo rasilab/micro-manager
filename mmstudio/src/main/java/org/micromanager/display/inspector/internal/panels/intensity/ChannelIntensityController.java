@@ -415,7 +415,7 @@ public final class ChannelIntensityController implements HistogramView.Listener 
          int lengthToUse = Math.min(data.length, (1 << rangeBits) - 1);
          histogram_.setComponentGraph(component, data, lengthToUse, lengthToUse);
          histogram_.setROIIndicator(componentStats.isROIStats());
-
+      
          DisplaySettings settings = viewer_.getDisplaySettings();
          updateScalingIndicators(settings, componentStats, component);
       } catch (IOException ioEx) {

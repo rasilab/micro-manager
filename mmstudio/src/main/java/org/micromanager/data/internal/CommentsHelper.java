@@ -25,7 +25,6 @@ import org.micromanager.PropertyMap;
 import org.micromanager.data.Annotation;
 import org.micromanager.data.Coords;
 import org.micromanager.data.Datastore;
-import org.micromanager.internal.utils.ReportingUtils;
 
 /**
  * A simple helper class to handle access of comments.

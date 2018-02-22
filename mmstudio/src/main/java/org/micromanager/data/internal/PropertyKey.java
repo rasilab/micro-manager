@@ -56,6 +56,12 @@ import org.micromanager.internal.propertymap.PropertyMapJSONSerializer;
  */
 public enum PropertyKey {
    // Please maintain alphabetical order
+/*
+             
+            
+            putDouble("AutoscaleIgnoredQuantile", extremaQuantile_).
+            putPropertyMapList("ChannelSettings", channelSettings).
+   */
    
    ACUTOSCALE_IGNORED_QUANTILE("AutoscaleIgnoredQuantile", DisplaySettings.class),
    
@@ -234,7 +240,7 @@ public enum PropertyKey {
    },
 
    CHANNEL_SETTINGS("ChannelSettings", DisplaySettings.class),
-
+   
    CHANNEL_COLOR("ChColor"),
    CHANNEL_COLORS("ChColors"),
    CHANNEL_CONTRAST_MAX("ChContrastMax"),
@@ -291,7 +297,7 @@ public enum PropertyKey {
    },
 
    COLOR_MODE("ColorMode", DisplaySettings.class),
-
+   
    COMMENT("Comment", SummaryMetadata.class),
 
    COMPLETE_COORDS("completeCoords", Coords.class) {
@@ -811,7 +817,7 @@ public enum PropertyKey {
    },
 
    PLAYBACK_FPS("PlaybackFPS", DisplaySettings.class),
-
+   
    POSITIONS("Positions", SummaryMetadata.class) { // See INTENDED_DIMENSIONS
       @Override
       protected void convertFromGson(JsonElement je, PropertyMap.Builder dest) {
@@ -956,7 +962,7 @@ public enum PropertyKey {
    },
 
    ROI_AUTOSCALE("ROIAutoscale", DisplaySettings.class),
-
+   
    SCOPE_DATA("ScopeData", "scopeData", Metadata.class) {
       @Override
       public String getDescription() {
@@ -1202,7 +1208,7 @@ public enum PropertyKey {
    },
 
    UNIFORM_CHANNEL_SCALING("UniformChannelScaling", DisplaySettings.class),
-
+   
    USER_DATA("UserData", "userData", Metadata.class, SummaryMetadata.class) {
       @Override
       public String getDescription() {
@@ -1367,7 +1373,7 @@ public enum PropertyKey {
    },
 
    ZOOM_RATIO("ZoomRatio", DisplaySettings.class),
-
+   
    Z_STEP_UM("z-step_um", SummaryMetadata.class) {
       @Override
       protected void convertFromGson(JsonElement je, PropertyMap.Builder dest) {

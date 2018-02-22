@@ -40,6 +40,7 @@ import org.micromanager.data.DataProvider;
 import org.micromanager.data.Datastore;
 import org.micromanager.data.Image;
 import org.micromanager.display.DataViewer;
+import org.micromanager.display.DataViewerDelegate;
 import org.micromanager.display.DisplayManager;
 import org.micromanager.display.DisplaySettings;
 import org.micromanager.display.DisplayWindow;
@@ -57,7 +58,7 @@ import org.micromanager.display.internal.link.internal.DefaultLinkManager;
 
 
 // TODO Methods must implement correct threading semantics!
-public final class DefaultDisplayManager implements DisplayManager {
+public final class DefaultDisplayManager implements DisplayManager, DataViewerDelegate {
    private static final String[] CLOSE_OPTIONS = new String[] {
          "Cancel", "Prompt for each", "Close without save prompt"};
    private static DefaultDisplayManager staticInstance_;
@@ -66,7 +67,8 @@ public final class DefaultDisplayManager implements DisplayManager {
 
    // Map from "managed" datastores to attached displays. Synchronized by
    // monitor on 'this'.
-   private final HashMap<Datastore, ArrayList<DisplayWindow>> storeToDisplays_;
+   private final HashMap<Datastore, ArrayList<DisplayWindow>> storeToManagedDisplays_ =
+         new HashMap<Datastore, ArrayList<DisplayWindow>>();
 
    private final DataViewerCollection viewers_ = DataViewerCollection.create();
 
@@ -81,10 +83,10 @@ public final class DefaultDisplayManager implements DisplayManager {
 
    public DefaultDisplayManager(MMStudio studio) {
       studio_ = studio;
-      storeToDisplays_ = new HashMap<Datastore, ArrayList<DisplayWindow>>();
       studio_.events().registerForEvents(this);
       staticInstance_ = this;
 
+      // TODO Leaking this.
       viewers_.registerForEvents(this);
    }
 
@@ -103,7 +105,7 @@ public final class DefaultDisplayManager implements DisplayManager {
 
    @Override
    public synchronized List<Datastore> getManagedDatastores() {
-      return new ArrayList<Datastore>(storeToDisplays_.keySet());
+      return new ArrayList<Datastore>(storeToManagedDisplays_.keySet());
    }
 
    @Override
@@ -111,18 +113,23 @@ public final class DefaultDisplayManager implements DisplayManager {
       // Iterate over all display windows, find those associated with this
       // datastore, and manually associate them now.
       ArrayList<DisplayWindow> displays = new ArrayList<DisplayWindow>();
-      storeToDisplays_.put(store, displays);
+      storeToManagedDisplays_.put(store, displays);
       for (DisplayWindow display : getAllImageWindows()) {
          if (display.getDatastore() == store) {
             displays.add(display);
             display.registerForEvents(this);
+            DataViewerDelegate existingDelegate = display.getDelegate();
+            if (existingDelegate != null) {
+               // TODO This probably needs to be an error
+            }
+            display.setDelegate(this);
          }
       }
    }
 
    @Override
    public synchronized boolean getIsManaged(Datastore store) {
-      return storeToDisplays_.containsKey(store);
+      return storeToManagedDisplays_.containsKey(store);
    }
 
    /**
@@ -132,18 +139,14 @@ public final class DefaultDisplayManager implements DisplayManager {
     */
    @Subscribe
    public void onDatastoreClosed(DatastoreClosingEvent event) {
-      // TODO XXX This should be done by the individual data viewers
+      // TODO: Displays and "managements" should respond to a willClose event
+      // coming from their DataProvider.
       ArrayList<DisplayWindow> displays = null;
       Datastore store = event.getDatastore();
       synchronized (this) {
-         if (storeToDisplays_.containsKey(store)) {
-            displays = storeToDisplays_.get(store);
-            storeToDisplays_.remove(store);
-         }
-      }
-      if (displays != null) {
-         for (DisplayWindow display : displays) {
-            display.forceClosed();
+         if (storeToManagedDisplays_.containsKey(store)) {
+            displays = storeToManagedDisplays_.get(store);
+            storeToManagedDisplays_.remove(store);
          }
       }
    }
@@ -246,8 +249,11 @@ public final class DefaultDisplayManager implements DisplayManager {
          synchronized (this) {
             if (getIsManaged(store) && viewer instanceof DisplayWindow) {
                DisplayWindow display = (DisplayWindow) viewer;
-               storeToDisplays_.get(store).add(display);
+               storeToManagedDisplays_.get(store).add(display);
             }
+            // TODO Nico added the following, but of course the viewers should
+            // not depend on studio. What was it for? --Mark T.
+            // studio_.events().registerForEvents(viewer);
          }
       }
    }
@@ -285,7 +291,7 @@ public final class DefaultDisplayManager implements DisplayManager {
 
    @Override
    public synchronized List<DisplayWindow> getDisplays(Datastore store) {
-      return new ArrayList<DisplayWindow>(storeToDisplays_.get(store));
+      return new ArrayList<DisplayWindow>(storeToManagedDisplays_.get(store));
    }
 
    @Override
@@ -325,9 +331,9 @@ public final class DefaultDisplayManager implements DisplayManager {
    }
 
    @Override
-   public boolean closeDisplaysFor(Datastore store) {
+   public boolean closeDisplaysFor(DataProvider provider) {
       for (DisplayWindow display : getAllImageWindows()) {
-         if (display.getDatastore() == store) {
+         if (display.getDataProvider() == provider) {
             if (!display.requestToClose()) {
                // Fail out immediately; don't try to close other displays.
                return false;
@@ -403,7 +409,10 @@ public final class DefaultDisplayManager implements DisplayManager {
    private void removeDisplay(DisplayWindow display) {
       Datastore store = display.getDatastore();
       synchronized (this) {
-         storeToDisplays_.get(store).remove(display);
+         storeToManagedDisplays_.get(store).remove(display);
+         if (display.getDelegate() == this) {
+            display.setDelegate(null);
+         }
       }
       display.forceClosed();
    }
@@ -449,5 +458,56 @@ public final class DefaultDisplayManager implements DisplayManager {
    @Override
    public void unregisterForEvents(Object recipient) {
       eventBus_.unregister(recipient);
+   }
+
+   @Override
+   public boolean dataViewerShouldClose(DataViewer viewer) {
+      DataProvider provider = viewer.getDataProvider();
+      List<DisplayWindow> displays;
+      if (!(provider instanceof Datastore)) {
+         return true;
+      }
+      Datastore store = (Datastore) provider;
+      synchronized (this) {
+         if (!storeToManagedDisplays_.containsKey(store)) {
+            // This should never happen.
+            ReportingUtils.logError("Received request to close a display that is not associated with a managed datastore.");
+            return true;
+         }
+         displays = getDisplays(store);
+
+         if (viewer instanceof DisplayWindow) {
+            DisplayWindow window = (DisplayWindow) viewer;
+            if (!displays.contains(window)) {
+               // This should also never happen.
+               ReportingUtils.logError("Was notified of a request to close a display that we didn't know was associated with datastore " + provider);
+            }
+
+            if (displays.size() > 1) {
+               // Not last display, so OK to remove 
+               removeDisplay(window);
+               return true;
+            }
+            // Last display; check for saving now.
+            if (store.getSavePath() != null) {
+               // No problem with saving.
+               removeDisplay(window);
+               return true;
+            }
+            // Prompt the user to save their data.
+            try {
+               if (promptToSave(store, window)) {
+                  removeDisplay(window);
+                  store.freeze();
+                  // This will invoke our onDatastoreClosed() method.
+                  store.close();
+                  return true;
+               }
+            } catch (IOException ioe) {
+               ReportingUtils.logError(ioe, "Failed to save:");
+            }
+         }
+         return false;
+      }
    }
 }

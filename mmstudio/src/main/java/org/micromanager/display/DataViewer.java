@@ -242,6 +242,7 @@ public interface DataViewer extends EventPublisher {
     * This method can be called from any thread.
     *
     * @return Every image at the currently-displayed image coordinates.
+    * @throws java.io.IOException
     */
    List<Image> getDisplayedImages() throws IOException;
 
@@ -283,4 +284,16 @@ public interface DataViewer extends EventPublisher {
     * @return a string labeling this display
     */
    String getName();
+
+   /**
+    * Set the viewer's delegate.
+    * @param delegate the delegate
+    */
+   void setDelegate(DataViewerDelegate delegate);
+
+   /**
+    * Get the viewer's delegate.
+    * @return the current delegate, or null if none is set
+    */
+   DataViewerDelegate getDelegate();
 }

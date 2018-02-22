@@ -39,7 +39,6 @@ import org.micromanager.ApplicationSkin.SkinMode;
 import org.micromanager.Studio;
 import org.micromanager.UserProfile;
 import org.micromanager.data.internal.multipagetiff.StorageMultipageTiff;
-import org.micromanager.display.inspector.internal.InspectorController;
 import org.micromanager.internal.MMStudio;
 import org.micromanager.internal.StartupSettings;
 import org.micromanager.internal.logging.LogFileManager;

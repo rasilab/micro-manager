@@ -28,7 +28,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import javax.swing.JDialog;
 import org.micromanager.UserProfile;
-import org.micromanager.profile.internal.DefaultUserProfile;
 
 /**
  * Base class for the Micro-Manager dialogs.

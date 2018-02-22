@@ -17,7 +17,6 @@ import org.micromanager.display.DisplayPositionChangedEvent;
 import org.micromanager.display.internal.link.AbstractLinkAnchor;
 import org.micromanager.display.internal.link.LinkAnchor;
 import org.micromanager.display.internal.link.LinkManager;
-import org.micromanager.display.internal.link.internal.DefaultLinkManager;
 
 /**
  *

@@ -14,10 +14,7 @@
 
 package org.micromanager.display.internal.displaywindow;
 
-import org.micromanager.display.internal.event.DataViewerDidBecomeActiveEvent;
-import org.micromanager.display.internal.event.DataViewerWillCloseEvent;
-import org.micromanager.display.internal.event.DataViewerDidBecomeInvisibleEvent;
-import org.micromanager.display.internal.event.DataViewerDidBecomeVisibleEvent;
+
 import com.google.common.base.Preconditions;
 import com.google.common.eventbus.Subscribe;
 import ij.ImagePlus;
@@ -41,8 +38,12 @@ import org.micromanager.data.Coords;
 import org.micromanager.data.DataProvider;
 import org.micromanager.data.Image;
 import org.micromanager.data.NewImageEvent;
+import org.micromanager.display.DataViewerDelegate;
 import org.micromanager.display.DisplaySettings;
 import org.micromanager.display.DisplayWindow;
+import org.micromanager.display.DisplayWindowControlsFactory;
+import org.micromanager.display.overlay.Overlay;
+import org.micromanager.display.overlay.OverlayListener;
 import org.micromanager.display.inspector.internal.panels.intensity.ImageStatsPublisher;
 import org.micromanager.display.internal.DefaultDisplaySettings;
 import org.micromanager.display.internal.RememberedChannelSettings;
@@ -53,19 +54,21 @@ import org.micromanager.display.internal.imagestats.BoundsRectAndMask;
 import org.micromanager.display.internal.imagestats.ImageStatsRequest;
 import org.micromanager.display.internal.imagestats.ImagesAndStats;
 import org.micromanager.display.internal.imagestats.StatsComputeQueue;
+import org.micromanager.display.internal.DefaultDisplayManager;
+import org.micromanager.display.internal.event.DisplayWindowDidAddOverlayEvent;
+import org.micromanager.display.internal.event.DisplayWindowDidRemoveOverlayEvent;
+import org.micromanager.display.internal.event.DataViewerDidBecomeActiveEvent;
+import org.micromanager.display.internal.event.DataViewerWillCloseEvent;
+import org.micromanager.display.internal.event.DataViewerDidBecomeInvisibleEvent;
+import org.micromanager.display.internal.event.DataViewerDidBecomeVisibleEvent;
+import org.micromanager.display.internal.link.LinkManager;
+import org.micromanager.events.DatastoreClosingEvent;
 import org.micromanager.events.internal.DefaultEventManager;
 import org.micromanager.internal.utils.CoalescentEDTRunnablePool;
 import org.micromanager.internal.utils.CoalescentEDTRunnablePool.CoalescentRunnable;
 import org.micromanager.internal.utils.MustCallOnEDT;
 import org.micromanager.internal.utils.performance.PerformanceMonitor;
 import org.micromanager.internal.utils.performance.gui.PerformanceMonitorUI;
-import org.micromanager.display.DisplayWindowControlsFactory;
-import org.micromanager.display.internal.DefaultDisplayManager;
-import org.micromanager.display.internal.event.DisplayWindowDidAddOverlayEvent;
-import org.micromanager.display.internal.event.DisplayWindowDidRemoveOverlayEvent;
-import org.micromanager.display.internal.link.LinkManager;
-import org.micromanager.display.overlay.Overlay;
-import org.micromanager.display.overlay.OverlayListener;
 
 /**
  * Main controller for the standard image viewer.
@@ -114,6 +117,10 @@ public final class DisplayController extends DisplayWindowAPIAdapter
 
    private final List<Overlay> overlays_ = new ArrayList<Overlay>();
 
+   // A delegate object allowing customization of certain behaviors (such as
+   // what to do when user tries to close)
+   private DataViewerDelegate delegate_;
+
    // A way to know from a non-EDT thread that the display has definitely
    // closed (may not be true for a short period after closing)
    // Guarded by monitor on this
@@ -131,6 +138,16 @@ public final class DisplayController extends DisplayWindowAPIAdapter
          PerformanceMonitor.createWithTimeConstantMs(1000.0);
    private final PerformanceMonitorUI perfMonUI_ =
          PerformanceMonitorUI.create(perfMon_, "Display Performance");
+
+   @Override
+   public void setDelegate(DataViewerDelegate delegate) {
+      delegate_ = delegate;
+   }
+
+   @Override
+   public DataViewerDelegate getDelegate() {
+      return delegate_;
+   }
 
    public static class Builder {
       private DataProvider dataProvider_;
@@ -984,19 +1001,28 @@ public final class DisplayController extends DisplayWindowAPIAdapter
          }
       }
 
-      /* TODO
-      DataViewerDelegate delegate = firstDelegate_;
-      do {
-         boolean okToClose = delegate.canCloseViewer(this);
+      // TODO The following logic should be implemented by AbstractDataViewer.
+      DataViewerDelegate delegate;
+      for (;;) {
+         delegate = delegate_;
+         if (delegate == null) {
+            break;
+         }
+
+         boolean okToClose = delegate.dataViewerShouldClose(this);
          if (!okToClose) {
             return false;
          }
-         delegate = delegate.getNextViewerDelegate(this);
-      } while (delegate != null);
-      forceClose();
-      return true;
-      */
-      close(); // Temporary
+
+         if (delegate != delegate_) {
+            // delegate has been changed by the original delegate;
+            // we must now check with the new delegate
+            continue;
+         }
+         break;
+      }
+
+      close();
       return true;
    }
 
@@ -1017,6 +1043,14 @@ public final class DisplayController extends DisplayWindowAPIAdapter
       // TODO This event should probably be posted in response to window event
       // (which can be done with a ComponentListener for the JFrame)
       postEvent(DataViewerDidBecomeInvisibleEvent.create(this));
+   }
+
+   // TODO Generalize to DataProvider
+   @Subscribe
+   public void onDatastoreClosed(DatastoreClosingEvent event) {
+      if (event.getDatastore().equals(dataProvider_)) {
+         requestToClose();
+      }
    }
 
    @Override

@@ -56,6 +56,7 @@ import org.micromanager.data.internal.StorageRAM;
 import org.micromanager.data.internal.StorageSinglePlaneTiffSeries;
 import org.micromanager.data.internal.multipagetiff.StorageMultipageTiff;
 import org.micromanager.display.ChannelDisplaySettings;
+import org.micromanager.display.DataViewer;
 import org.micromanager.display.DisplaySettings;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.events.AcquisitionEndedEvent;
@@ -65,12 +66,13 @@ import org.micromanager.internal.utils.MDUtils;
 import org.micromanager.internal.utils.ReportingUtils;
 import org.micromanager.display.DisplayWindowControlsFactory;
 import org.micromanager.internal.propertymap.NonPropertyMapJSONFormats;
+import org.micromanager.display.DataViewerDelegate;
 
 /**
  * This class is used to execute most of the acquisition and image display
  * functionality in the ScriptInterface
  */
-public final class MMAcquisition {
+public final class MMAcquisition implements DataViewerDelegate {
    
    /** 
     * Final queue of images immediately prior to insertion into the ImageCache.
@@ -164,8 +166,9 @@ public final class MMAcquisition {
       if (show_) {
          display_ = studio_.displays().createDisplay(
                store_, makeControlsFactory());
+         display_.setDelegate(this);
          display_.registerForEvents(this);
-         
+
          // Color handling is a problem. They are no longer part of the summary 
          // metadata.  However, they clearly need to be stored 
          // with the dataset itself.  I guess that it makes sense to store them in 
@@ -241,6 +244,19 @@ public final class MMAcquisition {
       return maxNumber;
    }
 
+   @Override
+   public boolean dataViewerShouldClose(DataViewer viewer) {
+      if (!viewer.equals(display_)) {
+         ReportingUtils.logError("MMAcquisition: received callback from unknown viewer");
+         return true;
+      }
+      boolean result = eng_.abortRequest();
+      if (result) {
+         studio_.displays().manage(store_);
+      }
+      return result;
+   }
+
    /**
     * A simple little subclass of JButton that listens for certain events.
     * It listens for AcquisitionEndedEvent and disables itself when that
@@ -252,15 +268,15 @@ public final class MMAcquisition {
        * Create a SubscribedButton and subscribe it to the relevant event
        * buses.
        */
-      public static SubscribedButton makeButton(Studio studio,
-            ImageIcon icon, DisplayWindow display) {
+      public static SubscribedButton makeButton(final Studio studio,
+            final ImageIcon icon, final DisplayWindow display) {
          SubscribedButton result = new SubscribedButton(studio, icon);
          DefaultEventManager.getInstance().registerForEvents(result);
          display.registerForEvents(result);
          return result;
       }
 
-      private Studio studio_;
+      private final Studio studio_;
 
       public SubscribedButton(Studio studio, ImageIcon icon) {
          super(icon);
@@ -343,8 +359,15 @@ public final class MMAcquisition {
          store_.freeze();
       }
       catch (IOException e) {
-         // TODO XXX Report
+         ReportingUtils.logError(e);
       }
+
+      // Transfer viewer "Ownership" to the display manager
+      // TODO XXX We are not yet correctly managing duplicated viewers
+      // (probably need a dedicated call to DataViewerDelegate)
+      display_.setDelegate(null);
+      studio_.displays().manage(store_);
+
       DefaultEventManager.getInstance().unregisterForEvents(this);
       new Thread(new Runnable() {
          @Override
@@ -381,19 +404,19 @@ public final class MMAcquisition {
       }
    }
 
-   private static Storage getAppropriateStorage(DefaultDatastore store,
-         String path, boolean isNew) throws IOException {
+   private static Storage getAppropriateStorage(final DefaultDatastore store,
+           final String path, final boolean isNew) throws IOException {
       Datastore.SaveMode mode = DefaultDatastore.getPreferredSaveMode();
-      if (mode == Datastore.SaveMode.SINGLEPLANE_TIFF_SERIES) {
-         return new StorageSinglePlaneTiffSeries(store, path, isNew);
+      if (null != mode) {
+         switch (mode) {
+            case SINGLEPLANE_TIFF_SERIES:
+               return new StorageSinglePlaneTiffSeries(store, path, isNew);
+            case MULTIPAGE_TIFF:
+               return new StorageMultipageTiff(store, path, isNew);
+         }
       }
-      else if (mode == Datastore.SaveMode.MULTIPAGE_TIFF) {
-         return new StorageMultipageTiff(store, path, isNew);
-      }
-      else {
-         ReportingUtils.logError("Unrecognized save mode " + mode);
-         return null;
-      }
+      ReportingUtils.logError("Unrecognized save mode " + mode);
+      return null;
    }
 
    public Datastore getDatastore() {

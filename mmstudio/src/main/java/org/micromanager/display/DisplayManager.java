@@ -259,6 +259,7 @@ public interface DisplayManager extends EventPublisher {
     */
    boolean getIsManaged(Datastore store);
 
+   // TODO Rename to getManagedDisplays or something like that that makes sense
    /**
     * Return all associated DisplayWindows for the Datastore. Returns null if
     * the Datastore is not managed.
@@ -327,14 +328,14 @@ public interface DisplayManager extends EventPublisher {
    ImageExporter createExporter();
 
    /**
-    * Given a Datastore, close any open DisplayWindows for that Datastore.
-    * If the Datastore is managed, then the user may receive a prompt to
+    * Given a DataProvider, close any open DisplayWindows for that DataProvider.
+    * If the DataProvider is managed, then the user may receive a prompt to
     * save their data, which they have the option to cancel.
-    * @param store Datastore for which displays should be closed
+    * @param provider DataProvider for which displays should be closed
     * @return True if all windows were closed; false otherwise (e.g. because
-    *         the user cancelled saving).
+    *         the user canceled saving).
     */
-   boolean closeDisplaysFor(Datastore store);
+   boolean closeDisplaysFor(DataProvider provider);
 
    /**
     * Show a dialog to the user giving them a prompt to close all open windows,
