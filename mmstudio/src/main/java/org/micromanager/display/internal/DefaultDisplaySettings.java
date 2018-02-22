@@ -22,6 +22,8 @@ package org.micromanager.display.internal;
 
 import com.google.common.base.Preconditions;
 import java.awt.Color;
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -399,6 +401,10 @@ public final class DefaultDisplaySettings implements DisplaySettings {
 
       /**
        * Convenience method for single-component settings.
+       * @param contrastMin - new value for contrastMin
+       * @param contrastMax - new value for contrastMax
+       * @param gamma - new gamma value
+       * @param isVisible - new boolean to indicate visibility 
        */
       public DefaultContrastSettings(Integer contrastMin, Integer contrastMax,
             Double gamma, Boolean isVisible) {
@@ -1021,7 +1027,36 @@ public final class DefaultDisplaySettings implements DisplaySettings {
             builder.channel(i++, DefaultChannelDisplaySettings.fromPropertyMap(channelPmap));
          }
       }
-
       return builder.build();
+   }
+
+   // TODO save() needs to be deprecated, and saving as part of a dataset
+   // should be handled by the Storage
+
+   /**
+    * Saves the current displaySettings to the indicated File
+    * DisplaySettings are saves as a JSON encoded PropertyMap
+    * 
+    * @param destination File to which these DisplaySettings should be saved
+    */
+   public void save(File destination) {
+      try {
+         if (!toPropertyMap().saveJSON(destination, true, false)) {
+            ReportingUtils.logError("Failed to save Display Settings to: " + destination.getPath());
+         }
+      }
+      catch (IOException ioe) {
+         ReportingUtils.logError(ioe, "Failed to save Display Settings to: " + destination.getPath());
+      }
+   }
+
+   // TODO Determining where to save the settings is not DisplaySettings'
+   // business; should be handled as a hook into the Store.
+   // (plus, the behavior differing from save(File) is error-prone)
+   public void save(String path) {
+      // TODO: test for sanity of input path?
+      File displaySettingsFile = new File(path + 
+               File.separator + "DisplaySettings.json");
+      save(displaySettingsFile);
    }
 }

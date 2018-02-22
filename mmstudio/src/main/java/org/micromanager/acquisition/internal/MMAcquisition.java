@@ -41,7 +41,6 @@ import org.json.JSONObject;
 import org.micromanager.Studio;
 import org.micromanager.alerts.UpdatableAlert;
 import org.micromanager.data.Coords;
-import org.micromanager.data.DataProviderHasNewImageEvent;
 import org.micromanager.data.Datastore;
 import org.micromanager.data.DatastoreFrozenException;
 import org.micromanager.data.DatastoreRewriteException;
@@ -67,6 +66,8 @@ import org.micromanager.internal.utils.MDUtils;
 import org.micromanager.internal.utils.ReportingUtils;
 import org.micromanager.display.DisplayWindowControlsFactory;
 import org.micromanager.internal.propertymap.NonPropertyMapJSONFormats;
+import org.micromanager.data.DataProviderHasNewImageEvent;
+import org.micromanager.display.internal.DefaultDisplaySettings;
 
 /**
  * This class is used to execute most of the acquisition and image display
@@ -360,6 +361,10 @@ public final class MMAcquisition implements DataViewerDelegate {
       }
       catch (IOException e) {
          ReportingUtils.logError(e);
+      }
+
+      if (display_ .getDisplaySettings() instanceof DefaultDisplaySettings) {
+         ( (DefaultDisplaySettings) display_.getDisplaySettings() ).save(store_.getSavePath());
       }
 
       // Transfer viewer "Ownership" to the display manager

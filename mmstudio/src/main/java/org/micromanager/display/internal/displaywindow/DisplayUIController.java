@@ -34,6 +34,7 @@ import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.awt.geom.Rectangle2D;
@@ -95,6 +96,7 @@ import org.micromanager.internal.utils.ThreadFactoryFactory;
 import org.micromanager.internal.utils.performance.PerformanceMonitor;
 import org.micromanager.internal.utils.performance.TimeIntervalRunningQuantile;
 import org.micromanager.display.DisplayWindowControlsFactory;
+import org.micromanager.display.internal.event.DisplayMouseEvent;
 import org.micromanager.display.internal.gearmenu.GearButton;
 import org.micromanager.display.overlay.Overlay;
 import org.micromanager.internal.MMStudio;
@@ -182,6 +184,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
    private final List<String> displayedAxes_ = new ArrayList<String>();
    private final List<Integer> displayedAxisLengths_ = new ArrayList<Integer>();
    private ImagesAndStats displayedImages_;
+   private Double cachedPixelSize_ = -1.0;
 
    private boolean infoLabelFilled_ = false;
 
@@ -252,7 +255,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
       JFrame frame;
       if (!fullScreen) {
          // TODO LATER Eliminate MMFrame
-         frame = new MMFrame("iamge display window", false);
+         frame = new MMFrame("image display window", false);
          frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
          ((MMFrame) frame).loadPosition(320, 320, 480, 320);
 
@@ -644,7 +647,8 @@ public final class DisplayUIController implements Closeable, WindowListener,
                displayController_.getLinkManager(),
                displayController_, axis);
          final JPopupMenu linkPopup = new JPopupMenu();
-         linkButton = PopupButton.create(IconLoader.getIcon("/org/micromanager/icons/linkflat.png"), linkPopup);
+         linkButton = PopupButton.create(IconLoader.getIcon(
+                 "/org/micromanager/icons/linkflat.png"), linkPopup);
          linkButton.addPopupButtonListener(new PopupButton.Listener() {
             @Override
             public void popupButtonWillShowPopup(PopupButton button) {
@@ -766,8 +770,13 @@ public final class DisplayUIController implements Closeable, WindowListener,
          updatePixelInformation(); // TODO Can skip if identical images
       }
 
-      if (!infoLabelFilled_) {
-         infoLabel_.setText(this.getInfoString());
+      Double pixelSize = images.getRequest().getImage(0).getMetadata().getPixelSizeUm();
+      boolean pixelSizeChanged = cachedPixelSize_ != null && !cachedPixelSize_.equals(pixelSize);
+      if (pixelSizeChanged) {
+         cachedPixelSize_ = pixelSize;
+      }
+      if (!infoLabelFilled_ || pixelSizeChanged) {
+         infoLabel_.setText(getInfoString());
          infoLabelFilled_ = true;
       }
 
@@ -1144,31 +1153,37 @@ public final class DisplayUIController implements Closeable, WindowListener,
    }
 
    /**
-    * Notify the UI controller that the mouse has moved on the image canvas.
+    * Notify the UI controller that a mouse event occurred on the image canvas.
     *
     * If {@code imageLocation} is null or empty, the indicator is hidden. The
     * {@code imageLocation} parameter can be a rectangle containing more than
     * one pixel, for example if the point comes from a zoomed-out canvas.
     *
+    * @param e MouseEvent that occurred on the Canvas. Use its getId() function
+    * to discover what kind of Mouse Event happened.
     * @param imageLocation the image coordinates of the pixel for which
     * information should be displayed (in image coordinates)
     */
-   public void mouseLocationOnImageChanged(Rectangle imageLocation) {
-      if (imageLocation == null ||
-            imageLocation.width == 0 || imageLocation.height == 0)
-      {
-         if (mouseLocationOnImage_ == null) {
-            return;
-         }
-         mouseLocationOnImage_ = null;
-         updatePixelInformation();
-      }
-      else {
-         if (imageLocation.equals(mouseLocationOnImage_)) {
-            return;
-         }
-         mouseLocationOnImage_ = new Rectangle(imageLocation);
-         updatePixelInformation();
+   public void mouseEventOnImage(MouseEvent e, Rectangle imageLocation) {
+      displayController_.postDisplayEvent(new DisplayMouseEvent(e, imageLocation));
+      switch (e.getID()) {
+         case MouseEvent.MOUSE_MOVED:
+         case MouseEvent.MOUSE_ENTERED:
+         case MouseEvent.MOUSE_EXITED:
+            if (imageLocation == null
+                    || imageLocation.width == 0 || imageLocation.height == 0) {
+               if (mouseLocationOnImage_ == null) {
+                  return;
+               }
+               mouseLocationOnImage_ = null;
+               updatePixelInformation();
+            } else {
+               if (imageLocation.equals(mouseLocationOnImage_)) {
+                  return;
+               }
+               mouseLocationOnImage_ = new Rectangle(imageLocation);
+               updatePixelInformation();
+            }
       }
    }
 
@@ -1430,7 +1445,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
       return "Unknown pixelType";
    }
   
-   public String getInfoString() {
+   public String getInfoString(ImagesAndStats images) {
       StringBuilder infoStringB = new StringBuilder();
       Double pixelSize;
       long nrBytes;
@@ -1438,10 +1453,12 @@ public final class DisplayUIController implements Closeable, WindowListener,
          if (displayController_.getDataProvider().getAnyImage() == null) {
             return "No image yet";
          }
-         pixelSize = displayController_.getDataProvider().getAnyImage().getMetadata().getPixelSizeUm();
+         // TODO: is 0 always the right choice?  
+         images.getRequest().getImage(0);
+         pixelSize = images.getRequest().getImage(0).getMetadata().getPixelSizeUm();
          nrBytes = getImageWidth() * getImageHeight()
-                 * displayController_.getDataProvider().getAnyImage().getBytesPerPixel()
-                 * displayController_.getDataProvider().getAnyImage().getNumComponents();
+                 * images.getRequest().getImage(0).getBytesPerPixel()
+                 * images.getRequest().getImage(0).getNumComponents();
 
       } catch (IOException io) {
          return "Failed to find image";

@@ -19,7 +19,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.eventbus.Subscribe;
 import ij.ImagePlus;
 import java.awt.Window;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1058,17 +1057,7 @@ public final class DisplayController extends DisplayWindowAPIAdapter
       if (dataProvider_ instanceof Datastore) {
          Datastore ds = (Datastore) dataProvider_;
          if (ds.getSavePath() != null) {
-            // TODO Better mechanism to handle these auxiliary files?
-            File displaySettingsFile = new File(ds.getSavePath() + File.separator + "DisplaySettings.json");
-            try {
-               ((DefaultDisplaySettings) getDisplaySettings()).
-                     toPropertyMap().
-                     saveJSON(displaySettingsFile, true, false);
-            }
-            catch (IOException e) {
-               // Not critical, so no error shown to user
-               ReportingUtils.logError(e, "Failed to save display settings: " + displaySettingsFile.getPath());
-            }
+            ((DefaultDisplaySettings) getDisplaySettings()).save(ds.getSavePath());
          }
       }
       try {

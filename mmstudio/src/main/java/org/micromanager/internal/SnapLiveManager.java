@@ -40,7 +40,6 @@ import mmcorej.CMMCore;
 import mmcorej.TaggedImage;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.micromanager.PropertyMaps;
 import org.micromanager.Studio;
 import org.micromanager.data.Coordinates;
 import org.micromanager.data.Coords;
@@ -53,7 +52,6 @@ import org.micromanager.data.Pipeline;
 import org.micromanager.data.PipelineErrorException;
 import org.micromanager.data.internal.DefaultImage;
 import org.micromanager.data.internal.DefaultRewritableDatastore;
-import org.micromanager.data.internal.PropertyKey;
 import org.micromanager.data.internal.StorageRAM;
 import org.micromanager.display.DataViewer;
 import org.micromanager.display.DataViewerDelegate;
@@ -73,6 +71,10 @@ import org.micromanager.internal.utils.performance.PerformanceMonitor;
 import org.micromanager.internal.utils.performance.gui.PerformanceMonitorUI;
 import org.micromanager.quickaccess.internal.QuickAccessFactory;
 import org.micromanager.display.DisplayWindowControlsFactory;
+import org.micromanager.internal.menus.MMMenuBar;
+import org.micromanager.internal.navigation.ClickToMoveManager;
+
+// TODO (When there are no divergent branches) rename to DefaultSnapLiveManager
 
 /**
  * This class is responsible for all logic surrounding live mode and the
@@ -96,7 +98,8 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
 
    private final Studio studio_;
    private final CMMCore core_;
-   private DisplayWindow display_;
+   private final ClickToMoveManager clickToMoveManager_;
+   private DisplayController display_;
    private DefaultRewritableDatastore store_;
    private Pipeline pipeline_;
    private final Object pipelineLock_ = new Object();
@@ -135,6 +138,8 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
    public SnapLiveManager(Studio studio, CMMCore core) {
       studio_ = studio;
       core_ = core;
+      clickToMoveManager_ = new ClickToMoveManager(studio_, core_);
+      studio_.events().registerForEvents(clickToMoveManager_);
    }
 
    @Override
@@ -481,7 +486,11 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
       display_.registerForEvents(this);
       display_.setDelegate(this);
       display_.setCustomTitle(TITLE);
+      if (MMMenuBar.getToolsMenu().getMouseMovesStage() && display_ != null) {
+         clickToMoveManager_.activate(display_);
+      }
    }
+
 
    /**
     * HACK: in addition to providing the snap/live/album buttons for the
