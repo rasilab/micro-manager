@@ -135,7 +135,6 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
    public SnapLiveManager(Studio studio, CMMCore core) {
       studio_ = studio;
       core_ = core;
-      studio_.events().registerForEvents(this);
    }
 
    @Override
@@ -471,8 +470,11 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
             shouldShow(true).build();
       DisplaySettings ds = DefaultDisplaySettings.fromPropertyMap(
             studio_.profile().getSettings(getClass()).getPropertyMap(
-                  DISPLAY_SETTINGS_PROFILE_KEY,
-                  PropertyMaps.emptyPropertyMap()));
+                  DISPLAY_SETTINGS_PROFILE_KEY, null));
+      if (ds == null) {
+         ds = DefaultDisplaySettings.builder().colorMode(
+                 DisplaySettings.ColorMode.GRAYSCALE).build();
+      }
       display_.setDisplaySettings(ds);
       studio_.displays().addViewer(display_);
 

@@ -42,6 +42,7 @@ import net.miginfocom.layout.LC;
 import net.miginfocom.swing.MigLayout;
 import org.micromanager.EventPublisher;
 import org.micromanager.display.DataViewer;
+import org.micromanager.display.DisplayWindow;
 import org.micromanager.display.internal.DataViewerCollection;
 import org.micromanager.display.internal.event.DataViewerDidBecomeActiveEvent;
 import org.micromanager.display.internal.event.DataViewerDidBecomeInactiveEvent;
@@ -57,6 +58,7 @@ import org.micromanager.internal.utils.WindowPositioning;
 import org.scijava.plugin.Plugin;
 import org.micromanager.display.inspector.InspectorPanelController;
 import org.micromanager.display.inspector.InspectorPanelPlugin;
+import org.micromanager.display.internal.displaywindow.DisplayController;
 import org.micromanager.events.ShutdownCommencingEvent;
 
 
@@ -349,15 +351,34 @@ public final class InspectorController
 
       if (selectedItem == FRONTMOST_VIEWER_ITEM) {
          attachToFrontmostDataViewer();
+         viewerToFrontButton_.setEnabled(false);
       }
       else if (selectedItem instanceof ViewerItem) {
          DataViewer viewer = ((ViewerItem) selectedItem).getDataViewer();
          attachToFixedDataViewer(viewer);
+         viewerToFrontButton_.setEnabled(true);
       }
    }
 
    private void viewerToFrontButtonActionPerformed(ActionEvent e) {
-      // TODO
+      Object selectedItem = viewerComboBox_.getSelectedItem();
+      // TODO: in this case, the Selected item is of type String.  
+      // I don't understand why, but for now just deal with it
+      if (selectedItem instanceof ViewerItem) {
+         ViewerItem vi = (ViewerItem) selectedItem;
+         if (vi.getDataViewer() instanceof DisplayController) {
+            ((DisplayController) vi.getDataViewer()).getWindow().toFront();
+         }
+      } else if (selectedItem instanceof String) {
+         List<DataViewer> viewers = viewerCollection_.getAllDataViewers();
+         for (DataViewer viewer : viewers) {
+            if (viewer.getName().equals(selectedItem)) {
+               if (viewer instanceof DisplayWindow) {
+                  ((DisplayWindow) viewer).getWindow().toFront();
+               }
+            }
+         }
+      }
    }
 
    @Override
