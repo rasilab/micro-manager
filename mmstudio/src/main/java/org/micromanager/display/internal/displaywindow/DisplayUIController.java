@@ -179,6 +179,13 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
    private ImageJBridge ijBridge_;
 
+   public static enum ImageJTool {
+      SELECT,
+      PAN,
+      ZOOM,
+      UNKNOWN,
+   }
+
    // Data display state of the UI (which may lag behind the display
    // controller's notion of what's current)
    private final List<String> displayedAxes_ = new ArrayList<String>();
@@ -776,7 +783,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
          cachedPixelSize_ = pixelSize;
       }
       if (!infoLabelFilled_ || pixelSizeChanged) {
-         infoLabel_.setText(getInfoString());
+         infoLabel_.setText(getInfoString(displayedImages_));
          infoLabelFilled_ = true;
       }
 
@@ -1164,8 +1171,10 @@ public final class DisplayUIController implements Closeable, WindowListener,
     * @param imageLocation the image coordinates of the pixel for which
     * information should be displayed (in image coordinates)
     */
-   public void mouseEventOnImage(MouseEvent e, Rectangle imageLocation) {
-      displayController_.postDisplayEvent(new DisplayMouseEvent(e, imageLocation));
+   public void mouseEventOnImage(MouseEvent e, Rectangle imageLocation,
+           ImageJTool tool) {
+      displayController_.postDisplayEvent( new DisplayMouseEvent(
+              e, imageLocation, tool));
       switch (e.getID()) {
          case MouseEvent.MOUSE_MOVED:
          case MouseEvent.MOUSE_ENTERED:

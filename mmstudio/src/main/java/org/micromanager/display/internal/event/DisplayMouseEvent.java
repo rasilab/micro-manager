@@ -16,6 +16,7 @@ package org.micromanager.display.internal.event;
 
 import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
+import org.micromanager.display.internal.displaywindow.DisplayUIController;
 
 /**
  * Provides a MouseEvent and the location (in image pixel coordinates) where
@@ -26,12 +27,15 @@ import java.awt.event.MouseEvent;
 public class DisplayMouseEvent {
    private final MouseEvent event_;
    private final Rectangle location_;
+   private final DisplayUIController.ImageJTool ijTool_;
    
-   public DisplayMouseEvent(MouseEvent e, Rectangle imageLocation) {
+   public DisplayMouseEvent(final MouseEvent e, final Rectangle imageLocation,
+           final DisplayUIController.ImageJTool ijTool) {
       event_ = e;
       location_ = imageLocation;
+      ijTool_ = ijTool;
    }
-   
+
    /**
     * The MouseEvent as received by the display.  Use the getID() function to 
     * find out what this event signifies.
@@ -49,6 +53,17 @@ public class DisplayMouseEvent {
     */
    public Rectangle getLocation() {
       return location_;
+   }
+   
+   /**
+    * The currently selected ImageJ Tool
+    * Regretfully, this creates some dependencies on ImageJ code, however
+    * only an integer is being propagated.  Possible values are defined in
+    * ij.gui.Toolbar
+    * @return ID of the tool selected in the ImageJ Tool-bar
+    */
+   public DisplayUIController.ImageJTool getImageJTool() {
+      return ijTool_;
    }
    
 }

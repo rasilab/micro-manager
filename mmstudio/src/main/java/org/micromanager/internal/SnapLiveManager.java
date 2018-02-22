@@ -71,6 +71,7 @@ import org.micromanager.internal.utils.performance.PerformanceMonitor;
 import org.micromanager.internal.utils.performance.gui.PerformanceMonitorUI;
 import org.micromanager.quickaccess.internal.QuickAccessFactory;
 import org.micromanager.display.DisplayWindowControlsFactory;
+import org.micromanager.events.internal.MouseMovesStageStateChangeEvent;
 import org.micromanager.internal.menus.MMMenuBar;
 import org.micromanager.internal.navigation.ClickToMoveManager;
 
@@ -446,7 +447,7 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
    }
 
    /**
-    * We need to [re]create the Datastore and its backing storage.
+    * [re]create the Datastore and its backing storage.
     */
    private void createDatastore() {
       synchronized(pipelineLock_) {
@@ -467,7 +468,7 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
       DisplayWindowControlsFactory controlsFactory = new DisplayWindowControlsFactory() {
          @Override
          public List<Component> makeControls(DisplayWindow display) {
-            return createControls(display);
+            return createControls();
          }
       };
       display_ = new DisplayController.Builder(store_).
@@ -490,15 +491,22 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
          clickToMoveManager_.activate(display_);
       }
    }
+   
+   @Subscribe
+   public void onMouseMovesStageStateChange (MouseMovesStageStateChangeEvent e) {
+      if (e.getIsEnabled()) {
+         clickToMoveManager_.activate(display_);
+      } else {
+         clickToMoveManager_.deActivate(display_);
+      }
+   }
 
 
    /**
-    * HACK: in addition to providing the snap/live/album buttons for the
-    * display, we also set it up for click-to-move at this point.
-    * We do this because duplicates of the snap/live window also need
-    * click-to-move to be enabled.
+    * Provide snap/live/album buttons for the display.
+    *  
     */
-   private List<Component> createControls(final DisplayWindow display) {
+   private List<Component> createControls() {
       /* TODO
       ClickToMoveManager.getInstance().activate((DisplayController) display);
       */

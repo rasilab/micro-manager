@@ -26,9 +26,9 @@ import java.util.HashMap;
 import mmcorej.CMMCore;
 import mmcorej.MMCoreJ;
 import org.micromanager.Studio;
+import org.micromanager.display.DataViewer;
 import org.micromanager.display.internal.displaywindow.DisplayController;
 import org.micromanager.display.internal.event.DataViewerWillCloseEvent;
-import org.micromanager.events.internal.MouseMovesStageEvent;
 import org.micromanager.internal.menus.MMMenuBar;
 
 /**
@@ -37,41 +37,49 @@ import org.micromanager.internal.menus.MMMenuBar;
  */
 public final class ClickToMoveManager {
    private final HashMap<DisplayController, CenterAndDragListener> displayToDragListener_;
-   private final HashMap<DisplayController, KeyAdapter> displayToKeyListener_;
+   //private final HashMap<DisplayController, KeyAdapter> displayToKeyListener_;
    private final CMMCore core_;
    private final Studio studio_;
-
-   //private static ClickToMoveManager staticInstance_;
 
    public ClickToMoveManager(Studio studio, CMMCore core) {
       studio_ = studio;
       core_ = core;
       displayToDragListener_ = new HashMap<DisplayController, CenterAndDragListener>();
-      displayToKeyListener_ = new HashMap<DisplayController, KeyAdapter>();
-      //staticInstance_ = this;
+      //displayToKeyListener_ = new HashMap<DisplayController, KeyAdapter>();
       // Calling code has to register us for studio_ events
    }
 
    /**
     * Keep track of enabling/disabling click-to-move for this display.
-    * @param display Display to which we will listen for mouse events
+    * @param display Display to which we will listen for events
     */
    public void activate(DisplayController display) {
       CenterAndDragListener dragListener = null;
-      KeyAdapter keyListener = null;
-      //display.registerForEvents(this);
+      //KeyAdapter keyListener = null;
       if (MMMenuBar.getToolsMenu().getMouseMovesStage()) {
          dragListener = new CenterAndDragListener(core_);
          display.registerForEvents(dragListener);
-         keyListener = new StageShortcutListener();
+         //keyListener = new StageShortcutListener();
       }
-      // TODO
       displayToDragListener_.put(display, dragListener);
-      displayToKeyListener_.put(display, keyListener);
+      //displayToKeyListener_.put(display, keyListener);
    }
 
+   public void deActivate(final DataViewer displayToDeActivate) {
+      for (DisplayController display : displayToDragListener_.keySet()) {
+         if (display.equals(displayToDeActivate)) {
+            // Deactivate listener for this display.
+            CenterAndDragListener listener = displayToDragListener_.get(display);
+            if (listener != null) {
+               display.unregisterForEvents(listener);
+            }
+            displayToDragListener_.remove(display);
+         }
+      }
+   }
+   /*
    @Subscribe
-   public void onMouseMovesStage(MouseMovesStageEvent event) {
+   public void onMouseMovesStage(MouseMovesStageStateChangeEvent event) {
       try {
          for (DisplayController display : displayToDragListener_.keySet()) {
             if (event.getIsEnabled()) {
@@ -99,16 +107,16 @@ public final class ClickToMoveManager {
          studio_.logs().logError(e, "Error updating mouse-moves-stage info");
       }
    }
+   */
 
    @Subscribe
    public void onDataViewerWillCloseEvent(DataViewerWillCloseEvent e) {
-
+      deActivate(e.getDataViewer());
       for (DisplayController display : displayToDragListener_.keySet()) {
          if (display.equals(e.getDataViewer())) {
             // Deactivate listener for this display.
             CenterAndDragListener listener = displayToDragListener_.get(display);
             if (listener != null) {
-               listener.stop();
                display.unregisterForEvents(listener);
             }
             displayToDragListener_.remove(display);
