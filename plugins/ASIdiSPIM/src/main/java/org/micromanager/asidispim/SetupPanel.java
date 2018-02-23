@@ -158,7 +158,6 @@ public final class SetupPanel extends ListeningJPanel {
       controller_ = controller;
       gui_ = gui;
       PanelUtils pu = new PanelUtils(prefs_, props_, devices);
-      final SetupPanel setupPanel = this;
 
       updateKeyAssignments();
 
@@ -405,8 +404,7 @@ public final class SetupPanel extends ListeningJPanel {
       tmp_but.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent e) {
-            autofocus_.runFocus(setupPanel, side_, true,
-                    ASIdiSPIM.getFrame().getAcquisitionPanel().getSliceTiming(), true);
+            runAutofocus();
          }
       });
       slopeCalibrationPanel.add(tmp_but);
@@ -481,7 +479,8 @@ public final class SetupPanel extends ListeningJPanel {
             ASIdiSPIM.getFrame().getAcquisitionPanel().runTestAcquisition(side_);
             refreshCameraBeamSettings();
             centerPiezoAndGalvo();  // put piezo and galvo back to the imaging center 
-                                    // acquisition code puts them back to zero, this is better and maybe should be done globally 
+                                    // acquisition code puts them back to zero, 
+                                    // this is better and maybe should be done globally 
          }
       });
       slicePanel.add(testAcqButton, "center, span 2, wrap");
@@ -909,12 +908,13 @@ public final class SetupPanel extends ListeningJPanel {
    
   /**
    * Centers the piezo and micro-mirror.  Doesn't do anything if the devices
-   * aren't assigned to prevent spurious exceptions.
+   * aren't assigned to prevent spurious exceptions, but will move micro-mirror 
+ 	* if piezo isn't assigned. 
    * @throws Exception 
    */
    private void centerPiezoAndGalvo() {
       boolean success = positions_.setPosition(piezoImagingDeviceKey_, imagingCenterPos_, true);
-      if (success) {
+      if (success || !devices_.isValidMMDevice(piezoImagingDeviceKey_)) {
          positions_.setPosition(micromirrorDeviceKey_, Directions.Y,
             computeGalvoFromPiezo(imagingCenterPos_));
       }

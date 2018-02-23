@@ -47,6 +47,7 @@ import org.micromanager.data.Coords;
 import org.micromanager.data.Datastore;
 import org.micromanager.data.SummaryMetadata;
 import org.micromanager.display.DisplayWindow;
+import org.micromanager.internal.utils.NumberUtils;
 import org.micromanager.internal.utils.ReportingUtils;
 
 
@@ -77,6 +78,7 @@ public class DataAnalysisPanel extends ListeningJPanel {
    private final JCheckBox deskewInvert_; 
  	private final JCheckBox deskewInterpolate_; 
    private final JCheckBox deskewAutoTest_; 
+   private final JButton exportButton_; 
    
    public static final String[] TRANSFORMOPTIONS = 
       {"None", "Rotate Right 90\u00B0", "Rotate Left 90\u00B0", "Rotate outward",
@@ -203,8 +205,8 @@ public class DataAnalysisPanel extends ListeningJPanel {
       progBar.setVisible(false);
       final JLabel infoLabel = new JLabel("");
      
-      JButton exportButton = new JButton("Export");
-      exportButton.addActionListener(new ActionListener() {
+      exportButton_ = new JButton("Export");
+      exportButton_.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent e) {
             setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
@@ -234,7 +236,7 @@ public class DataAnalysisPanel extends ListeningJPanel {
             task.execute();
          }
       });
-      exportPanel_.add(exportButton, "span 3, center, wrap");
+      exportPanel_.add(exportButton_, "span 3, center, wrap");
       exportPanel_.add(infoLabel,"");
       exportPanel_.add(progBar, "span3, center, wrap");    
       
@@ -342,9 +344,11 @@ public class DataAnalysisPanel extends ListeningJPanel {
             long startTime = System.currentTimeMillis();
             final DisplayWindow currentWindow = gui_.displays().getCurrentWindow();
             final ImagePlus ip;
-            boolean firstSideIsA;
+            final boolean firstSideIsA;
+            final boolean twoSided;
             String windowTitle;
             final AcquisitionModes.Keys acqMode;
+            double zStepPx = 0.0;
             if (currentWindow != null) {
                ip = currentWindow.getImagePlus();
 
@@ -359,11 +363,20 @@ public class DataAnalysisPanel extends ListeningJPanel {
                   throw new Exception("Can only deskew stage scanning data");
                }
                firstSideIsA = !metadata.getString("FirstSide").equals("B");
+               twoSided = metadata.getString("NumberOfSides").equals("2"); 
 
                if (metadata.containsKey("AcquisitionName")) {
                   windowTitle = metadata.getString("AcquisitionName");
                } else {
                   windowTitle = ip.getTitle();
+               }
+               if (metadata.containsString("PixelSize_um") && metadata.containsString("z-step_um")) {
+                  // with test acquisitions ip.getCalibration() isn't correct for some reason so prefer metadata 
+                  double pixelSize = NumberUtils.coreStringToDouble(metadata.getString("PixelSize_um"));
+                  if (pixelSize < 1e-6) {
+                     throw new Exception("Cannot have pixel size of 0");
+                  }
+                  zStepPx = NumberUtils.coreStringToDouble(metadata.getString("z-step_um")) / pixelSize;
                }
             } else {
                ip = IJ.getImage();
@@ -372,16 +385,25 @@ public class DataAnalysisPanel extends ListeningJPanel {
                }
                // guess at settings since we can't access MM metadata 
                firstSideIsA = true;
+               twoSided = true; 
                acqMode = AcquisitionModes.Keys.STAGE_SCAN;
                windowTitle = ip.getTitle(); 
  	            ReportingUtils.logDebugMessage("Deskew may be incorrect because don't have Micro-Manager dataset with metadata");
+            }
+
+            // if zStepPx wasn't set from MM metadata then get value from ImagePlus object  
+            if (zStepPx < 1e-6) {
+               double pixelSize = ip.getCalibration().pixelWidth;
+               if (pixelSize < 1e-6) {
+                  throw new Exception("Cannot have pixel size of 0");
+               }
+               zStepPx = ip.getCalibration().pixelDepth / pixelSize;
             }
 
             // for 45 degrees we shift the same amount as the interplane spacing, so factor of 1.0 
             // assume diSPIM unless marked specifically otherwise 
             // I don't understand why mathematically but it seems that for oSPIM the factor is 1.0 
             //   too instead of being tan(60 degrees) due to the rotation 
-            final double zStepPx = ip.getCalibration().pixelDepth / ip.getCalibration().pixelWidth;
             final double dx = zStepPx * (Double) deskewFactor_.getValue();
 
             final int sc = ip.getNChannels();
@@ -403,7 +425,13 @@ public class DataAnalysisPanel extends ListeningJPanel {
                IJ.selectWindow("C" + (c + 1) + "-" + title);
                switch (acqMode) {
                   case STAGE_SCAN:
-                     dir = (c % 2) * 2 - 1;  // -1 for path A which are odd channels, 1 for path B 
+                     if (twoSided) {
+                        dir = (c % 2) * 2 - 1;  // -1 for path A which are odd channels, 1 for path B 
+                     } else {
+                        // single-sided is path A for all channels 
+                        dir = -1;
+                     }
+                     // invert direction if we started with path B, regardless of single- or double-sided 
                      if (!firstSideIsA) {
                         dir *= -1;
                      }
@@ -631,6 +659,20 @@ public class DataAnalysisPanel extends ListeningJPanel {
             }
         }
     }
+    
+   /**
+    * for API, perform export like clicking on the button
+    */
+   public void runExport() {
+      exportButton_.doClick();
+   }
+
+   /**
+    * for API, set the base name field for export
+    */
+   public void setExportBaseName(String baseName) {
+      baseNameField_.setText(baseName);
+   }
 
    /**
     * Since java 1.6 does not seem to have this functionality....

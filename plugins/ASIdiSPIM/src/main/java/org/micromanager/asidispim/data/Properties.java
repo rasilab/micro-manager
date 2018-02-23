@@ -165,6 +165,13 @@ public class Properties {
       CAMERA_SIZE_Y("OnCameraCCDYSize"),  // for DemoCam
       CAMERA_X_DIMENSION("X-dimension"),  // for PVCAM 
  	   CAMERA_Y_DIMENSION("Y-dimension"),  // for PVCAM 
+      PVCAM_CLEARING_MODE("ClearMode"), // for PVCAM 
+      PVCAM_CLEARING_TIME("Timing-ClearingTimeNs"), // for PVCAM 
+      PVCAM_EXPOSURE_TIME("Timing-ExposureTimeNs"), // for PVCAM 
+      PVCAM_READOUT_TIME("Timing-ReadoutTimeNs"), // for PVCAM 
+      PVCAM_POST_TIME("Timing-PostTriggerDelayNs"), // for PVCAM 
+      PVCAM_PRE_TIME("Timing-PreTriggerDelayNs"), // for PVCAM 
+      PVCAM_CHIPNAME("ChipName"),                    // for PVCAM 
       FIRMWARE_VERSION("FirmwareVersion"),
       CAMERA("Camera"),
       PLUGIN_POSITION_REFRESH_INTERVAL("PositionRefreshInterval(s)"),
@@ -178,6 +185,8 @@ public class Properties {
       PLUGIN_NAME_PREFIX("NamePrefix"),
       PLUGIN_TESTACQ_PATH("TestAcquisitionPath"),
       PLUGIN_TESTACQ_SAVE("TestAcquisitionSave"),
+      PLUGIN_WRITE_ACQ_SETTINGS_FILE("WriteAcquisitionSettingsFile"), 
+      PLUGIN_ACQUIRE_BOTH_CAMERAS_SIMULT("AcquireBothCamerasSimult"), 
       PLUGIN_USE_TOOLSET("UseImageJToolset"),
       PREFS_SAVE_WHILE_ACQUIRING("SaveWhileAcquiring"),
       PREFS_HIDE_WHILE_ACQUIRING("HideWhileAcquiring"),
@@ -204,6 +213,7 @@ public class Properties {
       PLUGIN_ACQUSITION_MODE("AcquisitionMode"),
       AUTOFOCUS_ACQUSITION_MODE("AutofocusAcquisitionMode"),
       AUTOFOCUS_SCORING_ALGORITHM("AutofocusScoringAlgorithm"),
+      PLUGIN_ACQUSITION_USE_MOVEMENT_CORRECTION("UseMovementCorrectionInAcquisition"),
       PLUGIN_ACQUSITION_USE_AUTOFOCUS("UseAutofocusInAcquisition"),
       PLUGIN_CAMERA_MODE("CameraMode"),
       PLUGIN_CAMERA_LIVE_EXPOSURE_FIRST("CameraLiveExposureMs_First"),  // used internally to save/restore live exposure time 
@@ -238,6 +248,11 @@ public class Properties {
       PLUGIN_AUTOFOCUS_AUTOUPDATE_OFFSET("AutofocusAutoUpdateOffset"),
       PLUGIN_AUTOFOCUS_CHANNEL("AutofocusChannel"),
       PLUGIN_AUTOFOCUS_MINIMUMR2("AutofocusMinimumR2"),
+      PLUGIN_AUTOFOCUS_CORRECT_MOVEMENT("AutofocusCorrectMovement"),
+      PLUGIN_AUTOFOCUS_CORRECTMOVEMENT_EACHNIMAGES("AutofocusCorrectMovementEachNImages"),
+      PLUGIN_AUTOFOCUS_CORRECTMOVEMENT_CHANNEL("AutofocusCorrectMovementChannel"),
+      PLUGIN_AUTOFOCUS_CORRECTMOVEMENT_MAXCHANGE("AutofcousCorrectMovementMaxChange"),
+      PLUGIN_AUTOFOCUS_CORRECTMOVEMENT_MINCHANGE("AutofcousCorrectMovementMinChange"),
       PLUGIN_ADVANCED_CAMERA_EXPOSURE("AdvancedCameraExposure"),
       PLUGIN_DESKEW_FACTOR("DeskewFactor"),
       PLUGIN_DESKEW_INVERT("DeskewInvert"), 
@@ -324,6 +339,11 @@ public class Properties {
       BOTTOM_UP_SIM_ANDOR("Bottom Up Simultaneous"),
       INTERNAL_TRIGGER("Internal Trigger"), 
  	   EDGE_TRIGGER("Edge Trigger"),
+      NEVER("Never"), // for PVCam 
+      PRE_EXPOSURE("Pre-Exposure"), // for PVCam 
+      PRE_SEQUENCE("Pre-Sequence"), // for PVCam
+      PRIME_CHIPNAME("CIS2020F"),            // for PVCam, original Prime 
+ 	   PRIME_95B_CHIPNAME("GS144BSI"),        // for PVCam, Prime 95B 
       POSITIVE("POSITIVE"),
       NEGATIVE("NEGATIVE"),
       SIXTEENBIT("16bit"),

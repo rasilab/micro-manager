@@ -341,14 +341,14 @@ public class ControllerUtils {
       }
       props_.setPropValue(galvoDevice, Properties.Keys.SPIM_DELAY_REPEATS, delayRepeats, skipScannerWarnings);
       props_.setPropValue(galvoDevice, Properties.Keys.SPIM_NUM_REPEATS, numVolumesPerTrigger, skipScannerWarnings);
-       props_.setPropValue(galvoDevice, Properties.Keys.SPIM_DELAY_SIDE, 
+      props_.setPropValue(galvoDevice, Properties.Keys.SPIM_DELAY_SIDE, 
  		            settings.isStageScanning ? 0 : // minimal delay on micro-mirror card for stage scanning (can't actually be less than 2ms but this will get as small as possible) 
  		               props_.getPropValueFloat(Devices.Keys.PLUGIN, Properties.Keys.PLUGIN_DELAY_BEFORE_SIDE),  // this is usual behavior 
  		            skipScannerWarnings); 
        
       // figure out the piezo parameters
       float piezoCenter;
-      if (settings.isStageScanning) {
+      if (settings.isStageScanning && devices_.isValidMMDevice(piezoDevice)) {
          // for stage scanning we define the piezo position to be the home position (normally 0) 
          // this is basically required for interleaved mode (otherwise piezo would be moving every slice) 
          //    and by convention we'll do it for all stage scanning 
@@ -479,6 +479,7 @@ public class ControllerUtils {
          props_.setPropValue(piezoDevice,
                  Properties.Keys.SPIM_STATE, Properties.Values.SPIM_ARMED);
       }
+      // TODO figure out what we should do with piezo illumination/center position during stage scan
 
       // set up stage scan parameters if necessary
       if (settings.isStageScanning) {
@@ -488,7 +489,9 @@ public class ControllerUtils {
          //   the first side piezo will never get moved into position either so do both manually (for 
          //   simplicity ignore fact that one of two is unnecessary for two-sided normal stage scan acquisition) 
          try {
-            core_.home(devices_.getMMDevice(piezoDevice));
+            if (devices_.isValidMMDevice(piezoDevice)) {
+               core_.home(devices_.getMMDevice(piezoDevice));
+            }
          } catch (Exception e) {
             ReportingUtils.showError(e, "Could not move piezo to home");
          }
@@ -601,7 +604,7 @@ public class ControllerUtils {
  	         props_.getPropValueFloat(galvoDevice, Properties.Keys.SA_OFFSET_X_DEG), skipScannerWarnings); 
       
       // move piezo back to desired position
-      if (movePiezo) {
+      if (movePiezo && devices_.isValidMMDevice(piezoDevice)) {
          positions_.setPosition(piezoDevice, piezoPosition, true); 
       }
       
