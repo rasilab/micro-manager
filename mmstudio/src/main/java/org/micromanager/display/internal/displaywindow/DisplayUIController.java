@@ -374,6 +374,11 @@ public final class DisplayUIController implements Closeable, WindowListener,
       }
 
       ijBridge_ = ImageJBridge.create(this);
+      Double zoomRatio = getDisplayController().getDisplaySettings().getZoomRatio();
+      if (zoomRatio <= 0) {
+         zoomRatio = 1.0;
+      }
+      ijBridge_.mm2ijSetZoom(zoomRatio);
 
       canvasPanel_.removeAll();
       noImagesMessageLabel_ = null;
@@ -788,7 +793,6 @@ public final class DisplayUIController implements Closeable, WindowListener,
             updateAxisPositionIndicator(axis, nominalCoords.getIndex(axis), -1);
          }
       }
-
       ijBridge_.mm2ijSetDisplayPosition(nominalCoords);
       applyAutostretch(images, displayController_.getDisplaySettings());
 
@@ -800,6 +804,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
       boolean pixelSizeChanged = cachedPixelSize_ != null && !cachedPixelSize_.equals(pixelSize);
       if (pixelSizeChanged) {
          cachedPixelSize_ = pixelSize;
+         ijBridge_.mm2ijSetMetadata();
       }
       if (!infoLabelFilled_ || pixelSizeChanged) {
          infoLabel_.setText(getInfoString(displayedImages_));

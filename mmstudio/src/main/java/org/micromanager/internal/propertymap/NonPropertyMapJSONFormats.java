@@ -17,7 +17,8 @@ import static org.micromanager.data.internal.PropertyKey.*;
 
 /**
  * High-level format conversion between MM1-style JSON and modern property maps.
- * @see MM1JSONSerializer, MetadataKey
+ * 
+ * @see MM1JSONSerializer
  * @author Mark A. Tsuchida
  */
 public abstract class NonPropertyMapJSONFormats {

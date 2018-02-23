@@ -20,6 +20,7 @@ nobase_mmplugin_DATA = \
 	HCS.jar \
 	ImageFlipper.jar \
 	IntelligentAcquisition.jar \
+	MMClearVolume.jar \
 	MMTracker.jar \
 	MultiAndor.jar \
 	MultiChannelShading.jar \
@@ -32,6 +33,7 @@ nobase_mmplugin_DATA = \
 	SnapOnMove.jar \
 	SplitView.jar \
 	WhiteBalance.jar \
+	ZProjector.jar \
 	pgFocus.jar
 
 .PHONY: plugins.stamp
