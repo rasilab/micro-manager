@@ -1077,6 +1077,8 @@ public final class DisplayController extends DisplayWindowAPIAdapter
          // TODO: report exception
       }
       animationController_.shutdown();
+      DefaultEventManager.getInstance().unregisterForEvents(this);
+      dataProvider_.unregisterForEvents(this);
       if (uiController_ != null) {
          uiController_.close();
       }
