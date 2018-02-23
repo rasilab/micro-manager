@@ -36,3 +36,6 @@ MM_DEPS_CONFIGUREFLAGS_NOCPPLD="--prefix=\"\$MM_DEPS_PREFIX\" $MM_CONFIGUREFLAGS
 MM_DEPS_CONFIGUREFLAGS="--prefix=\"\$MM_DEPS_PREFIX\" $MM_CONFIGUREFLAGS"
 
 MM_PARALLELMAKEFLAG=-j$(sysctl -n hw.ncpu)
+
+# The java_home tool comes with Xcode tools.
+MM_JAVA_HOME=$(/usr/libexec/java_home)
