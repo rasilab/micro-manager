@@ -705,20 +705,32 @@ public final class DisplayUIController implements Closeable, WindowListener,
       // Reorder scrollable axes to match axis order of data provider
       Collections.sort(scrollableAxes, new Comparator<String>() {
          @Override
-         // This could be converted in a utility function
+         // A comparison such that an axis appearing earlier in the data
+         // provider's order will be placed earlier.
+         // If an axis is not found in the data provider's axes (a
+         // pathological case), then we place it at the end.
          public int compare(String o1, String o2) {
             if (o1.equals(o2)) { 
                return 0;
-            } 
+            }
             List<String> ordered = displayController_.getOrderedAxes();
             Map<String, Integer> axisMap = new HashMap<String, Integer>(ordered.size());
             for (int i = 0; i < ordered.size(); i++) {
                axisMap.put(ordered.get(i), i);
             }
-            if (axisMap.containsKey(o1) && axisMap.containsKey(o2)) {
-               return axisMap.get(o1) > axisMap.get(o2) ? 1 : -1;
-            } 
-            return 0; // Ugly, TODO: Report?
+            if (!axisMap.containsKey(o1)) {
+               if (!axisMap.containsKey(o2)) {
+                  // Both missing from data provider
+                  return 0;
+               }
+               // o1 missing but o2 present, so o1 > o2
+               return 1;
+            }
+            if (!axisMap.containsKey(o2)) {
+               // o1 present but o2 missing, so o1 < o2
+               return -1;
+            }
+            return axisMap.get(o1) > axisMap.get(o2) ? 1 : -1;
          }
       });
       scrollBarPanel_.setAxes(scrollableAxes);
