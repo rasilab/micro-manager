@@ -48,12 +48,15 @@ public final class GroupEditor extends ConfigDialog {
       instructionsText_ = "Here you can specify the properties included\nin a configuration group.";
       nameFieldLabelText_ = "Group name:";
       initName_ = groupName_;
-      TITLE = "Group Editor";
+      title_ = "Group Editor";
       showUnused_ = true;
       showFlagsPanelVisible_ = true;
       scrollPaneTop_ = 140;
       numColumns_ = 3;
-      data_ = new PropertyTableData(core_, groupName_, presetName_, 2, 1, false);
+      PropertyTableData.Builder ptdb = new PropertyTableData.Builder(core_);
+      data_ = ptdb.groupName(groupName).presetName(presetName).propertyValueColumn(2).
+              propertyUsedColumn(1).groupOnly(false).allowChangingProperties(false).
+              allowChangesOnlyWhenUser(false).isPixelSizeConfig(false).build();
       initializeData();
       data_.setColumnNames("Property Name", "Use in Group?", "Current Property Value");
       showShowReadonlyCheckBox_ = true;

@@ -51,7 +51,6 @@ import org.micromanager.events.PropertiesChangedEvent;
 import org.micromanager.events.PropertyChangedEvent;
 import org.micromanager.events.ShutdownCommencingEvent;
 import org.micromanager.internal.utils.DaytimeNighttime;
-import org.micromanager.internal.utils.UserProfileStaticInterface;
 import org.micromanager.internal.utils.MMFrame;
 import org.micromanager.internal.utils.PropertyItem;
 import org.micromanager.internal.utils.PropertyNameCellRenderer;
@@ -74,27 +73,21 @@ public final class PropertyEditor extends MMFrame {
 
    private JTable table_;
    private PropertyEditorTableData data_;
-   private ShowFlags flags_;
+   private final ShowFlags flags_;
 
    private static final String PREF_SHOW_READONLY = "show_readonly";
-   private JCheckBox showCamerasCheckBox_;
-   private JCheckBox showShuttersCheckBox_;
-   private JCheckBox showStagesCheckBox_;
-   private JCheckBox showStateDevicesCheckBox_;
-   private JCheckBox showOtherCheckBox_;
    private JCheckBox showReadonlyCheckBox_;
    private JScrollPane scrollPane_;
-   private Studio studio_;
-   private CMMCore core_;
+   private final Studio studio_;
+   private final CMMCore core_;
 
    public PropertyEditor(Studio studio) {
       super("property editor");
 
       studio_ = studio;
-      studio_.events().registerForEvents(this);
       core_ = studio_.core();
 
-      flags_ = new ShowFlags();
+      flags_ = new ShowFlags(studio_);
       flags_.load(PropertyEditor.class);
 
       createTable();
@@ -118,7 +111,7 @@ public final class PropertyEditor extends MMFrame {
    }
 
    private void createComponents() {
-      final UserProfile profile = UserProfileStaticInterface.getInstance();
+      final UserProfile profile = studio_.getUserProfile();
 
       setIconImage(Toolkit.getDefaultToolkit().getImage(
               getClass().getResource("/org/micromanager/icons/microscope.gif") ) );
@@ -217,6 +210,7 @@ public final class PropertyEditor extends MMFrame {
    /**
     * Manually save now; if we wait until the program actually exits, then
     * the profile will be done finalizing and our settings won't get saved.
+    * @param event indicating that shutdown is happening
     */
    @Subscribe
    public void onShutdownCommencing(ShutdownCommencingEvent event) {
@@ -227,7 +221,8 @@ public final class PropertyEditor extends MMFrame {
       public PropertyEditorTableData(CMMCore core, String groupName, String presetName,
          int PropertyValueColumn, int PropertyUsedColumn, Component parentComponent) {
 
-         super(core, groupName, presetName, PropertyValueColumn, PropertyUsedColumn, false);
+         super(core, groupName, presetName, PropertyValueColumn, 
+                 PropertyUsedColumn, false, true, false, false);
       }
 
       private static final long serialVersionUID = 1L;
@@ -236,7 +231,7 @@ public final class PropertyEditor extends MMFrame {
       public void setValueAt(Object value, int row, int col) {
          PropertyItem item = propListVisible_.get(row);
          studio_.logs().logMessage("Setting value " + value + " at row " + row);
-         if (col == PropertyValueColumn_) {
+         if (col == propertyValueColumn_) {
             setValueInCore(item,value);
          }
          core_.updateSystemStateCache();

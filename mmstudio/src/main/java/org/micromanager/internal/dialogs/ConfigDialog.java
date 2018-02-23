@@ -23,6 +23,7 @@
 
 package org.micromanager.internal.dialogs;
 
+import com.google.common.eventbus.Subscribe;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
@@ -49,6 +50,7 @@ import mmcorej.CMMCore;
 import mmcorej.Configuration;
 import net.miginfocom.swing.MigLayout;
 import org.micromanager.Studio;
+import org.micromanager.events.ShutdownCommencingEvent;
 import org.micromanager.internal.utils.DaytimeNighttime;
 import org.micromanager.internal.utils.MMDialog;
 import org.micromanager.internal.utils.PropertyNameCellRenderer;
@@ -71,23 +73,23 @@ public abstract class ConfigDialog extends MMDialog {
    protected CMMCore core_;
    protected Studio gui_;
 
-   private JTable table_;
+   protected JTable table_;
    protected PropertyTableData data_;
    private JScrollPane scrollPane_;
 
-   private ShowFlags flags_;
-   private ShowFlagsPanel showFlagsPanel_;
+   protected ShowFlags flags_;
+   protected ShowFlagsPanel showFlagsPanel_;
 
-   private JTextArea instructionsTextArea_;
-   private JCheckBox showReadonlyCheckBox_;
+   protected JTextArea instructionsTextArea_;
+   protected JCheckBox showReadonlyCheckBox_;
    protected boolean showShowReadonlyCheckBox_ = false;
    protected JTextField nameField_;
-   private JLabel nameFieldLabel_;
+   protected JLabel nameFieldLabel_;
 
-   private JButton okButton_;
-   private JButton cancelButton_;
+   protected JButton okButton_;
+   protected JButton cancelButton_;
 
-   protected String TITLE = "";
+   protected String title_ = "";
    protected String instructionsText_ = "Instructions go here.";
    protected String nameFieldLabelText_ = "GroupOrPreset Name";
    protected String initName_ = "";
@@ -103,27 +105,30 @@ public abstract class ConfigDialog extends MMDialog {
 
    protected int scrollPaneTop_;
 
-   public ConfigDialog(String groupName, String presetName, Studio gui, CMMCore core, boolean newItem) {
+   public ConfigDialog(String groupName, String presetName, Studio gui, CMMCore core, 
+           boolean newItem) {
       super("config editing for " + groupName);
       groupName_ = groupName;
       presetName_ = presetName;
       newItem_ = newItem;
       gui_ = gui;
       core_ = core;
-      setLayout(new MigLayout("fill, insets 2, gap 2"));
-      loadAndRestorePosition(100, 100, 550, 600);
-      setMinimumSize(new Dimension(400, 200));
+      super.setLayout(new MigLayout("fill, insets 2, gap 2"));
+      super.loadAndRestorePosition(100, 100, 550, 600);
+      super.setMinimumSize(new Dimension(400, 200));
+      
+      gui.events().registerForEvents(this);
    }
 
    public void initialize() {
-      flags_ = new ShowFlags();
+      flags_ = new ShowFlags(gui_);
       data_.setFlags(flags_);
 
       initializeWidgets();
       initializePropertyTable();
       setupKeys();
       setVisible(true);
-      this.setTitle(TITLE);
+      this.setTitle(title_);
       nameField_.requestFocus();
       setFocusable(true);
       update();
@@ -281,10 +286,21 @@ public abstract class ConfigDialog extends MMDialog {
 
    @Override
    public void dispose() {
+      gui_.events().unregisterForEvents(this);
       super.dispose();
       savePosition();
       gui_.app().refreshGUI();
    }
+   
+      
+   /**
+    * @param event indicating that shutdown is happening
+    */
+   @Subscribe
+   public void onShutdownCommencing(ShutdownCommencingEvent event) {
+      this.dispose();
+   }
+   
 
    public void update() {
       data_.update(false);

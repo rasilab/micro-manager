@@ -23,7 +23,7 @@ import org.micromanager.profile.internal.gui.HardwareConfigurationManager;
 
 public final class ConfigMenu {
 
-   private JMenu configMenu_;
+   private final JMenu configMenu_;
    private final JMenu switchConfigurationMenu_;
 
    private final MMStudio studio_;

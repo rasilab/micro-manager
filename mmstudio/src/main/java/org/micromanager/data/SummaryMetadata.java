@@ -67,6 +67,10 @@ public interface SummaryMetadata {
       @Override Builder userData(PropertyMap userData);
    }
 
+   /**
+    * 
+    * @deprecated - Use SummaryMetadata.Builder instead
+    */
    @Deprecated
    interface SummaryMetadataBuilder {
       SummaryMetadata build();
@@ -96,6 +100,11 @@ public interface SummaryMetadata {
 
    Builder copyBuilder();
 
+   /**
+    * 
+    * @return - A copy of the SummaryMetadataBuilder
+    * @deprecated - Use SummaryMetadata.Builder.copyBuilder instead
+    */
    @Deprecated
    SummaryMetadataBuilder copy();
 
@@ -151,6 +160,10 @@ public interface SummaryMetadata {
 
    List<String> getChannelNameList();
 
+   /**
+    * @return Array with channelname
+    * @deprecated - Use getChannelNameList() instead
+    */
    @Deprecated
    String[] getChannelNames();
 
@@ -184,6 +197,10 @@ public interface SummaryMetadata {
     */
    List<Double> getCustomIntervalsMsList();
    double[] getCustomIntervalsMsArray();
+   /**
+    * @return - Array with custom intervals
+    * @deprecated - Use double[] getCustomIntervalsMsArray() instead
+    */
    @Deprecated
    Double[] getCustomIntervalsMs();
 
@@ -201,6 +218,10 @@ public interface SummaryMetadata {
     */
    List<String> getOrderedAxes();
 
+   /**
+    * @return - Array with Axis ordered as described for getOrderedAxes() 
+    * @deprecated - Use getOrdereddAxes() instead
+    */
    @Deprecated
    String[] getAxisOrder();
 
@@ -238,6 +259,10 @@ public interface SummaryMetadata {
     */
    List<MultiStagePosition> getStagePositionList();
 
+   /**
+    * @return see getStagePostionList()
+    * @deprecated - Use getStagePositionList() instead
+    */
    @Deprecated
    MultiStagePosition[] getStagePositions();
 

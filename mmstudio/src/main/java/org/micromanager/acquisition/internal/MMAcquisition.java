@@ -143,7 +143,8 @@ public final class MMAcquisition implements DataViewerDelegate {
       try {
          // Compatibility hack: serialize to JSON, then parse as summary metadata JSON format
          SummaryMetadata summary = DefaultSummaryMetadata.fromPropertyMap(
-                 NonPropertyMapJSONFormats.summaryMetadata().fromJSON(summaryMetadata.toString()));
+                 NonPropertyMapJSONFormats.summaryMetadata().fromJSON(
+                         summaryMetadata.toString()));
          pipeline_.insertSummaryMetadata(summary);
       }
       catch (DatastoreFrozenException e) {
@@ -229,6 +230,7 @@ public final class MMAcquisition implements DataViewerDelegate {
                        display_.getDisplaySettings(), displaySettingsBuilder.build()));
             }
          } catch (JSONException je) {
+            studio_.logs().logError(je);
             // relatively harmless, but look here when display settings are unexpected
          }
 
@@ -302,6 +304,8 @@ public final class MMAcquisition implements DataViewerDelegate {
     * itself from event buses at that time.
     */
    private static class SubscribedButton extends JButton {
+
+      private static final long serialVersionUID = -4447256100740272458L;
       /**
        * Create a SubscribedButton and subscribe it to the relevant event
        * buses.
@@ -405,7 +409,10 @@ public final class MMAcquisition implements DataViewerDelegate {
                (DefaultDisplaySettings) display_.getDisplaySettings();
 
          // TODO Use the Storage-mediated mechanism to save display settings
-         settings.save(store_.getSavePath());
+         if (store_.getSavePath() != null) {
+            ( (DefaultDisplaySettings) display_.getDisplaySettings() ).
+                    save(store_.getSavePath());
+         }
 
          studio_.profile().getSettings(MMAcquisition.class).
                putPropertyMap(ACQUISITION_DISPLAY_SETTINGS_KEY,

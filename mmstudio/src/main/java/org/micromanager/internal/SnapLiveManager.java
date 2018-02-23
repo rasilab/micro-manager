@@ -618,6 +618,7 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
     */
    @Override
    public void displayImage(final Image image) {
+
       if (!SwingUtilities.isEventDispatchThread()) {
          SwingUtilities.invokeLater(new Runnable() {
             @Override
@@ -625,11 +626,12 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
                displayImage(image);
             }
          });
+         return;
       }
 
       boolean shouldReset = shouldForceReset_;
       if (store_ != null) {
-         String[] channelNames = store_.getSummaryMetadata().getChannelNames();
+         List<String> channelNames = store_.getSummaryMetadata().getChannelNameList();
          String curChannel = "";
          try {
             curChannel = core_.getCurrentConfig(core_.getChannelGroup());
@@ -640,8 +642,8 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
          for (int i = 0; i < numCameraChannels_; ++i) {
             String name = makeChannelName(curChannel, i);
             if (channelNames == null ||
-                  i >= channelNames.length ||
-                  !name.equals(channelNames[i]))
+                  i >= channelNames.size() ||
+                  !name.equals(channelNames.get(i)))
             {
                // Channel name changed.
                shouldReset = true;
