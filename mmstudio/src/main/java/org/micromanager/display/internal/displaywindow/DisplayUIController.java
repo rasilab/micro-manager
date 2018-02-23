@@ -1122,6 +1122,12 @@ public final class DisplayUIController implements Closeable, WindowListener,
                gConfig.getBounds(),
                Toolkit.getDefaultToolkit().getScreenInsets(gConfig));
 
+         // Although we allow the window to go off the bottom/right of the
+         // screen (limiting it to screen size causes annoying window sizing),
+         // we do not want it to get infinitely large. A reasonable maximum
+         // size of the window is the largest size that will fit in the screen
+         // when the user moves it to the top-left of the screen.
+
          Insets frameInsets = frame_.getInsets();
          int newCanvasWidth = Math.min(canvasMaxSize.width,
                screenBounds.width - frameInsets.left - frameInsets.right -
@@ -1136,19 +1142,6 @@ public final class DisplayUIController implements Closeable, WindowListener,
          ijBridge_.getIJImageCanvas().invalidate();
 
          frame_.pack(); // Includes validation
-
-         // NS: I find the autonomous movement of the window highly annoying
-         // Uncomment if you disagree and want the window to move all by itself
-         // If we extended beyond bottom or right of the screen, move up/left
-         /*
-         int newFrameX = Math.min(frame_.getX(),
-               screenBounds.x + screenBounds.width - frame_.getWidth());
-         newFrameX = Math.max(1, newFrameX);
-         int newFrameY = Math.min(frame_.getY(),
-               screenBounds.y + screenBounds.height - frame_.getHeight());
-         newFrameY = Math.max(1, newFrameY);
-         frame_.setLocation(newFrameX, newFrameY);
-         */
       }
 
       ijBridge_.mm2ijRepaint();
