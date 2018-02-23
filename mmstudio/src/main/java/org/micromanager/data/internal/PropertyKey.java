@@ -26,6 +26,7 @@ import org.micromanager.PropertyMap;
 import org.micromanager.PropertyMaps;
 import org.micromanager.SnapLiveManager;
 import org.micromanager.StagePosition;
+import org.micromanager.acquisition.AcquisitionManager;
 import org.micromanager.data.Coords;
 import org.micromanager.data.Image;
 import org.micromanager.data.Metadata;
@@ -57,17 +58,17 @@ import org.micromanager.internal.propertymap.PropertyMapJSONSerializer;
  * a capital letter. As an exception, physical units should be suffixed with
  * an underscore. An example of an existing key following this convention is
  * "ElapsedTime_ms".
+ * <p>
+ * The keys here are either used or potentially used in <i>data</i> files,
+ * including auxiliary files like "display settings and comments".
+ * UserProfile keys do <b>not</b> belong here!
  *
  * @author Mark A. Tsuchida, based in part on research and code by Chris Weisiger
  */
 public enum PropertyKey {
    // Please maintain alphabetical order
 
-   // Please do not add keys that have nothing to do with JSON, properties,
-   // metadata, or other formats stored in files. In particular,
-   // preference/profile keys do not belong here!
-
-   ACUTOSCALE_IGNORED_QUANTILE("AutoscaleIgnoredQuantile", DisplaySettings.class),
+   AUTOSCALE_IGNORED_QUANTILE("AutoscaleIgnoredQuantile", DisplaySettings.class),
 
    AUTOSTRETCH("Autostretch", DisplaySettings.class),
 

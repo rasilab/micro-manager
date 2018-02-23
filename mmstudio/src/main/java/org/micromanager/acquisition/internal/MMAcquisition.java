@@ -96,6 +96,9 @@ public final class MMAcquisition implements DataViewerDelegate {
    private int imagesExpected_ = 0;
    private UpdatableAlert alert_;
 
+   private static final String ACQUISITION_DISPLAY_SETTINGS_KEY =
+         "LastUsedDisplaySettings";
+
    public MMAcquisition(Studio studio, JSONObject summaryMetadata,
          AcquisitionEngine eng, boolean show) {
       studio_ = studio;
@@ -177,20 +180,42 @@ public final class MMAcquisition implements DataViewerDelegate {
          // display settings are stored with the (meta-)data.  
          // Handling the conversion from colors in the summary metadata to display
          // settings here seems clumsy, but I am not sure where else this belongs
-         
+
+         // -> TODO We need to store the display settings at the time of
+         // freeze() inside the TIFF (TBD where). This is in addition to the
+         // external display settings file that records later changes to the
+         // settings.
+
          try {
             if (summaryMetadata != null && summaryMetadata.has("ChColors")) {
 
                JSONArray chColors = summaryMetadata.getJSONArray("ChColors");
+
+               // TODO It is _incorrect_ to merely save and restore a
+               // DisplaySettings object. What we need to store are the
+               // channel display settings for each channel (keyed by channel name).
+               DisplaySettings settings = DefaultDisplaySettings.
+                     fromPropertyMap(studio_.profile().
+                           getSettings(MMAcquisition.class).
+                           getPropertyMap(ACQUISITION_DISPLAY_SETTINGS_KEY, null));
+               if (settings == null) {
+                  settings = DefaultDisplaySettings.builder().build();
+               }
+
                DisplaySettings.Builder displaySettingsBuilder
-                       = display_.getDisplaySettings().copyBuilder();
+                       = settings.copyBuilder();
+
                final int nrChannels = MDUtils.getNumChannels(summaryMetadata);
                // the do-while loop is a way to set display settings in a thread
                // safe way.  See docs to compareAndSetDisplaySettings.
                do {
                   if (nrChannels == 1) {
+                     // TODO Some people like to use color or HiLo for single
+                     // channel. Don't ignore user's previous setting.
                      displaySettingsBuilder.colorModeGrayscale();
                   } else {
+                     // TODO Some people like to use color or grayscale even
+                     // with multiple channels. Don't ignore user's prefs.
                      displaySettingsBuilder.colorModeComposite();
                   }
                   for (int channelIndex = 0; channelIndex < nrChannels; channelIndex++) {
@@ -253,6 +278,18 @@ public final class MMAcquisition implements DataViewerDelegate {
       }
       boolean result = eng_.abortRequest();
       if (result) {
+         if (viewer instanceof DisplayWindow && viewer.equals(display_)) {
+            // TODO See comments at other place in this class where we save
+            // the display settings (DRY, by the way)
+            DisplaySettings settings = display_.getDisplaySettings();
+            if (settings instanceof DefaultDisplaySettings) {
+               studio_.profile().getSettings(MMAcquisition.class).
+                     putPropertyMap(ACQUISITION_DISPLAY_SETTINGS_KEY,
+                           ((DefaultDisplaySettings) settings).toPropertyMap());
+            }
+         }
+
+         display_.setDelegate(null);
          studio_.displays().manage(store_);
       }
       return result;
@@ -364,7 +401,15 @@ public final class MMAcquisition implements DataViewerDelegate {
       }
 
       if (display_ .getDisplaySettings() instanceof DefaultDisplaySettings) {
-         ( (DefaultDisplaySettings) display_.getDisplaySettings() ).save(store_.getSavePath());
+         DefaultDisplaySettings settings =
+               (DefaultDisplaySettings) display_.getDisplaySettings();
+
+         // TODO Use the Storage-mediated mechanism to save display settings
+         settings.save(store_.getSavePath());
+
+         studio_.profile().getSettings(MMAcquisition.class).
+               putPropertyMap(ACQUISITION_DISPLAY_SETTINGS_KEY,
+                     settings.toPropertyMap());
       }
 
       // Transfer viewer "Ownership" to the display manager
