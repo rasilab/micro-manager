@@ -38,7 +38,6 @@ import org.micromanager.data.DatastoreRewriteException;
 import org.micromanager.data.Pipeline;
 import org.micromanager.data.PipelineErrorException;
 import org.micromanager.display.DisplayWindow;
-// import org.micromanager.events.DisplayAboutToShowEvent;
 import org.micromanager.internal.utils.FileDialogs;
 import org.micromanager.internal.utils.JavaUtils;
 import org.micromanager.internal.utils.MMDialog;
@@ -173,36 +172,6 @@ public final class ReplayDialog extends MMDialog {
       studio_.events().unregisterForEvents(this);
       super.dispose();
    }
-
-   // TODO
-   /*
-   @Subscribe
-   public void onDisplayAboutToShow(DisplayAboutToShowEvent event) {
-      // HACK: wait until DisplayManager knows about the display. Otherwise
-      // refreshInputOptions() won't pick up the new display.
-      SwingUtilities.invokeLater(new Runnable() {
-         @Override
-         public void run() {
-            refreshInputOptions();
-         }
-      });
-   }
-   */
-
-   // TODO
-   /*
-   @Subscribe
-   public void onDisplayDestroyed(GlobalDisplayDestroyedEvent event) {
-      // HACK: wait until DisplayManager knows about the display. Otherwise
-      // refreshInputOptions() will still have the old display.
-      SwingUtilities.invokeLater(new Runnable() {
-         @Override
-         public void run() {
-            refreshInputOptions();
-         }
-      });
-   }
-   */
 
    /**
     * Rebuild the options in the input_ dropdown menu.

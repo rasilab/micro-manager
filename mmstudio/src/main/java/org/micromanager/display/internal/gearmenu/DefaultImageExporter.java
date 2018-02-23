@@ -40,7 +40,6 @@ import org.micromanager.data.DataProvider;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.display.ImageExporter;
 import org.micromanager.display.ImageExporter.OutputFormat;
-//import org.micromanager.display.internal.events.CanvasDrawCompleteEvent;
 import org.micromanager.internal.utils.ReportingUtils;
 
 
@@ -188,59 +187,6 @@ public final class DefaultImageExporter implements ImageExporter {
    public void resetLoops() {
       outerLoop_ = null;
    }
-
-   /**
-    * This method gets called twice for each image we export: once for the
-    * display responding to our request to set the image coordinates, and
-    * then once for the display painting to our provided Graphics object.
-    * @param event
-    */
-   /*
-   @Subscribe
-   public void onDrawComplete(CanvasDrawCompleteEvent event) {
-      try {
-         if (event.getGraphics() != currentGraphics_) {
-            // We now know that the correct image is visible on the canvas, so
-            // have it paint that image to our own Graphics object. This is
-            // inefficient (having to paint the same image twice), but
-            // unfortunately there's no way (so far as I'm aware) to get an
-            // Image from a component except by painting.
-            // HACK: the getCanvas() and paintImageWithGraphics methods aren't
-            // exposed in DisplayWindow; hence why we need display_ to be
-            // DefaultDisplayWindow.
-            Dimension canvasSize = display_.getCanvas().getSize();
-            currentImage_ = new BufferedImage(canvasSize.width,
-                  canvasSize.height, BufferedImage.TYPE_INT_RGB);
-            currentGraphics_ = currentImage_.getGraphics();
-            display_.paintDisplayedImageToGraphics(currentGraphics_);
-         }
-         else {
-            // Display just finished painting to currentGraphics_, so export
-            // now.
-            if (format_ == OutputFormat.OUTPUT_IMAGEJ) {
-               if (stack_ == null) {
-                  // Create the ImageJ stack object to add images to.
-                  stack_ = new ImageStack(currentImage_.getWidth(),
-                        currentImage_.getHeight());
-               }
-               addToStack(stack_, currentImage_);
-            }
-            else {
-               // Save the image to disk in appropriate format.
-               exportImage(currentImage_, sequenceNum_++);
-            }
-            currentGraphics_.dispose();
-            drawFlag_.set(false);
-            if (isSingleShot_) {
-               doneFlag_.set(true);
-            }
-         }
-      }
-      catch (Exception e) {
-         ReportingUtils.logError(e, "Error handling draw complete");
-      }
-   }
-   */
 
    /**
     * Save a single image to disk.
@@ -391,8 +337,7 @@ public final class DefaultImageExporter implements ImageExporter {
          loopThread = new Thread(new Runnable() {
             @Override
             public void run() {
-               // TODO
-               //display_.requestRedraw();
+               // TODO Request Redraw
             }
          }, "Image export thread");
       }

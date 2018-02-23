@@ -7,14 +7,10 @@ package org.micromanager.profile.internal;
 
 import com.google.common.base.Preconditions;
 import com.google.common.eventbus.Subscribe;
-import java.io.IOException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import org.micromanager.internal.utils.ThreadFactoryFactory;
 
 /**
  *

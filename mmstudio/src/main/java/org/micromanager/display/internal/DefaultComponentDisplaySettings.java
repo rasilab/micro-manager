@@ -98,10 +98,10 @@ public final class DefaultComponentDisplaySettings
             putDouble(PropertyKey.GAMMA.key(), gamma_).
             build();
    }
-   
+
    public static ComponentDisplaySettings fromPropertyMap(PropertyMap pMap) {
       Builder b = new Builder();
-      
+
       if (pMap.containsLong(PropertyKey.SCALING_MIN.key())) {
          b.scalingMinimum(pMap.getLong(PropertyKey.SCALING_MIN.key(), b.scalingMin_));
       }
@@ -111,8 +111,7 @@ public final class DefaultComponentDisplaySettings
       if (pMap.containsDouble(PropertyKey.GAMMA.key())) {
          b.scalingGamma(pMap.getDouble(PropertyKey.GAMMA.key(), b.gamma_));
       }
-      
+
       return b.build();
    }
-   
 }

@@ -14,7 +14,6 @@ import mmcorej.CMMCore;
 import org.micromanager.events.SystemConfigurationLoadedEvent;
 import org.micromanager.internal.MMStudio;
 import org.micromanager.internal.MainFrame;
-import org.micromanager.internal.dialogs.IntroDlg;
 import org.micromanager.internal.hcwizard.ConfigWizard;
 import org.micromanager.internal.utils.FileDialogs;
 import org.micromanager.internal.utils.GUIUtils;

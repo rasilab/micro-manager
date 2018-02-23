@@ -23,8 +23,6 @@ package org.micromanager.data.internal.pipeline;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import org.micromanager.data.Datastore;
-import org.micromanager.data.DatastoreFrozenException;
-import org.micromanager.data.DatastoreRewriteException;
 import org.micromanager.data.Image;
 import org.micromanager.data.Processor;
 import org.micromanager.data.ProcessorContext;

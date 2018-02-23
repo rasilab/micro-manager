@@ -53,7 +53,7 @@ public final class DefaultChannelDisplaySettings
       public Builder colorColorBlindFriendly(int number) {
          return color(ColorPalettes.getFromColorblindFriendlyPalette(number));
       }
-    
+
       @Override
       public Builder colorRed() {
          return color(Color.RED);
@@ -221,10 +221,10 @@ public final class DefaultChannelDisplaySettings
             putPropertyMapList(PropertyKey.COMPONENT_SETTINGS.key(), componentSettings).
             build();
    }
-   
+
    /**
     * Restores ChannelDisplaySettings from a PropertyMap
-    * 
+    *
     * @param pMap PropertyMap from which to restore the ChannelDIsplaySettings
     * @return ChannelDisplaySettings.  Missing values are replaced by defaults.
     */
@@ -250,7 +250,7 @@ public final class DefaultChannelDisplaySettings
             b.component(i, cds);
          }
       }
-            
+
       return b.build();
    }
 }

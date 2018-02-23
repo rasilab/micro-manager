@@ -72,19 +72,10 @@ public final class UiMovesStageManager {
       for (DisplayController display : displayToDragListener_.keySet()) {
          if (display.equals(displayToDeActivate)) {
             // Deactivate listener for this display.
-            if (null != displayToDragListener_.get(display)) {
+            if (displayToDragListener_.get(display) != null) {
                display.unregisterForEvents(displayToDragListener_.get(display));
             }
             displayToDragListener_.remove(display);
-         }
-      }
-      
-      for (DisplayController display : displayToWheelListener_.keySet()) {
-         if (display.equals(displayToDeActivate)) {
-            if (displayToWheelListener_.get(display) != null) {
-               display.unregisterForEvents(displayToWheelListener_.get(display));
-            }
-            displayToWheelListener_.remove(display);
          }
       }
    }
@@ -94,21 +85,6 @@ public final class UiMovesStageManager {
       deActivate(e.getDataViewer());
    }
 
-   // TODO
-   /*
-   @Subscribe
-   public void onDisplayDestroyed(DisplayDestroyedEvent event) {
-      DisplayController display = (DisplayController) event.getDisplay();
-      display.unregisterForEvents(this);
-      displayToDragListener_.remove(display);
-      displayToKeyListener_.remove(display);
-   }
-
-   */
-
-   
-   // TODO: Move shortcuts to Stage Control plugin, but have Canvas listen to 
-   // KeyPresses and propagate them (eventually to the Stage Control plugin)
    /**
     * Listens for certain key presses and moves the stage.
     

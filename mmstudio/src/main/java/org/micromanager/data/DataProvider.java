@@ -68,12 +68,18 @@ public interface DataProvider extends Closeable {
     */
    List<Image> getImagesMatching(Coords coords) throws IOException;
 
+   @Deprecated
+   boolean getIsFrozen();
+
    /**
     * A dataProvider is frozen when no more images can be added
     * 
     * @return True if no more images can be added
     */
    boolean isFrozen();
+
+   @Deprecated
+   Integer getMaxIndex(String axis);
 
    /**
     * Coords with highest possible index along each axis

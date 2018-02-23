@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -41,10 +42,8 @@ import org.micromanager.display.DisplaySettings;
 import org.micromanager.internal.utils.UserProfileStaticInterface;
 import org.micromanager.internal.utils.MDUtils;
 import org.micromanager.internal.utils.ReportingUtils;
-import org.micromanager.propertymap.MutablePropertyMapView;
 
 public final class DefaultDisplaySettings implements DisplaySettings {
-   private final static String PROFILEKEY = "Default_Display_Settings";
    private final double zoom_;
    private final double fps_;
    private final ColorMode mode_;
@@ -333,37 +332,6 @@ public final class DefaultDisplaySettings implements DisplaySettings {
       return builder.build();
    }
 
-  
-   /**
-    * Saves these DisplaySettings in the UserProfile. Implementers are free to 
-    * save copies of the settings themselves.  
-    * @param profile Profile to which these settings should be saved
-    * @param key Key under which the settings will be stored.
-    *             Will be pre-pended with PROFILEKEY
-    */
-   public void saveToProfile(UserProfile profile, String key) {
-      MutablePropertyMapView mpmv = profile.getSettings(DefaultDisplaySettings.class);
-      mpmv.putPropertyMap(PROFILEKEY + "-" + key, this.toPropertyMap());
-   }  
-   
-   
-   /**
-    * Save these DisplaySettings to the User Profile.
-    * @param profile UserProfile to save these Display Settings to
-    * @param key Key use to retrieve the DisplaySettings
-    *             Will be pre-pended with PROFILEKEY
-    * @return Stored DisplaySettings or null if none found
-    */
-   public static DisplaySettings restoreFromProfile(UserProfile profile, String key) {
-      MutablePropertyMapView mpmv = profile.getSettings(DefaultDisplaySettings.class);
-      final String finalKey = new StringBuilder(PROFILEKEY).append("-").append(key).toString();
-      if (mpmv.containsPropertyMap(finalKey)) {
-         PropertyMap propertyMap = mpmv.getPropertyMap(finalKey, null);
-         return fromPropertyMap(propertyMap);
-      }
-      return null;
-   }
-   
 
    /**
     * Return the current color mode setting in the profile, or the provided
@@ -697,6 +665,25 @@ public final class DefaultDisplaySettings implements DisplaySettings {
    }
 
    @Override
+   @Deprecated
+   public Color[] getChannelColors() {
+      Color[] ret = new Color[getNumberOfChannels()];
+      for (int i = 0; i < ret.length; ++i) {
+         ret[i] = getChannelSettings(i).getColor();
+      }
+      return ret;
+   }
+
+   @Override
+   @Deprecated
+   public Color getSafeChannelColor(int index, Color defaultVal) {
+      if (index < 0 || index >= getNumberOfChannels()) {
+         return defaultVal;
+      }
+      return getChannelSettings(index).getColor();
+   }
+
+   @Override
    public ContrastSettings[] getChannelContrastSettings() {
       ContrastSettings[] ret = new ContrastSettings[getNumberOfChannels()];
       for (int i = 0; i < getNumberOfChannels(); ++i) {
@@ -779,6 +766,17 @@ public final class DefaultDisplaySettings implements DisplaySettings {
    }
 
    @Override
+   @Deprecated
+   public Double getMagnification() {
+      return getZoomRatio();
+   }
+
+   @Override
+   public Double getAnimationFPS() {
+      return getPlaybackFPS();
+   }
+
+   @Override
    public DisplaySettings.ColorMode getChannelColorMode() {
       return getColorMode();
    }
@@ -786,6 +784,21 @@ public final class DefaultDisplaySettings implements DisplaySettings {
    @Override
    public Boolean getShouldSyncChannels() {
       return null;
+   }
+
+   @Override
+   public Boolean getShouldAutostretch() {
+      return isAutostretchEnabled();
+   }
+
+   @Override
+   public Boolean getShouldScaleWithROI() {
+      return isROIAutoscaleEnabled();
+   }
+
+   @Override
+   public Double getExtremaPercentage() {
+      return getAutoscaleIgnoredPercentile();
    }
 
    @Override
@@ -946,7 +959,7 @@ public final class DefaultDisplaySettings implements DisplaySettings {
       for (ChannelDisplaySettings cs : channelSettings_) {
          channelSettings.add(((DefaultChannelDisplaySettings) cs).toPropertyMap());
       }
-      
+
       return PropertyMaps.builder().
             putDouble(PropertyKey.ZOOM_RATIO.key(), zoom_).
             putDouble(PropertyKey.PLAYBACK_FPS.key(), fps_).
@@ -958,74 +971,58 @@ public final class DefaultDisplaySettings implements DisplaySettings {
             putPropertyMapList(PropertyKey.CHANNEL_SETTINGS.key(), channelSettings).
             build();
    }
-   
+
    /**
-    * Restore DisplaySettings from a PropertyMap
+    * Restore DisplaySettings from a PropertyMap.
     * NS: Should this be in the api?
-    * @param pMap PropertyMap to be restored to DisplaySettings
+    * @param pmap PropertyMap to be restored to DisplaySettings
     * @return restored DisplaySettings.  Any missing component will be replaced 
     * with the (Builder's) default 
     */
-   public static DisplaySettings fromPropertyMap(PropertyMap pMap) {
-      DefaultDisplaySettings.Builder ddsb = new DefaultDisplaySettings.Builder();
-     
-      if (pMap != null) {
-         
-         if (pMap.containsDouble(PropertyKey.ZOOM_RATIO.key())) {
-            ddsb.zoomRatio(pMap.getDouble(PropertyKey.ZOOM_RATIO.key(), ddsb.zoom_));
-         }
-         if (pMap.containsDouble(PropertyKey.PLAYBACK_FPS.key())) {
-            ddsb.playbackFPS(pMap.getDouble(PropertyKey.PLAYBACK_FPS.key(), ddsb.fps_));
-         }
-         if (pMap.containsStringForEnum(PropertyKey.COLOR_MODE.key(), ColorMode.class)) {
-            ddsb.colorMode(pMap.getStringAsEnum(PropertyKey.COLOR_MODE.key(),
-                    ColorMode.class, ddsb.mode_));
-         }
-         if (pMap.containsBoolean(PropertyKey.UNIFORM_CHANNEL_SCALING.key())) {
-            ddsb.uniformChannelScaling(pMap.getBoolean(
-                    PropertyKey.UNIFORM_CHANNEL_SCALING.key(), ddsb.useUniformChannelScaling_));
-         }
-         if (pMap.containsBoolean(PropertyKey.AUTOSTRETCH.key())) {
-            ddsb.autostretch(pMap.getBoolean(PropertyKey.AUTOSTRETCH.key(), ddsb.autostretch_));
-         }
-         if (pMap.containsBoolean(PropertyKey.ROI_AUTOSCALE.key())) {
-            ddsb.roiAutoscale(pMap.getBoolean(PropertyKey.ROI_AUTOSCALE.key(), ddsb.useROI_));
-         }
-         if (pMap.containsDouble(PropertyKey.ACUTOSCALE_IGNORED_QUANTILE.key())) {
-            ddsb.autoscaleIgnoredQuantile(pMap.getDouble(PropertyKey.ACUTOSCALE_IGNORED_QUANTILE.key(),
-                    ddsb.extremaQuantile_));
-         }
-         if (pMap.containsPropertyMapList(PropertyKey.CHANNEL_SETTINGS.key())) {
-            List<PropertyMap> propertyMapList = pMap.getPropertyMapList(
-                    PropertyKey.CHANNEL_SETTINGS.key(), new ArrayList<PropertyMap>());
-            for (int i = 0; i < propertyMapList.size(); i++) {
-               ddsb.channel(i, DefaultChannelDisplaySettings.fromPropertyMap(propertyMapList.get(i)));
-            }
-         }
-      } // note that if PropertyMap was null, the builder will return defaults
-
-      return ddsb.build();
-   }
-
-   /**
-    * Extracts DisplaySettings from given File
-    *
-    * @param sourceFile
-    * @return
-    */  
-   public static DisplaySettings getSavedDisplaySettings(final File sourceFile) {
-      if (sourceFile.canRead()) {
-         try {
-            return DefaultDisplaySettings.fromPropertyMap(PropertyMaps.loadJSON(sourceFile));
-         } catch (IOException ioe) {
-            ReportingUtils.logError(ioe, "Error reading: " + sourceFile.getPath());
-         }  
-      } else {
-         ReportingUtils.logError("No display settings file found at: " + sourceFile.getPath());
+   public static DisplaySettings fromPropertyMap(PropertyMap pmap) {
+      DefaultDisplaySettings.Builder builder = new DefaultDisplaySettings.Builder();
+      if (pmap == null) {
+         return builder.build();
       }
-      return null;
+
+      if (pmap.containsDouble(PropertyKey.ZOOM_RATIO.key())) {
+         builder.zoomRatio(pmap.getDouble(PropertyKey.ZOOM_RATIO.key(), builder.zoom_));
+      }
+      if (pmap.containsDouble(PropertyKey.PLAYBACK_FPS.key())) {
+         builder.playbackFPS(pmap.getDouble(PropertyKey.PLAYBACK_FPS.key(), builder.fps_));
+      }
+      if (pmap.containsStringForEnum(PropertyKey.COLOR_MODE.key(), ColorMode.class)) {
+         builder.colorMode(pmap.getStringAsEnum(PropertyKey.COLOR_MODE.key(),
+                 ColorMode.class, builder.mode_));
+      }
+      if (pmap.containsBoolean(PropertyKey.UNIFORM_CHANNEL_SCALING.key())) {
+         builder.uniformChannelScaling(pmap.getBoolean(
+                 PropertyKey.UNIFORM_CHANNEL_SCALING.key(), builder.useUniformChannelScaling_));
+      }
+      if (pmap.containsBoolean(PropertyKey.AUTOSTRETCH.key())) {
+         builder.autostretch(pmap.getBoolean(PropertyKey.AUTOSTRETCH.key(), builder.autostretch_));
+      }
+      if (pmap.containsBoolean(PropertyKey.ROI_AUTOSCALE.key())) {
+         builder.roiAutoscale(pmap.getBoolean(PropertyKey.ROI_AUTOSCALE.key(), builder.useROI_));
+      }
+      if (pmap.containsDouble(PropertyKey.ACUTOSCALE_IGNORED_QUANTILE.key())) {
+         builder.autoscaleIgnoredQuantile(pmap.getDouble(PropertyKey.ACUTOSCALE_IGNORED_QUANTILE.key(),
+                 builder.extremaQuantile_));
+      }
+      if (pmap.containsPropertyMapList(PropertyKey.CHANNEL_SETTINGS.key())) {
+         int i = 0;
+         for (PropertyMap channelPmap : pmap.getPropertyMapList(
+               PropertyKey.CHANNEL_SETTINGS.key(),
+               Collections.<PropertyMap>emptyList())) {
+            builder.channel(i++, DefaultChannelDisplaySettings.fromPropertyMap(channelPmap));
+         }
+      }
+      return builder.build();
    }
-   
+
+   // TODO save() needs to be deprecated, and saving as part of a dataset
+   // should be handled by the Storage
+
    /**
     * Saves the current displaySettings to the indicated File
     * DisplaySettings are saves as a JSON encoded PropertyMap
@@ -1037,24 +1034,19 @@ public final class DefaultDisplaySettings implements DisplaySettings {
          if (!toPropertyMap().saveJSON(destination, true, false)) {
             ReportingUtils.logError("Failed to save Display Settings to: " + destination.getPath());
          }
-      } catch (IOException ioe) {
+      }
+      catch (IOException ioe) {
          ReportingUtils.logError(ioe, "Failed to save Display Settings to: " + destination.getPath());
       }
    }
-   
-   /**
-    * Saves the current displaySettings to a file in the provided path.
-    * This file will be named using a common convention (DisplaySettings.json, 
-    * defined in PropertyKey.DISPLAY_SETTINGS_FILE_NAME).  
-    * 
-    * @param path path under which to create the DisplaySettings file 
-    */
+
+   // TODO Determining where to save the settings is not DisplaySettings'
+   // business; should be handled as a hook into the Store.
+   // (plus, the behavior differing from save(File) is error-prone)
    public void save(String path) {
-      // TODO: test for sanity of input path?      
+      // TODO: test for sanity of input path?
       File displaySettingsFile = new File(path + 
-               File.separator + PropertyKey.DISPLAY_SETTINGS_FILE_NAME.key() );
+               File.separator + "DisplaySettings.json");
       save(displaySettingsFile);
    }
-
-   
 }

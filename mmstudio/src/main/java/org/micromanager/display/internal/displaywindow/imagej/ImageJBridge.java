@@ -16,12 +16,12 @@ package org.micromanager.display.internal.displaywindow.imagej;
 
 import com.google.common.base.Preconditions;
 import ij.CompositeImage;
-import ij.IJ;
 import ij.ImagePlus;
 import ij.Menus;
 import ij.WindowManager;
 import ij.gui.ImageCanvas;
 import ij.gui.Roi;
+import ij.gui.Toolbar;
 import ij.io.FileInfo;
 import ij.measure.Calibration;
 import ij.process.ByteProcessor;
@@ -690,7 +690,7 @@ public final class ImageJBridge {
       if (canvas_ == null) {
          return; // In the process of swapping the canvas
       }
-      uiController_.uiDidSetZoom(factor);
+      uiController_.zoomDidChange(factor);
    }
 
    void ij2mmCanvasDidChangeSize() {
@@ -788,40 +788,61 @@ public final class ImageJBridge {
 
       uiController_.selectionMayHaveChanged(makeBoundsAndMaskFromIJRoi(roi));
    }
-   
+
+   private DisplayUIController.ImageJTool getImageJTool() {
+      int id = Toolbar.getToolId();
+      switch (id) {
+         case Toolbar.HAND:
+            return DisplayUIController.ImageJTool.PAN;
+         case Toolbar.MAGNIFIER:
+            return DisplayUIController.ImageJTool.ZOOM;
+         case Toolbar.RECTANGLE:
+         case Toolbar.OVAL:
+         case Toolbar.POLYGON:
+         case Toolbar.FREEROI:
+         case Toolbar.LINE:
+         case Toolbar.POLYLINE:
+         case Toolbar.FREELINE:
+         case Toolbar.CROSSHAIR:
+         case Toolbar.WAND:
+            return DisplayUIController.ImageJTool.SELECT;
+         default:
+            return DisplayUIController.ImageJTool.UNKNOWN;
+      }
+   }
+
    void ij2mmMouseClicked(MouseEvent e) {
       uiController_.mouseEventOnImage(e, 
-            computeImageRectForCanvasPoint(e.getPoint()), ij.gui.Toolbar.getToolId());
+            computeImageRectForCanvasPoint(e.getPoint()), getImageJTool());
    }
-   
+
    void ij2mmMousePressed(MouseEvent e) {
       uiController_.mouseEventOnImage(e, 
-            computeImageRectForCanvasPoint(e.getPoint()), ij.gui.Toolbar.getToolId());
-      
+            computeImageRectForCanvasPoint(e.getPoint()), getImageJTool());
    }
-   
+
    void ij2mmMouseReleased(MouseEvent e) {
       uiController_.mouseEventOnImage(e, 
-            computeImageRectForCanvasPoint(e.getPoint()), ij.gui.Toolbar.getToolId());
+            computeImageRectForCanvasPoint(e.getPoint()), getImageJTool());
    }
 
    void ij2mmMouseEnteredCanvas(MouseEvent e) {
       uiController_.mouseEventOnImage(e,
-            computeImageRectForCanvasPoint(e.getPoint()), ij.gui.Toolbar.getToolId());
+            computeImageRectForCanvasPoint(e.getPoint()), getImageJTool());
    }
 
    void ij2mmMouseExitedCanvas(MouseEvent e) {
-      uiController_.mouseEventOnImage(e, null, ij.gui.Toolbar.getToolId());
+      uiController_.mouseEventOnImage(e, null, getImageJTool());
    }
 
    void ij2mmMouseDraggedOnCanvas(MouseEvent e) {
       uiController_.mouseEventOnImage(e,
-            computeImageRectForCanvasPoint(e.getPoint()), ij.gui.Toolbar.getToolId());
+            computeImageRectForCanvasPoint(e.getPoint()), getImageJTool());
    }
 
    void ij2mmMouseMovedOnCanvas(MouseEvent e) {
       uiController_.mouseEventOnImage(e, 
-            computeImageRectForCanvasPoint(e.getPoint()), ij.gui.Toolbar.getToolId());
+            computeImageRectForCanvasPoint(e.getPoint()), getImageJTool());
    }
    
    void ij2mmMouseWheelMoved(MouseWheelEvent e) {

@@ -27,8 +27,6 @@ import org.micromanager.events.StagePositionChangedEvent;
 import org.micromanager.events.internal.DefaultEventManager;
 import org.micromanager.internal.utils.ReportingUtils;
 
-/**
-*/
 public final class ZWheelListener  {
    private final CMMCore core_;
    private static final double MOVE_INCREMENT = 0.20;
@@ -36,13 +34,12 @@ public final class ZWheelListener  {
    public ZWheelListener(final CMMCore core) {
       core_ = core;
    }
-      
+
    /**
     * Receives mouseWheel events from the display manager and moves the 
     * z stage
     * @param e DisplayMouseWheelEvent containing a MouseWheel event
     */
-
    @Subscribe
    public void mouseWheelMoved(DisplayMouseWheelEvent e) {
 	  synchronized(this) {
@@ -71,6 +68,4 @@ public final class ZWheelListener  {
         }
 	  }
    } 
-   
-  
 }

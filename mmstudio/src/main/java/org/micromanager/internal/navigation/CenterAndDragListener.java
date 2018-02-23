@@ -10,6 +10,7 @@ import java.awt.event.MouseEvent;
 import javax.swing.JOptionPane;
 import mmcorej.CMMCore;
 import mmcorej.MMCoreJ;
+import org.micromanager.display.internal.displaywindow.DisplayUIController;
 import org.micromanager.display.internal.event.DisplayMouseEvent;
 import org.micromanager.events.XYStagePositionChangedEvent;
 import org.micromanager.events.internal.DefaultEventManager;
@@ -30,7 +31,6 @@ public final class CenterAndDragListener {
 
    public CenterAndDragListener(CMMCore core) {
       core_ = core;
-
       getOrientation();
    }
 
@@ -71,7 +71,7 @@ public final class CenterAndDragListener {
    @Subscribe
    public void onDisplayMouseEvent(DisplayMouseEvent dme) {
       // only take action when the Hand tool is selected
-      if (dme.getToolId() != ij.gui.Toolbar.HAND) {
+      if (dme.getImageJTool() != DisplayUIController.ImageJTool.PAN) {
          return;
       }
       switch (dme.getEvent().getID()) {

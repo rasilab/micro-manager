@@ -36,7 +36,8 @@ public final class StatsComputeQueue {
 
    // Guarded by monitor on this
    private final EventListenerSupport<Listener> listeners_ =
-           new EventListenerSupport<> (Listener.class, Listener.class.getClassLoader());
+         new EventListenerSupport(Listener.class,
+               this.getClass().getClassLoader());
 
    // Only accessed from compute executor thread
    private final ImageStatsProcessor processor_ = ImageStatsProcessor.create();

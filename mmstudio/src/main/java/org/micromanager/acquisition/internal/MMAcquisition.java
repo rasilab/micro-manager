@@ -56,7 +56,7 @@ import org.micromanager.data.internal.StorageSinglePlaneTiffSeries;
 import org.micromanager.data.internal.multipagetiff.StorageMultipageTiff;
 import org.micromanager.display.ChannelDisplaySettings;
 import org.micromanager.display.DataViewer;
-import org.micromanager.display.DataViewerListener;
+import org.micromanager.display.DataViewerDelegate;
 import org.micromanager.display.DisplaySettings;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.events.AcquisitionEndedEvent;
@@ -73,7 +73,7 @@ import org.micromanager.display.internal.DefaultDisplaySettings;
  * This class is used to execute most of the acquisition and image display
  * functionality in the ScriptInterface
  */
-public final class MMAcquisition extends DataViewerListener {
+public final class MMAcquisition implements DataViewerDelegate {
    
    /** 
     * Final queue of images immediately prior to insertion into the ImageCache.
@@ -165,12 +165,11 @@ public final class MMAcquisition extends DataViewerListener {
          setProgressText();
       }
       if (show_) {
-         studio_.displays().manage(store_);
          display_ = studio_.displays().createDisplay(
                store_, makeControlsFactory());
-         display_.addListener(this, 1);
-         //display_.registerForEvents(this);
-         
+         display_.setDelegate(this);
+         display_.registerForEvents(this);
+
          // Color handling is a problem. They are no longer part of the summary 
          // metadata.  However, they clearly need to be stored 
          // with the dataset itself.  I guess that it makes sense to store them in 
@@ -247,15 +246,17 @@ public final class MMAcquisition extends DataViewerListener {
    }
 
    @Override
-   public boolean canCloseViewer(DataViewer viewer) {
+   public boolean dataViewerShouldClose(DataViewer viewer) {
       if (!viewer.equals(display_)) {
          ReportingUtils.logError("MMAcquisition: received callback from unknown viewer");
          return true;
       }
       boolean result = eng_.abortRequest();
+      if (result) {
+         studio_.displays().manage(store_);
+      }
       return result;
    }
-
 
    /**
     * A simple little subclass of JButton that listens for certain events.
@@ -282,14 +283,6 @@ public final class MMAcquisition extends DataViewerListener {
          super(icon);
          studio_ = studio;
       }
-
-      /*
-      @Subscribe
-      public void onDisplayDestroyed(DisplayDestroyedEvent e) {
-         DefaultEventManager.getInstance().unregisterForEvents(this);
-         e.getDisplay().unregisterForEvents(this);
-      }
-      */
 
       @Subscribe
       public void onAcquisitionEnded(AcquisitionEndedEvent e) {
@@ -361,7 +354,6 @@ public final class MMAcquisition extends DataViewerListener {
       };
    }
 
-  
    @Subscribe
    public void onAcquisitionEnded(AcquisitionEndedEvent event) {
       try {
@@ -370,10 +362,17 @@ public final class MMAcquisition extends DataViewerListener {
       catch (IOException e) {
          ReportingUtils.logError(e);
       }
+
       if (display_ .getDisplaySettings() instanceof DefaultDisplaySettings) {
          ( (DefaultDisplaySettings) display_.getDisplaySettings() ).save(store_.getSavePath());
       }
-      display_.removeListener(this);
+
+      // Transfer viewer "Ownership" to the display manager
+      // TODO XXX We are not yet correctly managing duplicated viewers
+      // (probably need a dedicated call to DataViewerDelegate)
+      display_.setDelegate(null);
+      studio_.displays().manage(store_);
+
       DefaultEventManager.getInstance().unregisterForEvents(this);
       new Thread(new Runnable() {
          @Override

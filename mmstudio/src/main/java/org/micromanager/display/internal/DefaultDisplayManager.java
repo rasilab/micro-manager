@@ -44,7 +44,7 @@ import org.micromanager.data.internal.PropertyKey;
 import org.micromanager.display.ChannelDisplaySettings;
 import org.micromanager.display.ComponentDisplaySettings;
 import org.micromanager.display.DataViewer;
-import org.micromanager.display.DataViewerListener;
+import org.micromanager.display.DataViewerDelegate;
 import org.micromanager.display.DisplayManager;
 import org.micromanager.display.DisplaySettings;
 import org.micromanager.display.DisplayWindow;
@@ -62,16 +62,17 @@ import org.micromanager.display.internal.link.internal.DefaultLinkManager;
 
 
 // TODO Methods must implement correct threading semantics!
-public final class DefaultDisplayManager extends DataViewerListener implements DisplayManager {
+public final class DefaultDisplayManager implements DisplayManager, DataViewerDelegate {
    private static final String[] CLOSE_OPTIONS = new String[] {
          "Cancel", "Prompt for each", "Close without save prompt"};
    private static DefaultDisplayManager staticInstance_;
 
    private final MMStudio studio_;
 
-   // Map from "managed" dataproviders to attached displays. Synchronized by
+   // Map from "managed" datastores to attached displays. Synchronized by
    // monitor on 'this'.
-   private final HashMap<DataProvider, ArrayList<DisplayWindow>> providerToDisplays_;
+   private final HashMap<Datastore, ArrayList<DisplayWindow>> storeToManagedDisplays_ =
+         new HashMap<Datastore, ArrayList<DisplayWindow>>();
 
    private final DataViewerCollection viewers_ = DataViewerCollection.create();
 
@@ -86,10 +87,10 @@ public final class DefaultDisplayManager extends DataViewerListener implements D
 
    public DefaultDisplayManager(MMStudio studio) {
       studio_ = studio;
-      providerToDisplays_ = new HashMap<DataProvider, ArrayList<DisplayWindow>>();
       studio_.events().registerForEvents(this);
       staticInstance_ = this;
 
+      // TODO Leaking this.
       viewers_.registerForEvents(this);
    }
 
@@ -107,28 +108,32 @@ public final class DefaultDisplayManager extends DataViewerListener implements D
    }
 
    @Override
-   public synchronized List<DataProvider> getManagedDataProviders() {
-      return new ArrayList<DataProvider>(providerToDisplays_.keySet());
+   public synchronized List<Datastore> getManagedDatastores() {
+      return new ArrayList<Datastore>(storeToManagedDisplays_.keySet());
    }
 
    @Override
-   public synchronized void manage(DataProvider store) {
+   public synchronized void manage(Datastore store) {
       // Iterate over all display windows, find those associated with this
       // datastore, and manually associate them now.
       ArrayList<DisplayWindow> displays = new ArrayList<DisplayWindow>();
-      providerToDisplays_.put(store, displays);
+      storeToManagedDisplays_.put(store, displays);
       for (DisplayWindow display : getAllImageWindows()) {
-         if (display.getDataProvider() == store) {
+         if (display.getDatastore() == store) {
             displays.add(display);
             display.registerForEvents(this);
-            display.addListener(this, 100);
+            DataViewerDelegate existingDelegate = display.getDelegate();
+            if (existingDelegate != null) {
+               // TODO This probably needs to be an error
+            }
+            display.setDelegate(this);
          }
       }
    }
 
    @Override
-   public synchronized boolean getIsManaged(DataProvider provider) {
-      return providerToDisplays_.containsKey(provider);
+   public synchronized boolean getIsManaged(Datastore store) {
+      return storeToManagedDisplays_.containsKey(store);
    }
 
    /**
@@ -138,27 +143,18 @@ public final class DefaultDisplayManager extends DataViewerListener implements D
     */
    @Subscribe
    public void onDatastoreClosed(DatastoreClosingEvent event) {
-      // TODO XXX This should be done by the individual data viewers
+      // TODO: Displays and "managements" should respond to a willClose event
+      // coming from their DataProvider.
       ArrayList<DisplayWindow> displays = null;
       Datastore store = event.getDatastore();
       synchronized (this) {
-         if (providerToDisplays_.containsKey(store)) {
-            displays = providerToDisplays_.get(store);
-            providerToDisplays_.remove(store);
-         }
-      }
-      if (displays != null) {
-         for (DisplayWindow display : displays) {
-            //display.forceClosed();
+         if (storeToManagedDisplays_.containsKey(store)) {
+            displays = storeToManagedDisplays_.get(store);
+            storeToManagedDisplays_.remove(store);
          }
       }
    }
 
-   /**
-    * At shutdown, we give the user the opportunity to save data, and to cancel
-    * shutdown if they don't want to decide yet.
-    * @param event
-    */
    @Subscribe
    public void onShutdownCommencing(InternalShutdownCommencingEvent event) {
       // If shutdown is already cancelled, don't do anything.
@@ -207,43 +203,6 @@ public final class DefaultDisplayManager extends DataViewerListener implements D
       return new DefaultDisplaySettings.DefaultContrastSettings(
             contrastMins, contrastMaxes, gammas, isVisible);
    }
-
-   /* TODO
-   @Override
-   public HistogramData calculateHistogram(Image image, int component,
-         int binPower, int bitDepth, double extremaPercentage,
-         boolean shouldCalcStdDev) {
-      
-      Boolean shouldScaleWithROI = getStandardDisplaySettings().getShouldScaleWithROI();
-      if (shouldScaleWithROI == null) {
-         shouldScaleWithROI = true;
-      }
-      
-      return ContrastCalculator.calculateHistogram(image, null, component,
-            binPower, bitDepth, extremaPercentage, shouldCalcStdDev, shouldScaleWithROI);
-   }
-
-   @Override
-   public HistogramData calculateHistogramWithSettings(Image image,
-         int component, DisplaySettings settings) {
-      return ContrastCalculator.calculateHistogramWithSettings(image, null,
-            component, settings);
-   }
-
-   @Override
-   public void updateHistogramDisplays(List<Image> images, DataViewer viewer) {
-      for (Image image : images) {
-         ArrayList<HistogramData> datas = new ArrayList<HistogramData>();
-         for (int i = 0; i < image.getNumComponents(); ++i) {
-            HistogramData data = calculateHistogramWithSettings(image, i,
-                  viewer.getDisplaySettings());
-            datas.add(data);
-         }
-         viewer.postEvent(
-               new NewHistogramsEvent(image.getCoords().getChannel(), datas));
-      }
-   }
-   */
 
    @Override
    public PropertyMap.Builder getPropertyMapBuilder() {
@@ -303,13 +262,17 @@ public final class DefaultDisplayManager extends DataViewerListener implements D
          // TODO DisplayGroupManager.getInstance().addDisplay(viewer);
       }
 
-      DataProvider store = viewer.getDataProvider();
-      synchronized (this) {
-         if (getIsManaged(store) && viewer instanceof DisplayWindow) {
-            DisplayWindow display = (DisplayWindow) viewer;
-            providerToDisplays_.get(store).add(display);
-            display.addListener(this, 100);
-            studio_.events().registerForEvents(viewer);
+      DataProvider provider = viewer.getDataProvider();
+      if (provider instanceof Datastore) {
+         Datastore store = (Datastore) provider;
+         synchronized (this) {
+            if (getIsManaged(store) && viewer instanceof DisplayWindow) {
+               DisplayWindow display = (DisplayWindow) viewer;
+               storeToManagedDisplays_.get(store).add(display);
+            }
+            // TODO Nico added the following, but of course the viewers should
+            // not depend on studio. What was it for? --Mark T.
+            // studio_.events().registerForEvents(viewer);
          }
       }
    }
@@ -322,12 +285,14 @@ public final class DefaultDisplayManager extends DataViewerListener implements D
       viewers_.removeDataViewer(viewer);
    }
 
-   /**
+   /*
     * NS, 10/2017: Unlike documented in the interface, this only loads a single display
     * Currently, there is only a mechanism to store a single file with one set
     * of DisplaySettings to a datastore location. I can not think of an easy, quick,
     * reliable way to store the displaysettings for multiple viewers.  Moreover,
     * this seems a bit estoric and currently not worth the effort to implement.
+    */
+   /**
     * @param store Datastore to open displays for
     * @return List with opened DisplayWindows
     * @throws IOException 
@@ -339,9 +304,9 @@ public final class DefaultDisplayManager extends DataViewerListener implements D
       if (path != null) {
          // try to restore display settings
          File displaySettingsFile = new File(store.getSavePath() + File.separator + 
-              PropertyKey.DISPLAY_SETTINGS_FILE_NAME.key());
+              "DisplaySettings.json");
          DisplaySettings displaySettings = DefaultDisplaySettings.
-                 getSavedDisplaySettings(displaySettingsFile);
+               fromPropertyMap(PropertyMaps.loadJSON(displaySettingsFile));
          if (displaySettings == null) {
             displaySettings = this.getStandardDisplaySettings();
          }
@@ -361,16 +326,10 @@ public final class DefaultDisplayManager extends DataViewerListener implements D
       return result;
    }
 
-   // TODO: deprecate, and/or remove?
    @Override
    public synchronized List<DisplayWindow> getDisplays(Datastore store) {
-      return new ArrayList<DisplayWindow>(providerToDisplays_.get(store));
+      return new ArrayList<DisplayWindow>(storeToManagedDisplays_.get(store));
    }
-   
-   public synchronized List<DisplayWindow> getDisplays(DataProvider provider) {
-      return new ArrayList<DisplayWindow>(providerToDisplays_.get(provider));
-   }
-   
 
    @Override
    public DataViewer getActiveDataViewer() {
@@ -421,14 +380,13 @@ public final class DefaultDisplayManager extends DataViewerListener implements D
       return true;
    }
 
-   
    // TODO Why do we need both store and display?
    @Override
    public boolean promptToSave(Datastore store, DisplayWindow display) throws IOException {
       String[] options = {"Save", "Discard", "Cancel"};
       int result = JOptionPane.showOptionDialog(display.getWindow(),
             "<html>Do you want to save <i>" + store.getName() + "</i> before closing?",
-            "MicroManager", JOptionPane.DEFAULT_OPTION,
+            "Micro-Manager", JOptionPane.DEFAULT_OPTION,
             JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
       if (result == 2 || result < 0) {
          // User cancelled.
@@ -486,10 +444,12 @@ public final class DefaultDisplayManager extends DataViewerListener implements D
    }
 
    private void removeDisplay(DisplayWindow display) {
-      DataProvider provider = display.getDataProvider();
+      Datastore store = display.getDatastore();
       synchronized (this) {
-         display.removeListener(this);
-         providerToDisplays_.get(provider).remove(display);
+         storeToManagedDisplays_.get(store).remove(display);
+         if (display.getDelegate() == this) {
+            display.setDelegate(null);
+         }
       }
    }
 
@@ -536,24 +496,21 @@ public final class DefaultDisplayManager extends DataViewerListener implements D
       eventBus_.unregister(recipient);
    }
 
-   /**
-    * Check if this is the last display for a Datastore that we are managing,
-    * and verify closing without saving (if appropriate).
-    *
-    * @return
-    */
    @Override
-   public boolean canCloseViewer(DataViewer viewer) {
-
+   public boolean dataViewerShouldClose(DataViewer viewer) {
       DataProvider provider = viewer.getDataProvider();
       List<DisplayWindow> displays;
+      if (!(provider instanceof Datastore)) {
+         return true;
+      }
+      Datastore store = (Datastore) provider;
       synchronized (this) {
-         if (!providerToDisplays_.containsKey(provider)) {
+         if (!storeToManagedDisplays_.containsKey(store)) {
             // This should never happen.
             ReportingUtils.logError("Received request to close a display that is not associated with a managed datastore.");
             return true;
          }
-         displays = getDisplays(provider);
+         displays = getDisplays(store);
 
          if (viewer instanceof DisplayWindow) {
             DisplayWindow window = (DisplayWindow) viewer;
@@ -568,30 +525,26 @@ public final class DefaultDisplayManager extends DataViewerListener implements D
                return true;
             }
             // Last display; check for saving now.
-            if (provider instanceof Datastore) {
-               Datastore store = (Datastore) provider;
-               if (store.getSavePath() != null) {
-                  // Data have been saved already, but save our last display settings
-                  removeDisplay(window);
+            if (store.getSavePath() != null) {
+               // No problem with saving.
+               removeDisplay(window);
+               return true;
+            }
+            // Prompt the user to save their data.
+            try {
+               if (promptToSave(store, window)) {
+                  window.close();
+                  store.freeze();
+                  // This will invoke our onDatastoreClosed() method.
+                  store.close();
                   return true;
                }
-               // Prompt the user to save their data.
-               try {
-                  if (promptToSave(store, window)) {
-                     removeDisplay(window);
-                     store.freeze();
-                     // This will invoke our onDatastoreClosed() method.
-                     store.close();
-                     return true;
-                  }
-               } catch (IOException ioe) {
-                  ReportingUtils.logError(ioe, "Failed to save:");
-               }
+            } catch (IOException ioe) {
+               ReportingUtils.showError(ioe, "Failed to save:");
+               return false;
             }
-            
          }
          return false;
       }
    }
-
 }

@@ -45,7 +45,9 @@ import org.micromanager.acquisition.SequenceSettings;
 import org.micromanager.acquisition.internal.AcquisitionWrapperEngine;
 import org.micromanager.data.Datastore;
 import org.micromanager.data.internal.DefaultDatastore;
-import org.micromanager.display.internal.RememberedChannelSettings;
+import org.micromanager.display.ChannelDisplaySettings;
+import org.micromanager.display.internal.ChannelDisplayDefaults;
+import org.micromanager.display.internal.DefaultChannelDisplaySettings;
 import org.micromanager.events.ChannelExposureEvent;
 import org.micromanager.events.GUIRefreshEvent;
 import org.micromanager.events.internal.ChannelGroupEvent;
@@ -2099,20 +2101,16 @@ public final class AcqControlDlg extends MMFrame implements PropertyChangeListen
 
    public static Integer getChannelColor(String channelGroup,
          String channel, int defaultVal) {
-      return RememberedChannelSettings.getColorForChannel(channel,
-            channelGroup, new Color(defaultVal)).getRGB();
+      ChannelDisplayDefaults defaults = new ChannelDisplayDefaults(UserProfileStaticInterface.getInstance());
+      Color color = defaults.getColorForChannel(channelGroup, channel,
+            new Color(defaultVal));
+      return color.getRGB();
    }
 
    public static void setChannelColor(String channelGroup, String channel,
          int color) {
-      // TODO: this is kind of an ugly way to do this.
-      RememberedChannelSettings settings = RememberedChannelSettings.loadSettings(
-            channel, channelGroup, Color.WHITE,
-            new Integer[] {0}, new Integer[] {-1}, true);
-      settings = new RememberedChannelSettings(channel, channelGroup,
-            new Color(color), settings.getHistogramMins(),
-            settings.getHistogramMaxes(), settings.getShouldAutoscale());
-      settings.saveToProfile();
+      ChannelDisplayDefaults defaults = new ChannelDisplayDefaults(UserProfileStaticInterface.getInstance());
+      defaults.saveColorForChannel(channelGroup, channel, new Color(color));
    }
 
    public static boolean getShouldSyncExposure() {

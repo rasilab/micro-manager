@@ -247,43 +247,44 @@ public interface DisplayManager extends EventPublisher {
    List<DisplayWindow> loadDisplays(Datastore store) throws IOException;
 
    /**
-    * Request that MicroManager manage the specified DataProvider for you.
+    * Request that MicroManager manage the specified Datastore for you.
     * In brief: if you want users to receive a prompt to save their data when
-    * the last display for a DataProvider you created is closed, then use this
+    * the last display for a Datastore you created is closed, then use this
     * method.
     * Specifically, this method does the following things:
-    * - Add the DataProvider to the list returned by getDataProviders().
-    * - Find all currently-existing DisplayWindows for this DataProvider and
-    *   associate them (thus, getDisplays() for this DataProvider will return the
+    * - Add the Datastore to the list returned by getDatastores().
+    * - Find all currently-existing DisplayWindows for this Datastore and
+    *   associate them (thus, getDisplays() for this Datastore will return the
     *   displays)
-    * - When the last DisplayWindow for the DataProvider is closed:
-    * -- If the DataProvider has not been saved, prompt the user to save (and if
+    * - When the last DisplayWindow for the Datastore is closed:
+    * -- If the Datastore has not been saved, prompt the user to save (and if
     *    they cancel, closing the DisplayWindow is halted)
-    * -- The DataProvider is frozen, which may have side-effects like finalizing
+    * -- The Datastore is frozen, which may have side-effects like finalizing
     *    writing of image data to disk
-    * -- The DataProvider is removed from the list returned by getDatastores().
-    * By default, new DataProvider created by the createNewDatastore() method
+    * -- The Datastore is removed from the list returned by getDatastores().
+    * By default, new Datastores created by the createNewDatastore() method
     * are not managed, which means you are responsible for ensuring that they
-    * are properly closed and saved. DataProvider created by MicroManager itself
+    * are properly closed and saved. Datastores created by MicroManager itself
     * (e.g. by running an MDA) are automatically managed.
-    * @param store The DataProvider to manage.
+    * @param store The Datastore to manage.
     */
-   void manage(DataProvider store);
+   void manage(Datastore store);
 
    /**
-    * Return a list of all DataProviders that MicroManager is managing (see the
+    * Return a list of all Datastores that MicroManager is managing (see the
     * manage() method for more information).
-    * @return A list of all DataProviders that Micro-Manager is managing.
+    * @return A list of all Datastores that Micro-Manager is managing.
     */
-   List<DataProvider> getManagedDataProviders();
+   List<Datastore> getManagedDatastores();
 
    /**
-    * Returns true if the DataProvider is being managed by MicroManager.
-    * @param store The DataProvider whose management status is under question.
-    * @return Whether or not Micro-Manager is managing the DataProvider.
+    * Returns true iff the Datastore is being managed by MicroManager.
+    * @param store The Datastore whose management status is under question.
+    * @return Whether or not Micro-Manager is managing the Datastore.
     */
-   boolean getIsManaged(DataProvider store);
+   boolean getIsManaged(Datastore store);
 
+   // TODO Rename to getManagedDisplays or something like that that makes sense
    /**
     * Return all associated DisplayWindows for the Datastore. Returns null if
     * the Datastore is not managed.

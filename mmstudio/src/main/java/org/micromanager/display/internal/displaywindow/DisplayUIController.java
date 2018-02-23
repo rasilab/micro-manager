@@ -177,10 +177,17 @@ public final class DisplayUIController implements Closeable, WindowListener,
          "/org/micromanager/icons/lock_locked.png");
    private static final Icon RED_LOCKED_ICON = IconLoader.getIcon(
          "/org/micromanager/icons/lock_super.png");
-   
+
    private final Insets buttonInsets_ = new Insets(0, 5, 0, 5);
 
    private ImageJBridge ijBridge_;
+
+   public static enum ImageJTool {
+      SELECT,
+      PAN,
+      ZOOM,
+      UNKNOWN,
+   }
 
    // Data display state of the UI (which may lag behind the display
    // controller's notion of what's current)
@@ -188,6 +195,8 @@ public final class DisplayUIController implements Closeable, WindowListener,
    private final List<Integer> displayedAxisLengths_ = new ArrayList<Integer>();
    private ImagesAndStats displayedImages_;
    private Double cachedPixelSize_ = -1.0;
+
+   private boolean infoLabelFilled_ = false;
 
    private BoundsRectAndMask lastSeenSelection_;
 
@@ -293,7 +302,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
                GUIUtils.getFullScreenBounds(frame.getGraphicsConfiguration()));
          frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
       }
-      setTitle(frame);
+      frame.setTitle(getFullWindowTitle());
       return frame;
    }
 
@@ -381,6 +390,8 @@ public final class DisplayUIController implements Closeable, WindowListener,
       updateZoomUIState();
       canvasDidChangeSize();
 
+      // Need to set DisplaySettings now after the ijBridge has been created
+      applyDisplaySettings(displayController_.getDisplaySettings());
    }
 
    @MustCallOnEDT
@@ -444,7 +455,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
       infoLabel_ = new JLabel("No Image yet");
       panel.add(infoLabel_, "wrap");
-      
+
       return panel;
    }
 
@@ -678,12 +689,15 @@ public final class DisplayUIController implements Closeable, WindowListener,
          noImagesMessageLabel_.setText("Preparing to Display...");
       }
 
+      boolean axesChanged = false;
+
       for (Coords c : coords) {
          for (String axis : c.getAxes()) {
             int index = c.getIndex(axis);
             int axisIndex = displayedAxes_.indexOf(axis);
             if (axisIndex == -1) {
                displayedAxes_.add(axis);
+               axesChanged = true;
                displayedAxisLengths_.add(index + 1);
             }
             else {
@@ -702,8 +716,10 @@ public final class DisplayUIController implements Closeable, WindowListener,
             scrollableLengths.put(displayedAxes_.get(i), displayedAxisLengths_.get(i));
          }
       }
+
       // Reorder scrollable axes to match axis order of data provider
       Collections.sort(scrollableAxes, new Comparator<String>() {
+         // TODO: This logic might belong in Datastore
          @Override
          // A comparison such that an axis appearing earlier in the data
          // provider's order will be placed earlier.
@@ -733,6 +749,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
             return axisMap.get(o1) > axisMap.get(o2) ? 1 : -1;
          }
       });
+
       scrollBarPanel_.setAxes(scrollableAxes);
       for (int i = 0; i < scrollableAxes.size(); ++i) {
          final String currentAxis = scrollableAxes.get(i);
@@ -747,16 +764,15 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
       if (ijBridge_ != null) {
          ijBridge_.mm2ijEnsureDisplayAxisExtents();
+         if (axesChanged) {
+            applyDisplaySettings(displayController_.getDisplaySettings());
+         }
       }
    }
 
    @MustCallOnEDT
    void displayImages(ImagesAndStats images) {
-      boolean firstTime = false;
-      if (ijBridge_ == null) {
-         firstTime = true;
-         setupDisplayUI();  // creates ijBridge amongst other things
-      }
+      setupDisplayUI();
 
       displayedImages_ = images;
       Coords nominalCoords = images.getRequest().getNominalCoords();
@@ -771,45 +787,30 @@ public final class DisplayUIController implements Closeable, WindowListener,
             scrollBarPanel_.setAxisPosition(axis, nominalCoords.getIndex(axis));
             updateAxisPositionIndicator(axis, nominalCoords.getIndex(axis), -1);
          }
-      } 
-      
-      if (firstTime) {
-         // We need to set the displaySettings after the ijBride was created
-         // (in the setupDisplayUI function), and after the display range
-         // has been expanded to include all Coords in the "images"
-         // If we do not do so, only one channel will be shown
-         // If we call applyDisplaySettings every time, the Display fps 
-         // will never be shown
-         applyDisplaySettings(displayController_.getDisplaySettings());
       }
-      
-      // info label: The only aspect that can change is pixel size.  To avoid
-      // redrawing the info line (which may be expensive), check if pixelsize
-      // changed (which can happen for the snap/live window) and only redraw the 
-      // info label if it changed.
-      if (!cachedPixelSize_.equals(images.getRequest().getImage(0).getMetadata().getPixelSizeUm())) {
-         infoLabel_.setText(this.getInfoString(images));
-         cachedPixelSize_ = images.getRequest().getImage(0).getMetadata().getPixelSizeUm();
-      } 
-      
+
       ijBridge_.mm2ijSetDisplayPosition(nominalCoords);
       applyAutostretch(images, displayController_.getDisplaySettings());
 
       if (mouseLocationOnImage_ != null) {
          updatePixelInformation(); // TODO Can skip if identical images
       }
-      
+
+      Double pixelSize = images.getRequest().getImage(0).getMetadata().getPixelSizeUm();
+      boolean pixelSizeChanged = cachedPixelSize_ != null && !cachedPixelSize_.equals(pixelSize);
+      if (pixelSizeChanged) {
+         cachedPixelSize_ = pixelSize;
+      }
+      if (!infoLabelFilled_ || pixelSizeChanged) {
+         infoLabel_.setText(getInfoString(displayedImages_));
+         infoLabelFilled_ = true;
+      }
+
       repaintScheduledForNewImages_.set(true);
    }
 
    @MustCallOnEDT
    public void applyDisplaySettings(DisplaySettings settings) {
-      // Note: This applies to color settings, zoom and playback fps
-      // Note that this function will be called every time the 
-      // uiController_.setDisplaySettings function is called, so make sure that
-      // function will not be called from within here, as an infinite loop will
-      // ensue.
-
       if (ijBridge_ == null) {
          return;
       }
@@ -890,11 +891,8 @@ public final class DisplayUIController implements Closeable, WindowListener,
             ijBridge_.mm2ijSetIntensityScaling(i, min, max);
          }
       }
-      
+
       ijBridge_.mm2ijSetZoom(settings.getZoomRatio());
-      
-      displayController_.setPlaybackSpeedFps(settings.getPlaybackFPS());
-      
    }
 
    @MustCallOnEDT
@@ -1032,11 +1030,9 @@ public final class DisplayUIController implements Closeable, WindowListener,
          fullScreenButton_.setToolTipText("View in full screen mode");
       }
    }
-   
 
    public void updateTitle() {
       if (frame_ != null) {
-         
             runnablePool_.invokeAsLateAsPossibleWithCoalescence(new CoalescentRunnable() {
                @Override
                public Class<?> getCoalescenceClass() {
@@ -1050,17 +1046,14 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
                @Override
                public void run() {
-                  setTitle(frame_);
+                  frame_.setTitle(getFullWindowTitle());
                }
             });
       }
    }
 
-   /**
-    * Actually sets the title to this Display
-    */
    @MustCallOnEDT
-   private void setTitle(JFrame frame) {
+   private String getFullWindowTitle() {
       StringBuilder sb = new StringBuilder();
       sb.append(displayController_.getName());
       if (ijBridge_ != null) {
@@ -1071,7 +1064,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
          sb.append(" (100%)");
       }
       // TODO: add save status, and listen for changes
-      frame.setTitle(sb.toString());
+      return sb.toString();
    }
 
    public void zoomIn() {
@@ -1093,13 +1086,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
       }
    }
 
-   /**
-    * Callback for the ImageJ code.  Do not call directly.
-    * Used to update the Micro-Manager code of the new zoom factor.
-    * 
-    * @param factor Newly set Zoom factor.
-    */
-   public void uiDidSetZoom(double factor) {
+   public void zoomDidChange(double factor) {
       updateZoomUIState();
       displayController_.setDisplaySettings(displayController_.getDisplaySettings().
               copyBuilder().zoomRatio(factor).build());
@@ -1207,12 +1194,11 @@ public final class DisplayUIController implements Closeable, WindowListener,
     * to discover what kind of Mouse Event happened.
     * @param imageLocation the image coordinates of the pixel for which
     * information should be displayed (in image coordinates)
-    * @param ijToolId ID of tool selected in ImageJ tool-bar
     */
-   public void mouseEventOnImage(final MouseEvent e, final Rectangle imageLocation, 
-           final int ijToolId) {
+   public void mouseEventOnImage(MouseEvent e, Rectangle imageLocation,
+           ImageJTool tool) {
       displayController_.postDisplayEvent( new DisplayMouseEvent(
-              e, imageLocation, ijToolId));
+              e, imageLocation, tool));
       switch (e.getID()) {
          case MouseEvent.MOUSE_MOVED:
          case MouseEvent.MOUSE_ENTERED:
@@ -1572,8 +1558,12 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
    private void handlePlaybackFpsSpinner(ChangeEvent event) {
       double fps = (Double) playbackFpsSpinner_.getValue();
-      displayController_.setDisplaySettings(displayController_.
-              getDisplaySettings().copyBuilder().playbackFPS(fps).build());
+      DisplaySettings oldSettings, newSettings;
+      do {
+         oldSettings = displayController_.getDisplaySettings();
+         newSettings = oldSettings.copyBuilder().playbackFPS(fps).build();
+      } while (!displayController_.compareAndSetDisplaySettings(oldSettings,
+            newSettings));
    }
 
    private void handleLockButton(ActionEvent event) {

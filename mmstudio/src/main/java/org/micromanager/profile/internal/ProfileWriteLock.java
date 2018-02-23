@@ -11,8 +11,6 @@ import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * A file-based lock to prevent profiles from being written by multiple

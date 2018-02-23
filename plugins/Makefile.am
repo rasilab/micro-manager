@@ -23,7 +23,6 @@ nobase_mmplugin_DATA = \
 	MMTracker.jar \
 	MultiAndor.jar \
 	MultiChannelShading.jar \
-	PatternOverlay.jar \
 	PipelineSaver.jar \
 	PixelCalibrator.jar \
 	ProjectorPlugin.jar \

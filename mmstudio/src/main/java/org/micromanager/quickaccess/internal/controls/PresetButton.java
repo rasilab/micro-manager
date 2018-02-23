@@ -41,8 +41,10 @@ import javax.swing.JPanel;
 import net.miginfocom.swing.MigLayout;
 import org.micromanager.PropertyMap;
 import org.micromanager.Studio;
-import org.micromanager.display.internal.RememberedChannelSettings;
+import org.micromanager.display.ChannelDisplaySettings;
+import org.micromanager.display.internal.ChannelDisplayDefaults;
 import org.micromanager.internal.utils.GUIUtils;
+import org.micromanager.internal.utils.UserProfileStaticInterface;
 import org.micromanager.quickaccess.QuickAccessPlugin;
 import org.micromanager.quickaccess.WidgetPlugin;
 import org.scijava.plugin.Plugin;
@@ -173,8 +175,8 @@ public final class PresetButton extends WidgetPlugin implements SciJavaPlugin {
             // Try to get a new color for the color picker. This won't do
             // anything useful when not dealing with channel groups, in which
             // case the color will remain the same.
-            pickerLabel.setBackground(
-               RememberedChannelSettings.getColorForChannel(
+            ChannelDisplayDefaults defaults = new ChannelDisplayDefaults(UserProfileStaticInterface.getInstance());
+            pickerLabel.setBackground(defaults.getColorForChannel(
                   (String) groupSelector.getSelectedItem(),
                   (String) presetSelector.getSelectedItem(),
                   pickerLabel.getBackground()));
@@ -187,10 +189,10 @@ public final class PresetButton extends WidgetPlugin implements SciJavaPlugin {
             // Try to get a new color for the color picker. This won't do
             // anything useful when not dealing with channel groups, in which
             // case the color will remain the same.
-            pickerLabel.setBackground(
-               RememberedChannelSettings.getColorForChannel(
-                  (String) presetSelector.getSelectedItem(),
+            ChannelDisplayDefaults defaults = new ChannelDisplayDefaults(UserProfileStaticInterface.getInstance());
+            pickerLabel.setBackground(defaults.getColorForChannel(
                   (String) groupSelector.getSelectedItem(),
+                  (String) presetSelector.getSelectedItem(),
                   pickerLabel.getBackground()));
          }
       });

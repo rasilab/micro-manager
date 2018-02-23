@@ -24,8 +24,16 @@ import org.micromanager.internal.utils.MustCallOnEDT;
  * The collection of data viewers.
  *
  * Manages all data viewers in the application, and keeps track of the
- * front-most viewer. Also publishes all viewer events.
- * 
+ * currently active viewer. Also publishes all viewer events.
+ * <p>
+ * The active viewer is the viewer currently selected by the user: for viewers
+ * contained in their own window and it is the front window, that viewer is
+ * active. Viewers that are subcomponents of other windows are active when
+ * their containing window is in front (and the viewer is explicitly selected,
+ * in the case where the window contains more than one viewer).
+ * <p>
+ * It is possible to have no active viewer (e.g. if the active window does not
+ * contain any viewer).
  * <p>
  * This class handles generic {@code DataViewer}s and does not perform tasks
  * that are specific to {@code DisplayWindow}s.
@@ -37,13 +45,9 @@ public class DataViewerCollection implements EventPublisher {
    // Access: only on EDT
    private final Set<DataViewer> viewers_ = new HashSet<DataViewer>();
 
-   // Viewers in most-recently-activated order. The first element is the
-   // currently active (or at least, front-most) viewer.
-   // Invariant: elements are unique
-   // Invariant: elements are in viewers_
+   // The currently active viewer, or null if none is active.
    // Access: only onEDT
-   private final Deque<DataViewer> showingViewers_ =
-         new ArrayDeque<DataViewer>();
+   private DataViewer activeViewer_;
 
    private final EventBus eventBus_ = new EventBus(EventBusExceptionLogger.getInstance());
 
@@ -79,16 +83,8 @@ public class DataViewerCollection implements EventPublisher {
       viewers_.remove(viewer);
       if (viewer == getActiveDataViewer()) {
          eventBus_.post(DataViewerDidBecomeInactiveEvent.create(viewer));
+         activeViewer_ = null;
       }
-      showingViewers_.remove(viewer);
-      // An event needs to be generated for the newly front-most Dataviewer
-      // even though it may already have been "active", it is not in front
-      // and event consumers (like the Inspector) will need to know about this.
-      DataViewer activeViewer = getActiveDataViewer();
-      if (activeViewer != null) {
-         eventBus_.post(DataViewerDidBecomeActiveEvent.create(activeViewer));
-      }
-      
    }
 
    @MustCallOnEDT
@@ -98,12 +94,7 @@ public class DataViewerCollection implements EventPublisher {
 
    @MustCallOnEDT
    public DataViewer getActiveDataViewer() {
-      for (DataViewer viewer : showingViewers_) {
-         if (viewer.isVisible()) {
-            return viewer;
-         }
-      }
-      return null;
+      return activeViewer_;
    }
 
    @Subscribe
@@ -129,8 +120,7 @@ public class DataViewerCollection implements EventPublisher {
          eventBus_.post(DataViewerDidBecomeInactiveEvent.create(previous));
       }
 
-      showingViewers_.remove(e.getDataViewer());
-      showingViewers_.addFirst(e.getDataViewer());
+      activeViewer_ = e.getDataViewer();
 
       eventBus_.post(e);
    }

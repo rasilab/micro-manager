@@ -185,33 +185,34 @@ public final class DefaultPropertyMap implements PropertyMap {
 
    @Override
    public String getValueAsString(String key, String aDefault) {
-      if (map_.containsKey(key)) {
-         
-         if (containsDoubleList(key) || containsStringList(key)) {
-            StringBuilder strb = new StringBuilder();
-            
-            if (containsDoubleList(key)) {
-               double[] doubles = getDoubleList(key);
-               for (double d : doubles) {
-                  strb.append(d).append(", ");
-               }
-            } else if (containsStringList(key)) {
-               List<String> strList = getStringList(key);
-               for (String str : strList) {
-                  strb.append(str).append(", ");
-               }
-            }
-            String result = strb.toString();
-            if (result.length() > 2) {
-               result = result.substring(0, result.length() - 2);
-            }
-            return result;
-         }
-         
-         // not a Double or String List
+      if (!map_.containsKey(key)) {
+         return aDefault;
+      }
+
+      if (!getValueTypeForKey(key).isArray()) { // Scalar
          return map_.get(key).toString();
       }
-      return aDefault;
+
+      List<?> list;
+      Class<?> componentType = getValueTypeForKey(key).getComponentType();
+      if (componentType.isPrimitive()) {
+         list = getBoxedList(key, Primitive.valueOf(componentType), Collections.EMPTY_LIST);
+      }
+      else {
+         list = getNonPrimitiveArray(key, componentType, Collections.EMPTY_LIST);
+      }
+
+      StringBuilder sb = new StringBuilder();
+      sb.append("[");
+      for (Object o : list) {
+         sb.append(o);
+         sb.append(", ");
+      }
+      if (sb.length() > "[".length()) {
+         sb.delete(sb.length() - 2, sb.length());
+      }
+      sb.append("]");
+      return sb.toString();
    }
 
 
@@ -647,8 +648,8 @@ public final class DefaultPropertyMap implements PropertyMap {
       if (!cls.isInstance(map_.get(key))) {
          // We throw ClassCastException (but a subclass thereof, for backward compat)
          throw new TypeMismatchException(String.format(
-               "Type mismatch on property map access for key: " + key + " (requested: %s; found: %s)",
-               cls.getName(), map_.get(key).getClass().getName()));
+               "Type mismatch on property map access for key: %s (requested: %s; found: %s)",
+               key, cls.getName(), map_.get(key).getClass().getName()));
       }
       return false;
    }

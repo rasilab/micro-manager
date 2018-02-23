@@ -8,7 +8,6 @@ package org.micromanager.display.internal.link.internal;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import org.micromanager.internal.utils.EventBusExceptionLogger;

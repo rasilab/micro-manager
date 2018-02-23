@@ -27,9 +27,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
@@ -39,7 +37,6 @@ import org.micromanager.data.Coordinates;
 import org.micromanager.data.Coords;
 import org.micromanager.data.DataProvider;
 import org.micromanager.data.Image;
-import org.micromanager.display.DataViewerListener;
 import org.micromanager.display.DisplaySettings;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.display.DisplayWindowControlsFactory;
@@ -47,7 +44,6 @@ import org.micromanager.display.overlay.Overlay;
 import org.micromanager.display.overlay.OverlayListener;
 import org.micromanager.display.inspector.internal.panels.intensity.ImageStatsPublisher;
 import org.micromanager.display.internal.DefaultDisplaySettings;
-import org.micromanager.display.internal.RememberedChannelSettings;
 import org.micromanager.display.internal.animate.AnimationController;
 import org.micromanager.display.internal.animate.DataCoordsAnimationState;
 import org.micromanager.display.internal.event.DefaultDisplayDidShowImageEvent;
@@ -73,8 +69,11 @@ import org.micromanager.internal.utils.performance.gui.PerformanceMonitorUI;
 import org.micromanager.data.DataProviderHasNewImageEvent;
 import org.micromanager.data.DataProviderHasNewNameEvent;
 import org.micromanager.data.Datastore;
+import org.micromanager.display.ChannelDisplaySettings;
+import org.micromanager.display.DataViewerDelegate;
+import org.micromanager.display.internal.ChannelDisplayDefaults;
 import org.micromanager.display.internal.link.internal.DefaultLinkManager;
-import org.micromanager.internal.utils.ReportingUtils;
+import org.micromanager.internal.utils.UserProfileStaticInterface;
 
 /**
  * Main controller for the standard image viewer.
@@ -94,6 +93,9 @@ public final class DisplayController extends DisplayWindowAPIAdapter
       OverlayListener
 {
    private final DataProvider dataProvider_;
+
+   private String customTitle_;
+   private static String DEFAULT_TITLE = "Untitled Image";
 
    // The actually painted images. Accessed only on EDT.
    private ImagesAndStats displayedImages_;
@@ -122,9 +124,10 @@ public final class DisplayController extends DisplayWindowAPIAdapter
    private BoundsRectAndMask selection_ = BoundsRectAndMask.unselected();
 
    private final List<Overlay> overlays_ = new ArrayList<Overlay>();
-   
-   private final TreeMap<Integer, DataViewerListener> listeners_ = 
-           new TreeMap<Integer, DataViewerListener>();
+
+   // A delegate object allowing customization of certain behaviors (such as
+   // what to do when user tries to close)
+   private DataViewerDelegate delegate_;
 
    // A way to know from a non-EDT thread that the display has definitely
    // closed (may not be true for a short period after closing)
@@ -142,23 +145,13 @@ public final class DisplayController extends DisplayWindowAPIAdapter
          PerformanceMonitorUI.create(perfMon_, "Display Performance");
 
    @Override
-   public void addListener(DataViewerListener listener, int priority) {
-      int tmpPriority = priority;
-      while (listeners_.containsKey(tmpPriority)) {
-         tmpPriority += 1;
-      }
-      listeners_.put(tmpPriority, listener);
+   public void setDelegate(DataViewerDelegate delegate) {
+      delegate_ = delegate;
    }
 
    @Override
-   public void removeListener(DataViewerListener listener) {
-      for (Map.Entry<Integer, DataViewerListener> entry : listeners_.entrySet()) {
-         if (listener.equals(entry.getValue())) {
-            // if we remove the entry, we risk concurrent modification
-            // of the TreeMap.  Therefore, simply set the value to null
-            listeners_.put(entry.getKey(), null);
-         }
-      }
+   public DataViewerDelegate getDelegate() {
+      return delegate_;
    }
 
    public static class Builder {
@@ -213,13 +206,22 @@ public final class DisplayController extends DisplayWindowAPIAdapter
    {
       DisplaySettings initialDisplaySettings = builder.displaySettings_;
       if (initialDisplaySettings == null) {
-         initialDisplaySettings = RememberedChannelSettings.updateSettings(
-               builder.dataProvider_.getSummaryMetadata(),
-               DefaultDisplaySettings.builder().build(),
-               builder.dataProvider_.getAxisLength(Coords.CHANNEL));
-      }
-      if (initialDisplaySettings == null) {
-         initialDisplaySettings = new DefaultDisplaySettings.LegacyBuilder().build();
+         // TODO Should this be handled by upstream code?
+         ChannelDisplayDefaults defaults = new ChannelDisplayDefaults(UserProfileStaticInterface.getInstance());
+         DisplaySettings.Builder settingsBuilder = DefaultDisplaySettings.builder();
+         int numChannels = builder.dataProvider_.getAxisLength(Coords.CHANNEL);
+         String groupName = builder.dataProvider_.getSummaryMetadata().getChannelGroup();
+         if (groupName != null) {
+            for (int i = 0; i < numChannels; ++i) {
+               String channelName = builder.dataProvider_.getSummaryMetadata().getSafeChannelName(i);
+               ChannelDisplaySettings channelSettings = defaults.getSettingsForChannel(
+                     groupName, channelName);
+               if (channelSettings != null) {
+                  settingsBuilder.channel(i, channelSettings);
+               }
+            }
+         }
+         initialDisplaySettings = settingsBuilder.build();
       }
 
       final DisplayController instance =
@@ -497,6 +499,15 @@ public final class DisplayController extends DisplayWindowAPIAdapter
          });
       }
 
+      if (adjustedSettings.getPlaybackFPS() != oldSettings.getPlaybackFPS()) {
+         SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+               setPlaybackSpeedFps(adjustedSettings.getPlaybackFPS());
+            }
+         });
+      }
+
       runnablePool_.invokeAsLateAsPossibleWithCoalescence(new CoalescentRunnable() {
          @Override
          public Class<?> getCoalescenceClass() {
@@ -707,15 +718,20 @@ public final class DisplayController extends DisplayWindowAPIAdapter
 
    @Override
    public void overlayConfigurationChanged(Overlay overlay) {
-      if (overlay.isVisible() && uiController_ != null) {
+      if (uiController_ == null) {
+         return;
+      }
+      if (overlay.isVisible()) {
          uiController_.overlaysChanged();
       }
    }
 
-   // TODO: why this duplicate function?
    @Override
    public void overlayVisibleChanged(Overlay overlay) {
-      overlayConfigurationChanged(overlay);
+      if (uiController_ == null) {
+         return;
+      }
+      uiController_.overlaysChanged();
    }
 
    //
@@ -790,7 +806,11 @@ public final class DisplayController extends DisplayWindowAPIAdapter
       return animationController_.getAnimationRateFPS();
    }
 
+   @MustCallOnEDT
    public void setPlaybackSpeedFps(double fps) {
+      if (fps == animationController_.getAnimationRateFPS()) {
+         return;
+      }
       animationController_.setAnimationRateFPS(fps);
       int initialTickIntervalMs = Math.max(17, Math.min(500,
             (int) Math.round(1000.0 / fps)));
@@ -867,9 +887,10 @@ public final class DisplayController extends DisplayWindowAPIAdapter
 
       @Override
       public void run() {
-         if (uiController_ != null) {
-            uiController_.expandDisplayedRangeToInclude(coords_);
+         if (uiController_ == null) {
+            return;
          }
+            uiController_.expandDisplayedRangeToInclude(coords_);
       }
    }
 
@@ -921,15 +942,21 @@ public final class DisplayController extends DisplayWindowAPIAdapter
       return (uiController_ == null);
    }
 
+   private String getDefaultTitle() {
+      if (dataProvider_ != null) {
+         return dataProvider_.getName();
+      }
+      else {
+         return DEFAULT_TITLE;
+      }
+   }
+
    @Override
    public String getName() {
-      // TODO: using the hashCode may be foolproof to provide a unique name, 
-      // but is not very useful to the end-user.
-      // Find a way to number viewers for one datastore sequentially instead
-      return dataProvider_.getName() + "-" + hashCode();
+      String title = customTitle_ != null ? customTitle_ : getDefaultTitle();
+      // TODO Replace the hashCode with the (a), (b), ... suffix
+      return title + "-" + hashCode();
    }
-   
-
 
    @Override
    public void displayStatusString(String status) {
@@ -1005,21 +1032,39 @@ public final class DisplayController extends DisplayWindowAPIAdapter
          }
       }
 
-      for (DataViewerListener listener : listeners_.values()) {
-         if (listener != null && !listener.canCloseViewer(this)) {
+      // TODO The following logic should be implemented by AbstractDataViewer.
+      DataViewerDelegate delegate;
+      for (;;) {
+         delegate = delegate_;
+         if (delegate == null) {
+            break;
+         }
+
+         boolean okToClose = delegate.dataViewerShouldClose(this);
+         if (!okToClose) {
             return false;
          }
+
+         if (delegate != delegate_) {
+            // delegate has been changed by the original delegate;
+            // we must now check with the new delegate
+            continue;
+         }
+         break;
       }
-      
-      close(); 
+
+      close();
       return true;
    }
 
    @Override
    public void close() {
       postEvent(DataViewerWillCloseEvent.create(this));
-      // attempt to save Display Settings
-      // TODO: Are there problems with multiple viewers on one Datastore?
+      // TODO: We need to handle the case of multiple viewers. Of course, if
+      // the user closes one by one, only the last remaining viewer's settings
+      // will be saved; but if all closed at the same time...?
+      // TODO The display settings should be saved periodically, not just when
+      // closing the viewer (but handle multiple viewers carefully!)
       if (dataProvider_ instanceof Datastore) {
          Datastore ds = (Datastore) dataProvider_;
          if (ds.getSavePath() != null) {
@@ -1032,12 +1077,10 @@ public final class DisplayController extends DisplayWindowAPIAdapter
          // TODO: report exception
       }
       animationController_.shutdown();
-      if (uiController_ == null) {
-         ReportingUtils.logError("DisplayController's reference to UIController is null where it shouldn't be");
-      } else {
+      if (uiController_ != null) {
          uiController_.close();
-         uiController_ = null;
       }
+      uiController_ = null;
       closeCompleted_ = true;
       dispose();
 
@@ -1045,14 +1088,15 @@ public final class DisplayController extends DisplayWindowAPIAdapter
       // (which can be done with a ComponentListener for the JFrame)
       postEvent(DataViewerDidBecomeInvisibleEvent.create(this));
    }
-   
+
+   // TODO Generalize to DataProvider
    @Subscribe
    public void onDatastoreClosing(DatastoreClosingEvent event) {
       if (event.getDatastore().equals(dataProvider_)) {
          requestToClose();
       }
    }
-   
+
    @Subscribe 
    public void onNewDataProviderName(DataProviderHasNewNameEvent dpnne) {
       uiController_.updateTitle();
@@ -1132,15 +1176,7 @@ public final class DisplayController extends DisplayWindowAPIAdapter
 
    @Override
    public void setCustomTitle(String title) {
-      // TODO: evaulate if this is as intended
-      if (dataProvider_ instanceof Datastore) {
-         if (dataProvider_ != null) {
-            ((Datastore) dataProvider_).setName(title);
-         } else {
-            // TODO: set default name, whatever that is and wherever that is decided
-         }
-      }
+      customTitle_ = title;
+      uiController_.updateTitle();
    }
-   
-   
 }

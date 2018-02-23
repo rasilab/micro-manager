@@ -52,10 +52,9 @@ import org.micromanager.data.Pipeline;
 import org.micromanager.data.PipelineErrorException;
 import org.micromanager.data.internal.DefaultImage;
 import org.micromanager.data.internal.DefaultRewritableDatastore;
-import org.micromanager.data.internal.PropertyKey;
 import org.micromanager.data.internal.StorageRAM;
 import org.micromanager.display.DataViewer;
-import org.micromanager.display.DataViewerListener;
+import org.micromanager.display.DataViewerDelegate;
 import org.micromanager.display.DisplaySettings;
 import org.micromanager.display.DisplayWindow;
 import org.micromanager.display.internal.DefaultDisplaySettings;
@@ -76,14 +75,15 @@ import org.micromanager.events.internal.MouseMovesStageStateChangeEvent;
 import org.micromanager.internal.menus.MMMenuBar;
 import org.micromanager.internal.navigation.UiMovesStageManager;
 
+// TODO (When there are no divergent branches) rename to DefaultSnapLiveManager
+
 /**
  * This class is responsible for all logic surrounding live mode and the
  * "snap image" display (which is the same display as that used for live mode).
  *
  * @author Chris Weisiger and Mark A. Tsuchida
  */
-public final class SnapLiveManager extends DataViewerListener 
-        implements org.micromanager.SnapLiveManager {
+public final class SnapLiveManager implements org.micromanager.SnapLiveManager, DataViewerDelegate {
    private static final String TITLE = "Preview";
 
    private static final double MIN_GRAB_DELAY_MS = 1000.0 / 60.0;
@@ -94,6 +94,8 @@ public final class SnapLiveManager extends DataViewerListener
    // up to optimum. Too low can cause jittery display due to frames being
    // skipped.
    private static final double DISPLAY_INTERVAL_ESTIMATE_Q = 0.25;
+
+   private static final String DISPLAY_SETTINGS_PROFILE_KEY = "DisplaySettings";
 
    private final Studio studio_;
    private final CMMCore core_;
@@ -503,8 +505,9 @@ public final class SnapLiveManager extends DataViewerListener
       display_ = new DisplayController.Builder(store_).
             controlsFactory(controlsFactory).
             shouldShow(true).build();
-      DisplaySettings ds = DefaultDisplaySettings.restoreFromProfile(
-              studio_.profile(), PropertyKey.SNAP_LIVE_DISPLAY_SETTINGS.key() );
+      DisplaySettings ds = DefaultDisplaySettings.fromPropertyMap(
+            studio_.profile().getSettings(getClass()).getPropertyMap(
+                  DISPLAY_SETTINGS_PROFILE_KEY, null));
       if (ds == null) {
          ds = DefaultDisplaySettings.builder().colorMode(
                  DisplaySettings.ColorMode.GRAYSCALE).build();
@@ -513,7 +516,7 @@ public final class SnapLiveManager extends DataViewerListener
       studio_.displays().addViewer(display_);
 
       display_.registerForEvents(this);
-      display_.addListener(this, 1);
+      display_.setDelegate(this);
       display_.setCustomTitle(TITLE);
       if (MMMenuBar.getToolsMenu().getMouseMovesStage() && display_ != null) {
          clickToMoveManager_.activate(display_);
@@ -844,11 +847,12 @@ public final class SnapLiveManager extends DataViewerListener
    }
 
    @Override
-   public boolean canCloseViewer(DataViewer viewer) {
+   public boolean dataViewerShouldClose(DataViewer viewer) {
       if (viewer instanceof DisplayWindow && viewer.equals(display_)) {
          if (display_.getDisplaySettings() instanceof DefaultDisplaySettings) {
-            ((DefaultDisplaySettings) display_.getDisplaySettings()).saveToProfile(
-                    studio_.profile(), PropertyKey.SNAP_LIVE_DISPLAY_SETTINGS.key());
+            studio_.profile().getSettings(getClass()).putPropertyMap(
+                  DISPLAY_SETTINGS_PROFILE_KEY,
+                  ((DefaultDisplaySettings) display_.getDisplaySettings()).toPropertyMap());
          }
          setLiveMode(false);
       }

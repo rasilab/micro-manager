@@ -70,8 +70,6 @@ import org.micromanager.events.ShutdownCommencingEvent;
 public final class InspectorController
       implements EventPublisher, PopupMenuListener, Closeable
 {
-   private static final String FRONTMOST_VIEWER_ITEM = "Frontmost Window";
-
    private final DataViewerCollection viewerCollection_;
 
    private JFrame frame_;
@@ -92,10 +90,18 @@ public final class InspectorController
 
    // Type for combo box items (data viewers)
    private static final class ViewerItem {
+      public static ViewerItem frontmostViewerItem() {
+         return new ViewerItem(null);
+      }
+
       private final DataViewer viewer_;
 
       ViewerItem(DataViewer viewer) {
          viewer_ = viewer;
+      }
+
+      public boolean isFrontmostViewerItem() {
+         return viewer_ == null;
       }
 
       public DataViewer getDataViewer() {
@@ -104,6 +110,9 @@ public final class InspectorController
 
       @Override
       public String toString() {
+         if (viewer_ == null) {
+            return "Frontmost Image";
+         }
          return viewer_.getName();
       }
    }
@@ -205,13 +214,14 @@ public final class InspectorController
       }
       attachmentStrategy_ = new FixedAttachmentStrategy(viewer);
       attachmentStrategy_.attachmentStrategySelected();
-      viewerComboBox_.getModel().setSelectedItem(viewer.getName());
+      viewerComboBox_.getModel().setSelectedItem(new ViewerItem(viewer));
    }
 
    public void attachToFrontmostDataViewer() {
       attachmentStrategy_ = new FrontmostAttachmentStrategy();
       attachmentStrategy_.attachmentStrategySelected();
-      viewerComboBox_.getModel().setSelectedItem(FRONTMOST_VIEWER_ITEM);
+      viewerComboBox_.getModel().setSelectedItem(ViewerItem.frontmostViewerItem());
+      viewerToFrontButton_.setEnabled(false);
    }
 
    public boolean isAttachedToFrontmostDataViewer() {
@@ -233,7 +243,7 @@ public final class InspectorController
       }
 
       viewerComboBox_.removeAllItems();
-      viewerComboBox_.addItem(FRONTMOST_VIEWER_ITEM);
+      viewerComboBox_.addItem(ViewerItem.frontmostViewerItem());
       if (!viewers.isEmpty()) {
          viewerComboBox_.addItem(new JSeparator(JSeparator.HORIZONTAL));
       }
@@ -341,43 +351,43 @@ public final class InspectorController
 
    private void viewerComboBoxActionPerformed(ActionEvent e) {
       Object selectedItem = viewerComboBox_.getModel().getSelectedItem();
+      if (selectedItem == viewerComboBoxSelection_) { // Unchanged
+         return;
+      }
       if (selectedItem instanceof JSeparator) {
+         // Do we need this?
          viewerComboBox_.getModel().setSelectedItem(viewerComboBoxSelection_);
          return;
       }
-      if (selectedItem == viewerComboBoxSelection_) {
-         return;
+      if (! (selectedItem instanceof ViewerItem)) {
+         return; // Not expected
       }
 
-      if (selectedItem == FRONTMOST_VIEWER_ITEM) {
+      ViewerItem vi = (ViewerItem) selectedItem;
+      if (vi.isFrontmostViewerItem()) {
          attachToFrontmostDataViewer();
          viewerToFrontButton_.setEnabled(false);
       }
-      else if (selectedItem instanceof ViewerItem) {
-         DataViewer viewer = ((ViewerItem) selectedItem).getDataViewer();
+      else {
+         DataViewer viewer = vi.getDataViewer();
          attachToFixedDataViewer(viewer);
          viewerToFrontButton_.setEnabled(true);
       }
    }
 
    private void viewerToFrontButtonActionPerformed(ActionEvent e) {
-      Object selectedItem = viewerComboBox_.getSelectedItem();
-      // TODO: in this case, the Selected item is of type String.  
-      // I don't understand why, but for now just deal with it
-      if (selectedItem instanceof ViewerItem) {
-         ViewerItem vi = (ViewerItem) selectedItem;
-         if (vi.getDataViewer() instanceof DisplayController) {
-            ((DisplayController) vi.getDataViewer()).getWindow().toFront();
-         }
-      } else if (selectedItem instanceof String) {
-         List<DataViewer> viewers = viewerCollection_.getAllDataViewers();
-         for (DataViewer viewer : viewers) {
-            if (viewer.getName().equals(selectedItem)) {
-               if (viewer instanceof DisplayWindow) {
-                  ((DisplayWindow) viewer).getWindow().toFront();
-               }
-            }
-         }
+      Object selectedItem = viewerComboBox_.getModel().getSelectedItem();
+      if (!( selectedItem instanceof ViewerItem)) {
+         return;
+      }
+
+      ViewerItem vi = (ViewerItem) selectedItem;
+      if (vi.isFrontmostViewerItem()) { // Shouldn't happen
+         return;
+      }
+
+      if (vi.getDataViewer() instanceof DisplayController) {
+         ((DisplayController) vi.getDataViewer()).getWindow().toFront();
       }
    }
 

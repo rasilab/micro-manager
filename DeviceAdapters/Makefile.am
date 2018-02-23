@@ -109,6 +109,7 @@ SUBDIRS = \
 	Diskovery \
 	FocalPoint \
 	FreeSerialPort \
+	HydraLMT200 \
 	ImageProcessorChain \
 	K8055 \
 	K8061 \
@@ -165,6 +166,7 @@ SUBDIRS = \
 	VariLC \
 	Vincent \
 	Vortran \
+	WieneckeSinske \
 	XCite120PC_Exacte \
 	XCiteLed \
 	XCiteXT600 \

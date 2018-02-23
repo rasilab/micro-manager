@@ -76,64 +76,67 @@ public interface DisplaySettings {
    }
 
    /**
-    * Zoom level expressed as a ratio (i.e. 1.0 denotes that each pixel in the 
-    * image occupies 1 pixel on the screen, 0.5 indicates that 4 image pixels
-    * are combined in 1 screen pixel
-    * @return Zoom ratio
+    * Zoom level expressed as a ratio.
+    * <p>
+    * 1.0 denotes that each pixel in the  image occupies 1 pixel on the
+    * screen, 0.5 indicates that 4 image pixels are combined in 1 screen pixel.
+    * @return the zoom ratio
     */
    double getZoomRatio();
-   
-   
+
    double getPlaybackFPS();
-   
+
    /** Color mode or lookup table for displaying the image.
      * @return  ColorMode used by these DisplaySettings
      */
    ColorMode getColorMode();
-   
+
    /** Whether to use the same intensity scaling for every channel.
      * @return true if all channels use the same intensity scaling
     */
    boolean isUniformChannelScalingEnabled();
-   
+
    /** Whether to continuously apply autoscale.
      * @return  true if AutoStretch is enabled
      */
    boolean isAutostretchEnabled();
-   
+
    /**
-    * Whether to only look at the ROI when autoscaling
+    * Whether to only look at the ROI when autoscaling or autostretching.
     * @return true if only the ROI should be taken into account when autoscaling
     */
    boolean isROIAutoscaleEnabled();
-   
-    /**
+
+   /**
+    * Get the fraction of ignored bright and dark pixels when autoscaling.
+    * <p>
     * When autoscaling, the minimum value will have this fraction of pixels
     * with lower intensities, and the maximum value will have this fraction
     * of pixels with higher intensities.
-    * @return Number used in Autostretch mode to determine where to set the
-    * white and black points.  Expressed as fraction.
+    *
+    * @return the fraction of ignored pixels at extreme intensity values
     */
    double getAutoscaleIgnoredQuantile();
-   
+
    /**
-    * When autoscaling, the minimum value will have this fraction of pixels
-    * with lower intensities, and the maximum value will have this fraction
-    * of pixels with higher intensities.
-    * @return Number used in Autostretch mode to determine where to set the
-    * white and black points.  Expressed as percentage.
+    * Get the percentile of ignored bright and dark pixels when autoscaling.
+    * <p>
+    * This is the same as {@code getAutoscaleIgnoredQuantile}, but returns the
+    * value as a percentage.
+    *
+    * @return the percentile of ignored pixels at extreme intensity values
     */
    double getAutoscaleIgnoredPercentile();
-   
+
    /**
-    * Returns the number of channels in these DisplaySettings
+    * Return the number of channels in this DisplaySettings.
+    * <p>
     * Note that this number may be different from the number of the channels 
     * in the image being shown
-    * @return 
+    * @return the number of channels
     */
    int getNumberOfChannels();
-   
-   
+
    ChannelDisplaySettings getChannelSettings(int channel);
    List<ChannelDisplaySettings> getAllChannelSettings();
 
@@ -339,6 +342,26 @@ public interface DisplaySettings {
    @Deprecated
    DisplaySettingsBuilder copy();
 
+   /**
+    * The colors of each channel in the image display window. In the case of
+    * multi-component (e.g. RGB) images, this value is not used by Micro-
+    * Manager.
+    * @return Channel colors
+    */
+   @Deprecated
+   public Color[] getChannelColors();
+
+   /**
+    * Safely retrieve the color for the specified channel. If the
+    * channelColors property is null, is too small to have a value for the
+    * given index, or has a value of null for that index, then the provided
+    * default value will be returned instead.
+    * @param index Channel index to get the color for
+    * @param defaultVal Default value to return if no color is available.
+    * @return Channel color
+    */
+   @Deprecated
+   public Color getSafeChannelColor(int index, Color defaultVal);
 
    /**
     * The object containing contrast information for each channel.
@@ -422,6 +445,22 @@ public interface DisplaySettings {
    @Deprecated
    public Boolean getSafeIsVisible(int index, Boolean defaultVal);
 
+   /**
+    * The magnification level of the canvas
+    * @return magnification level of the canvas
+    * @deprecated use {@code getZoom} instead
+    */
+   @Deprecated
+   public Double getMagnification();
+
+
+   /**
+    * Animation speed, when animation of the display is turned on
+    * @return Animation speed in frames per second
+    */
+   @Deprecated
+   public Double getAnimationFPS();
+
    public enum ColorMode {
       // TODO Integer indices should be implementation detail of file format
       COLOR(0), COMPOSITE(1), GRAYSCALE(2), HIGHLIGHT_LIMITS(3), FIRE(4),
@@ -464,7 +503,29 @@ public interface DisplaySettings {
    @Deprecated
    public Boolean getShouldSyncChannels();
 
+   /**
+    * Whether each newly-displayed image should be autostretched
+    * @return True if new images should be auto-stretched
+    */
+   @Deprecated
+   public Boolean getShouldAutostretch();
  
+   /**
+    * Whether histogram calculations should use only the pixels in the current ROI.
+    * @return True if ROI should be used
+    */
+   @Deprecated
+   public Boolean getShouldScaleWithROI();
+
+   /**
+    * The percentage of values off the top and bottom of the image's value
+    * range that get ignored when autostretching
+    * @return Number used in Autostretch mode to determine where to set the
+    * white and black points.  Expressed as percentage.
+    */
+   @Deprecated
+   public Double getExtremaPercentage();
+
    @Deprecated
    static final String FILENAME = "displaySettings.txt";
 }

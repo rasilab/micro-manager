@@ -55,7 +55,8 @@ public final class HistogramView extends JPanel {
    }
 
    private final EventListenerSupport<Listener> listeners_ =
-         new EventListenerSupport<Listener>(Listener.class, Listener.class.getClassLoader());
+         new EventListenerSupport<Listener>(Listener.class,
+               this.getClass().getClassLoader());
 
    // Data state
    private static class ComponentState {
