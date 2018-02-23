@@ -126,7 +126,6 @@ Type: files; Name: "{app}\mmplugins\IntelligentAcquisition.jar"
 Type: files; Name: "{app}\mmplugins\MMTracker.jar"
 Type: files; Name: "{app}\mmplugins\MultiCamera.jar"
 Type: files; Name: "{app}\mmplugins\MultiChannelShading.jar"
-Type: files; Name: "{app}\mmplugins\PatternOverlay.jar"
 Type: files; Name: "{app}\mmplugins\PixelCalibrator.jar"
 Type: files; Name: "{app}\mmplugins\Projector.jar"
 Type: files; Name: "{app}\mmplugins\Recall.jar"
@@ -167,6 +166,9 @@ Source: {#MMStageDir}\plugins\*; DestDir: {app}\plugins; Flags: ignoreversion re
 Source: {#MMStageDir}\MMCoreJ_wrap.dll; DestDir: {app}; Flags: ignoreversion
 Source: {#MMStageDir}\mmgr_dal_*.dll; DestDir: {app}; Flags: ignoreversion
 Source: {#MMStageDir}\*.dll; DestDir: {app}; Flags: ignoreversion
+
+; Okolab library extra files
+Source: {#MMStageDir}\okolib\*; DestDir: {app}\okolib; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; Olympus IX*3 control module
 Source: {#MMStageDir}\OlympusIX3Control\*; DestDir: {app}\OlympusIX3Control; Flags: ignoreversion recursesubdirs createallsubdirs

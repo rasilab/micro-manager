@@ -110,6 +110,7 @@ const char* const g_CRISPDeviceName = "CRISPAFocus";
 const char* const g_LEDDeviceName = "LED";
 const char* const g_PLogicDeviceName = "PLogic";
 const char* const g_PMTDeviceName = "PMT";
+const char* const g_LensDeviceName = "TunableLens";
 
 // corresponding device descriptions
 const char* const g_TigerCommHubDescription = "ASI TigerComm Hub (TG-1000)";
@@ -124,7 +125,8 @@ const char* const g_PiezoDeviceDescription = "ASI Piezo Stage";
 const char* const g_CRISPDeviceDescription = "ASI CRISP AutoFocus";
 const char* const g_LEDDeviceDescription = "ASI LED Illuminator";
 const char* const g_PLogicDeviceDescription = "ASI Programmable Logic";
-const char* const g_PMTDeviceDescription = "ASI Photo Multiplier Tube ";  
+const char* const g_PMTDeviceDescription = "ASI Photo Multiplier Tube";  
+const char* const g_LensDeviceDescription = "ASI Tunable Lens";  
 
 // constant values
 const double g_StageMinStepSize = 0.001;   // in units of um
@@ -135,6 +137,7 @@ const char* const g_SerialTerminatorFW = "\n\r";
 const string g_EmptyAxisLetterStr = " ";     // single char but like convenience of strings
 const string g_EmptyCardAddressCode = " ";   // ascii 0x31 for '1' through ascii 0x39 for '9', then 0x81 upward (extended ascii)
 const string g_EmptyCardAddressStr = "00";   // hex representation of the address, eg 31..39, 81 upward
+const string g_EmptyCardAddressChar = "";    // Tiger address character (stored as string)
 const char g_NameInfoDelimiter = ':';
 
 // general device property names
@@ -196,6 +199,7 @@ const char* const g_OvershootPropertyName = "Overshoot-O(um)";
 const char* const g_KIntegralPropertyName = "ServoIntegral-KI";
 const char* const g_KProportionalPropertyName = "ServoProportional-KP";
 const char* const g_KDerivativePropertyName = "ServoIntegral-KD";
+const char* const g_KFeedforwardPropertyName = "ServoFeedforward-KA";
 const char* const g_AAlignPropertyName = "MotorAlign-AA";
 const char* const g_AZeroXPropertyName = "AutoZeroXResult-AZ";
 const char* const g_AZeroYPropertyName = "AutoZeroYResult-AZ";
@@ -210,7 +214,11 @@ const char* const g_JoystickEnabledPropertyName = "JoystickEnabled";
 const char* const g_WheelSlowSpeedPropertyName = "WheelSlowSpeed";
 const char* const g_WheelFastSpeedPropertyName = "WheelFastSpeed";
 const char* const g_WheelMirrorPropertyName = "WheelReverse";
-
+const char* const g_VectorPropertyName = "VectorMove-VE(mm/s)";
+const char* const g_VectorXPropertyName = "VectorMoveX-VE(mm/s)";
+const char* const g_VectorYPropertyName = "VectorMoveY-VE(mm/s)";
+const char* const g_TTLinName = "TTLinMode";
+const char* const g_TTLoutName = "TTLoutMode";
 // Z stage property names
 const char* const g_StepSizePropertyName = "StepSize(um)";
 const char* const g_LowerLimPropertyName =  "LowerLim(mm)";
@@ -254,11 +262,18 @@ const char* const g_PiezoMaintainOneOvershootPropertyName = "PiezoMaintainOneOve
 const char* const g_PiezoMaintainOneMaxTimePropertyName = "PiezoMaintainOneMaxTime(ms)";
 const char* const g_AutoSleepDelayPropertyName = "AutoSleepDelay(min)";
 const char* const g_RunPiezoCalibrationPropertyName = "RunPiezoCalibration";
+// TLC property names 
+const char* const g_LensModePropertyName = "LensMode";
+const char* const g_LensTravelRangePropertyName = "LensTravelRange(units)";
+const char* const g_TLCMode_0 = "0 - internal input";
+const char* const g_TLCMode_1 = "1 - external input";
 
 // single axis property names
 const char* const g_AdvancedSAPropertiesPropertyName = "SingleAxisAdvancedPropertiesEnable";
 const char* const g_SAAmplitudePropertyName = "SingleAxisAmplitude(um)";
+const char* const g_SAAnonUnitPropertyName = "SingleAxisAmplitude";
 const char* const g_SAOffsetPropertyName = "SingleAxisOffset(um)";
+const char* const g_SAOnonUnitPropertyName = "SingleAxisOffset";
 const char* const g_SAPeriodPropertyName = "SingleAxisPeriod(ms)";
 const char* const g_SAModePropertyName = "SingleAxisMode";
 const char* const g_SAPatternPropertyName = "SingleAxisPattern";
@@ -443,6 +458,10 @@ const char* const g_PresetCode24 = "24 - BNC3 source = cell 1";
 const char* const g_PresetCode25 = "25 - BNC3 source = cell 8";
 const char* const g_PresetCode26 = "26 - counter clock = rising TTL3";
 const char* const g_PresetCode27 = "27 - BNC3 source = cell 10";
+const char* const g_PresetCode28 = "28 - BNC6 and BNC7 enabled";
+const char* const g_PresetCode29 = "29 - BNC5-BNC7 enabled";
+const char* const g_PresetCode30 = "30 - BNC5-BNC8 enabled";
+const char* const g_PresetCode31 = "31 - BNC5/7 side A, BNC6/8 side B";
 const char* const g_PLogicModeNone = "None";
 const char* const g_PLogicModediSPIMShutter = "diSPIM Shutter";
 const char* const g_ChannelNone = "none of outputs 5-8";
@@ -450,6 +469,10 @@ const char* const g_ChannelOnly5 = "output 5 only";
 const char* const g_ChannelOnly6 = "output 6 only";
 const char* const g_ChannelOnly7 = "output 7 only";
 const char* const g_ChannelOnly8 = "output 8 only";
+const char* const g_Channel6And7 = "output 6 and 7";
+const char* const g_Channel5To7 = "outputs 5-7";
+const char* const g_Channel5To8 = "outputs 5-8";
+const char* const g_Channel5To8Alt = "outputs 5/7 or 6/8";
 
 
 // SPIM enums
@@ -544,6 +567,7 @@ const char* const g_SAMode_3 = "3 - Enabled with axes synced";
 const char* const g_SAPattern_0 = "0 - Ramp";
 const char* const g_SAPattern_1 = "1 - Triangle";
 const char* const g_SAPattern_2 = "2 - Square";
+const char* const g_SAPattern_3 = "3 - Sine";
 // single-axis clock source
 const char* const g_SAClkSrc_0 = "internal 4kHz clock";
 const char* const g_SAClkSrc_1 = "external clock";

@@ -40,6 +40,7 @@
     [org.micromanager.acquisition.internal AcquisitionSleepEvent]
     [org.micromanager.acquisition.internal TaggedImageQueue]
     [org.micromanager.data Coords]
+    [org.micromanager.data.internal DefaultSummaryMetadata]
     [org.micromanager.display.internal RememberedChannelSettings]
     [org.micromanager PositionList]
     [org.micromanager.internal MMStudio]
@@ -239,7 +240,8 @@
   (when (and (@state :init-continuous-focus)
              (not (is-continuous-focus-drive stage))
              (core isContinuousFocusEnabled))
-    (enable-continuous-focus false))
+    (enable-continuous-focus false)
+    (wait-for-device (core getAutoFocusDevice)))
   (device-best-effort stage (core setPosition stage pos)))
 
 (defn set-stage-position
@@ -616,9 +618,8 @@
          z-ref))))
 
 (defn z-stage-needs-adjustment [stage-name]
-  (not (and (@state :init-continuous-focus)
-            (core isContinuousFocusEnabled)
-            (not (is-continuous-focus-drive stage-name)))))
+  (and (not (@state :init-continuous-focus))
+       (not (is-continuous-focus-drive stage-name))))
 
 (defn update-z-positions [msp-index]
   (when-let [msp (get-msp (@state :position-list) msp-index)]
@@ -948,6 +949,7 @@
       "KeepShutterOpenChannels" (:keep-shutter-open-channels settings)
       "KeepShutterOpenSlices" (:keep-shutter-open-slices settings)
       "MicroManagerVersion" (if gui (.getVersion gui) "N/A")
+      "MetadataVersion" (DefaultSummaryMetadata/METADATA_VERSION)
       "PixelSize_um" (core getPixelSizeUm)
       "PixelType" (get-pixel-type)
       "Positions" (max 1 (count (:positions settings)))
