@@ -71,7 +71,12 @@ class RGBColorModeStrategy implements ColorModeStrategy {
    }
 
    @Override
-   public void applyModeToImagePlus(ImagePlus imagePlus) {
+   public boolean isRGBStrategy() {
+      return true;
+   }
+
+   @Override
+   public void attachToImagePlus(ImagePlus imagePlus) {
       Preconditions.checkArgument(!(imagePlus instanceof CompositeImage));
       Preconditions.checkArgument(
             imagePlus.getProcessor() instanceof ColorProcessor);
@@ -102,7 +107,7 @@ class RGBColorModeStrategy implements ColorModeStrategy {
    @Override
    public void applyGamma(int component, double gamma) {
       if (gamma != 1.0) {
-         throw new UnsupportedOperationException("Gamma not implemented for RGB");
+         throw new UnsupportedOperationException("Gamma is not supported for RGB");
       }
    }
 

@@ -779,6 +779,19 @@ public final class DisplayUIController implements Closeable, WindowListener,
    void displayImages(ImagesAndStats images) {
       setupDisplayUI();
 
+      boolean switched;
+      switch (images.getRequest().getImage(0).getNumComponents()) {
+         case 1:
+            switched = ijBridge_.mm2ijSwitchToMonochrome();
+            break;
+         default:
+            switched = ijBridge_.mm2ijSwitchToRGB();
+            break;
+      }
+      if (switched) {
+         applyDisplaySettings(displayController_.getDisplaySettings());
+      }
+
       displayedImages_ = images;
       Coords nominalCoords = images.getRequest().getNominalCoords();
 
@@ -820,11 +833,18 @@ public final class DisplayUIController implements Closeable, WindowListener,
          return;
       }
 
-      int nChannels = ijBridge_.getIJNumberOfChannels();
-      boolean autostretch = settings.isAutostretchEnabled()
-            && displayedImages_ != null;
-      boolean isRGB = ijBridge_.isIJRGB();
+      if (ijBridge_.isIJMonochrome()) {
+         applyMonochromeDisplaySettings(settings);
+      }
+      else if (ijBridge_.isIJRGB()) {
+         applyRGBDisplaySettings(settings);
+      }
 
+      ijBridge_.mm2ijSetZoom(settings.getZoomRatio());
+   }
+
+   @MustCallOnEDT
+   private void applyMonochromeDisplaySettings(DisplaySettings settings) {
       switch (settings.getColorMode()) {
          case COLOR:
             if (!ijBridge_.isIJColorModeColor()) {
@@ -860,44 +880,49 @@ public final class DisplayUIController implements Closeable, WindowListener,
             break;
       }
 
-      if (!isRGB) {
-         for (int i = 0; i < nChannels; ++i) {
-            ChannelDisplaySettings channelSettings =
-                  settings.getChannelSettings(i);
-            ComponentDisplaySettings componentSettings =
-                  channelSettings.getComponentSettings(0);
-            ijBridge_.mm2ijSetChannelColor(i, channelSettings.getColor());
-            if (!autostretch) {
-               int max = Math.max(1, (int) Math.min(Integer.MAX_VALUE,
-                     componentSettings.getScalingMaximum()));
-               int min = (int) Math.min(max - 1,
-                     componentSettings.getScalingMinimum());
-               ijBridge_.mm2ijSetIntensityScaling(i, min, max);
-            }
-            double gamma = componentSettings.getScalingGamma();
-            ijBridge_.mm2ijSetIntensityGamma(i, gamma);
-            if (settings.getColorMode() == DisplaySettings.ColorMode.COMPOSITE) {
-               ijBridge_.mm2ijSetVisibleChannels(i, channelSettings.isVisible());
-            }
-         }
-         if (autostretch) {
-            applyAutostretch(displayedImages_, settings);
-         }
-      }
-      else {
-         int nComponents = settings.getChannelSettings(0).getNumberOfComponents();
-         for (int i = 0; i < nComponents; ++i) {
-            ComponentDisplaySettings componentSettings =
-                  settings.getChannelSettings(0).getComponentSettings(i);
-            int max = Math.min(Integer.MAX_VALUE,
-                  (int) componentSettings.getScalingMaximum());
-            int min = Math.max(max - 1,
-                  (int) componentSettings.getScalingMinimum());
+      int nChannels = ijBridge_.getIJNumberOfChannels();
+      boolean autostretch = settings.isAutostretchEnabled() &&
+            displayedImages_ != null;
+
+      // We ignore all but component 0 of each channel.
+      for (int i = 0; i < nChannels; ++i) {
+         ChannelDisplaySettings channelSettings =
+               settings.getChannelSettings(i);
+         ComponentDisplaySettings componentSettings =
+               channelSettings.getComponentSettings(0);
+         ijBridge_.mm2ijSetChannelColor(i, channelSettings.getColor());
+         if (!autostretch) {
+            int max = Math.max(1, (int) Math.min(Integer.MAX_VALUE,
+                  componentSettings.getScalingMaximum()));
+            int min = (int) Math.min(max - 1,
+                  componentSettings.getScalingMinimum());
             ijBridge_.mm2ijSetIntensityScaling(i, min, max);
          }
+         double gamma = componentSettings.getScalingGamma();
+         ijBridge_.mm2ijSetIntensityGamma(i, gamma);
+         if (settings.getColorMode() == DisplaySettings.ColorMode.COMPOSITE) {
+            ijBridge_.mm2ijSetVisibleChannels(i, channelSettings.isVisible());
+         }
       }
+      if (autostretch) {
+         applyAutostretch(displayedImages_, settings);
+      }
+   }
 
-      ijBridge_.mm2ijSetZoom(settings.getZoomRatio());
+   @MustCallOnEDT
+   private void applyRGBDisplaySettings(DisplaySettings settings) {
+      // We ignore all but channel 0.
+      int nComponents = settings.getChannelSettings(0).getNumberOfComponents();
+      for (int i = 0; i < nComponents; ++i) {
+         ComponentDisplaySettings componentSettings =
+               settings.getChannelSettings(0).getComponentSettings(i);
+         int max = Math.min(Integer.MAX_VALUE,
+               (int) componentSettings.getScalingMaximum());
+         int min = Math.max(max - 1,
+               (int) componentSettings.getScalingMinimum());
+         ijBridge_.mm2ijSetIntensityScaling(i, min, max);
+      }
+      // TODO Autostretch
    }
 
    @MustCallOnEDT

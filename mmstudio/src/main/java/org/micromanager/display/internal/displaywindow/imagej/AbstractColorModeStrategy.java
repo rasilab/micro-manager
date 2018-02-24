@@ -18,7 +18,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Common base implementation for non-LUT (continuous) color modes.
+ * Common base implementation for non-RGB (monochrome) color modes.
  * @author Mark A. Tsuchida
  */
 abstract class AbstractColorModeStrategy implements ColorModeStrategy {
@@ -43,9 +43,9 @@ abstract class AbstractColorModeStrategy implements ColorModeStrategy {
 
    private int getMaximum(int index) {
       if (index >= maxima_.size()) {
-         return getSampleMax();
+         return getIJSampleLimit();
       }
-      return Math.min(getSampleMax(), maxima_.get(index));
+      return Math.min(getIJSampleLimit(), maxima_.get(index));
    }
 
    private double getGamma(int index) {
@@ -55,7 +55,7 @@ abstract class AbstractColorModeStrategy implements ColorModeStrategy {
       return gammas_.get(index);
    }
 
-   protected final int getSampleMax() {
+   protected final int getIJSampleLimit() {
       // We assume that if the ImagePlus is a CompositeImage, then all channels
       // have the same format.
       ImageProcessor proc = imagePlus_.getChannelProcessor();
@@ -150,6 +150,9 @@ abstract class AbstractColorModeStrategy implements ColorModeStrategy {
    }
 
    protected final void apply() {
+      if (imagePlus_ == null) {
+         return;
+      }
       if (imagePlus_ instanceof CompositeImage) {
          applyToCompositeImage();
       }
@@ -159,7 +162,12 @@ abstract class AbstractColorModeStrategy implements ColorModeStrategy {
    }
 
    @Override
-   public void applyModeToImagePlus(ImagePlus imagePlus) {
+   public boolean isMonochromeStrategy() {
+      return true;
+   }
+
+   @Override
+   public void attachToImagePlus(ImagePlus imagePlus) {
       imagePlus_ = imagePlus;
       apply();
    }

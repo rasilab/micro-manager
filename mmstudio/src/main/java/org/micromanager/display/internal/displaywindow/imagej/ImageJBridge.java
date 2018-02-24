@@ -109,8 +109,9 @@ public final class ImageJBridge {
    private MMImageCanvas canvas_;
 
    // How to set up intensity scaling and/or LUT for the current ImagePlus,
-   // which may be monochrome, composite, or RGB.
-   private ColorModeStrategy colorModeStrategy_;
+   // which may be monochrome, composite, LUT, or RGB.
+   private ColorModeStrategy colorModeStrategy_ =
+         NullColorModeStrategy.create();
 
    private Roi lastSeenRoi_;
    private Rectangle lastSeenRoiRect_;
@@ -146,14 +147,10 @@ public final class ImageJBridge {
    }
 
    private ImageJBridge(DisplayUIController parent) {
+      // TODO Refactor this whole class so that DisplayUIController is not the
+      // parent (owner), but a listener, of the ImageJBridge.
+
       uiController_ = parent;
-      if (!uiController_.getDisplayedImages().isEmpty() &&
-            uiController_.getDisplayedImages().get(0).getNumComponents() > 1) {
-         colorModeStrategy_ = RGBColorModeStrategy.create();
-      }
-      else {
-         colorModeStrategy_ = GrayscaleColorModeStrategy.create();
-      }
    }
 
    @MustCallOnEDT
@@ -196,7 +193,7 @@ public final class ImageJBridge {
 
       // Undo the temporary pretence
       proxyStack_.setSingleImageMode(false);
-      
+
       mm2ijSetMetadata();
    }
 
@@ -221,8 +218,6 @@ public final class ImageJBridge {
       proxyStack_.setSingleImageMode(false);
       uiController_.canvasNeedsSwap();
    }
-
-   
 
    @MustCallOnEDT
    public void mm2ijWindowClosed() {
@@ -379,16 +374,53 @@ public final class ImageJBridge {
    }
 
    @MustCallOnEDT
+   public boolean mm2ijSwitchToMonochrome() {
+      if (isIJMonochrome()) {
+         return false;
+      }
+      if (isIJRGB()) {
+         throw new UnsupportedOperationException("Cannot switch from displaying RGB images to monochrome");
+      }
+      assert colorModeStrategy_ instanceof NullColorModeStrategy;
+      colorModeStrategy_ = GrayscaleColorModeStrategy.create();
+      applyColorMode(colorModeStrategy_);
+      return true;
+   }
+
+   @MustCallOnEDT
+   public boolean mm2ijSwitchToRGB() {
+      if (isIJRGB()) {
+         return false;
+      }
+      if (isIJMonochrome()) {
+         throw new UnsupportedOperationException("Cannot switch from displaying monochrome images to RGB");
+      }
+      assert colorModeStrategy_ instanceof NullColorModeStrategy;
+      colorModeStrategy_ = RGBColorModeStrategy.create();
+      applyColorMode(colorModeStrategy_);
+      return true;
+   }
+
+   @MustCallOnEDT
    public boolean isIJRGB() {
-      return colorModeStrategy_ instanceof RGBColorModeStrategy;
+      return colorModeStrategy_.isRGBStrategy();
+   }
+
+   @MustCallOnEDT
+   public boolean isIJMonochrome() {
+      return colorModeStrategy_.isMonochromeStrategy();
    }
 
    @MustCallOnEDT
    private void applyColorMode(ColorModeStrategy strategy) {
+      // Mono vs RGB must not switch (for now)
       Preconditions.checkState(
-            (strategy instanceof RGBColorModeStrategy) == isIJRGB());
+            strategy.isRGBStrategy() == isIJRGB());
+      Preconditions.checkState(
+            strategy.isMonochromeStrategy() == isIJMonochrome());
+
       colorModeStrategy_ = strategy;
-      colorModeStrategy_.applyModeToImagePlus(imagePlus_);
+      colorModeStrategy_.attachToImagePlus(imagePlus_);
       mm2ijRepaint();
    }
 
@@ -602,7 +634,11 @@ public final class ImageJBridge {
             template.getBytesPerPixel(), template.getNumComponents(), coords,
             new DefaultMetadata.Builder().build());
    }
-   
+
+   // TODO There is no reason to have a single method for this; provide
+   // separate methods for each piece of data. Also, the data should be passed
+   // from DisplayUIController, not retrieved from the data provider.
+   // (It is not ImageJBridge's business to know about the data provider.)
    /**
     * Tell the ImagePlus about certain properties of our data that it doesn't
     * otherwise know how to access.

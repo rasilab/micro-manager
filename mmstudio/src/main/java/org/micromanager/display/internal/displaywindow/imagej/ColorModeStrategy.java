@@ -13,7 +13,15 @@ import java.awt.Color;
  * @author mark
  */
 interface ColorModeStrategy {
-   void applyModeToImagePlus(ImagePlus imagePlus);
+   default boolean isRGBStrategy() {
+      return false;
+   }
+
+   default boolean isMonochromeStrategy() {
+      return false;
+   }
+
+   void attachToImagePlus(ImagePlus imagePlus);
    void applyHiLoHighlight(boolean enable);
    void applyColor(int index, Color color);
    void applyScaling(int index, int min, int max);
