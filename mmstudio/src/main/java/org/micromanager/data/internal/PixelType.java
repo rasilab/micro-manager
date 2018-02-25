@@ -27,17 +27,11 @@ public enum PixelType {
    /**
     * RGB 888 format.
     * <p>
-    * Misleadingly, when saved to TIFF this is RGB24 with no extra byte per
-    * pixel.
-    * <p>
-    * TODO Make sure the following statement is correct.
-    * <p>
-    * As a Java array, this is an {@code int[]} with the samples stored in
-    * _-R-G-B order (MSB to LSB), or a {@code byte[]} with the samples stored
-    * in _-R-G-B order.
-    * <p>
-    * As a native (C) array, this is a {@code uint8_t[]} with the samples
-    * stored in B-G-R-_ order -- at least on little-endian systems.
+    * There has been quite a bit of confusion over the memory layout of RGB
+    * images in Micro-Manager. Both AWT/ImageJ1 and MMCore (actually MMDevice)
+    * store in-memory RGB (8-bit-per-sample) images in ARGB order. MMCore and
+    * MMCoreJ do not pack this into an {@code int}, so the order does not
+    * change when transferring into the JVM (which is big-endian).
     */
    RGB32(4, 1, 3, new int[]{1, 2, 3}) {
       @Override public int imageJConstant() {
