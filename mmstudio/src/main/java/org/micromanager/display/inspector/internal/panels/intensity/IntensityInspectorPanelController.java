@@ -57,7 +57,7 @@ public class IntensityInspectorPanelController
    private static final String COLOR_BLIND_FRIENDLY = "Colorblind-friendly";
    private static final String RGBCMYW = "RGBCMYW";
    private static final String CUSTOM = "Custom";
-   
+
    private final JPanel panel_ = new JPanel();
 
    private final JPopupMenu gearMenu_ = new JPopupMenu();
@@ -68,12 +68,12 @@ public class IntensityInspectorPanelController
       private final List<Color> colorPalette_;
       public colorMenuItem(JCheckBoxMenuItem checkBox, List<Color> colorPalette) {
          checkBox_ = checkBox;
-         colorPalette_ = colorPalette;        
+         colorPalette_ = colorPalette;
       }
       public JCheckBoxMenuItem getCheckBox() { return checkBox_;}
       public List<Color> getColorPalette() { return colorPalette_;}
    };
-   private final Map<String, colorMenuItem> colorMenuMap_ = 
+   private final Map<String, colorMenuItem> colorMenuMap_ =
            new LinkedHashMap<String, colorMenuItem>(3);
    private final JMenu gearMenuUpdateRateSubMenu_ =
          new JMenu("Histogram Update Rate");
@@ -90,13 +90,16 @@ public class IntensityInspectorPanelController
    private final JSpinner percentileSpinner_ = new JSpinner();
    private boolean programmaticallySettingSpinnerValue_;
 
+   private final ColorModeCell colorModeCell_ =
+         ColorModeCell.create();
+
    private final JPanel channelHistogramsPanel_ = new JPanel();
 
    private final List<ChannelIntensityController> channelControllers_ =
          new ArrayList<ChannelIntensityController>();
 
    private DataViewer viewer_;
-   
+
    private List<Color> customPalette_;
 
    private final CoalescentEDTRunnablePool runnablePool_ =
@@ -119,7 +122,7 @@ public class IntensityInspectorPanelController
 
    private void setUpGearMenu() {
       gearMenu_.add(gearMenuLogYAxisItem_);
-      
+
       gearMenu_.add(gearMenuPaletteSubMenu_);
       colorMenuMap_.put(COLOR_BLIND_FRIENDLY, 
               new colorMenuItem (new JCheckBoxMenuItem(COLOR_BLIND_FRIENDLY), 
@@ -153,7 +156,7 @@ public class IntensityInspectorPanelController
          });
          gearMenuPaletteSubMenu_.add(colorMenuMap_.get(key).getCheckBox());
       }
-      
+
       gearMenu_.add(gearMenuUpdateRateSubMenu_);
       // Add/remove items to the histogramSubMenu here
       histogramMenuMap_.put("Every Displayed Image", Double.POSITIVE_INFINITY);
@@ -208,16 +211,13 @@ public class IntensityInspectorPanelController
    }
 
    private void setUpGeneralControlPanel() {
-      ColorModeCell cell = ColorModeCell.create();
-      colorModeComboBox_.setRenderer(cell);
-      colorModeComboBox_.addItem(ColorModeCell.Item.COMPOSITE);
-      colorModeComboBox_.addItem(ColorModeCell.Item.COLOR);
-      colorModeComboBox_.addItem(ColorModeCell.Item.GRAYSCALE);
-      colorModeComboBox_.addItem(ColorModeCell.Item.HILIGHT_SAT);
-      colorModeComboBox_.addItem(ColorModeCell.Item.FIRE_LUT);
-      colorModeComboBox_.addItem(ColorModeCell.Item.RED_HOT_LUT);
-      // Prevent "Composite" from slowly flashing
-      colorModeComboBox_.getModel().setSelectedItem(null);
+      colorModeComboBox_.setRenderer(colorModeCell_);
+      for (ColorModeCell.Item item : ColorModeCell.Item.values()) {
+         colorModeComboBox_.addItem(item);
+      }
+      // Prevent the first item from showing before the initial selection is
+      // determined
+      colorModeComboBox_.setRenderer(colorModeCell_);
       colorModeComboBox_.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent e) {
@@ -341,6 +341,15 @@ public class IntensityInspectorPanelController
    @MustCallOnEDT
    private void handleColorMode() {
       ColorModeCell.Item item = (ColorModeCell.Item) colorModeComboBox_.getSelectedItem();
+      if (item == null) {
+         return;
+      }
+
+      if (colorModeCell_.isRGBMode()) {
+         colorModeComboBox_.setSelectedItem(ColorModeCell.Item.RGB);
+         return;
+      }
+
       DisplaySettings.ColorMode mode;
       switch (item) {
          case COMPOSITE:
@@ -361,6 +370,10 @@ public class IntensityInspectorPanelController
          case RED_HOT_LUT:
             mode = DisplaySettings.ColorMode.RED_HOT;
             break;
+         case RGB:
+            // Revert combobox selection
+            newDisplaySettings(viewer_.getDisplaySettings());
+            return;
          default:
             throw new AssertionError(item.name());
       }
@@ -501,6 +514,16 @@ public class IntensityInspectorPanelController
    @Subscribe
    @MustCallOnEDT
    public void onEvent(ImageStatsChangedEvent e) {
+      boolean isRGB = e.getImagesAndStats().getRequest().getImage(0).
+            getNumComponents() > 1;
+      if (isRGB != colorModeCell_.isRGBMode()) {
+         colorModeCell_.setRGBMode(isRGB);
+         if (isRGB) {
+            // For RGB images, we always use RGB color mode, uninfluenced by
+            // the display settings
+            colorModeComboBox_.setSelectedItem(ColorModeCell.Item.RGB);
+         }
+      }
       updateImageStats(e.getImagesAndStats());
    }
 
@@ -508,30 +531,36 @@ public class IntensityInspectorPanelController
    private void newDisplaySettings(DisplaySettings settings) {
       gearMenuUseROIItem_.setSelected(settings.isROIAutoscaleEnabled());
 
-      // TODO Disable color mode and show RGB if image is RGB
-      switch (settings.getColorMode()) {
-         case COLOR:
-            colorModeComboBox_.setSelectedItem(ColorModeCell.Item.COLOR);
-            break;
-         case COMPOSITE:
-            colorModeComboBox_.setSelectedItem(ColorModeCell.Item.COMPOSITE);
-            break;
-         case HIGHLIGHT_LIMITS:
-            colorModeComboBox_.setSelectedItem(ColorModeCell.Item.HILIGHT_SAT);
-            break;
-         case FIRE:
-            colorModeComboBox_.setSelectedItem(ColorModeCell.Item.FIRE_LUT);
-            break;
-         case RED_HOT:
-            colorModeComboBox_.setSelectedItem(ColorModeCell.Item.RED_HOT_LUT);
-            break;
-         case GRAYSCALE:
-         default: // Use grayscale for unknown mode
-            colorModeComboBox_.setSelectedItem(ColorModeCell.Item.GRAYSCALE);
-            break;
+      if (colorModeCell_.isRGBMode()) {
+         colorModeComboBox_.setSelectedItem(ColorModeCell.Item.RGB);
       }
-      ((ColorModeCell) colorModeComboBox_.getRenderer()).
-            setChannelColors(settings.getAllChannelColors());
+      else {
+         switch (settings.getColorMode()) {
+            case COLOR:
+               colorModeComboBox_.setSelectedItem(ColorModeCell.Item.COLOR);
+               break;
+            case COMPOSITE:
+               colorModeComboBox_.setSelectedItem(ColorModeCell.Item.COMPOSITE);
+               break;
+            case HIGHLIGHT_LIMITS:
+               colorModeComboBox_.setSelectedItem(
+                     ColorModeCell.Item.HILIGHT_SAT);
+               break;
+            case FIRE:
+               colorModeComboBox_.setSelectedItem(ColorModeCell.Item.FIRE_LUT);
+               break;
+            case RED_HOT:
+               colorModeComboBox_.setSelectedItem(
+                     ColorModeCell.Item.RED_HOT_LUT);
+               break;
+            case GRAYSCALE:
+            default: // Use grayscale for unknown mode
+               colorModeComboBox_.setSelectedItem(ColorModeCell.Item.GRAYSCALE);
+               break;
+         }
+         ((ColorModeCell) colorModeComboBox_.getRenderer()).
+               setChannelColors(settings.getAllChannelColors());
+      }
       colorModeComboBox_.repaint();
 
       autostretchCheckBox_.setSelected(settings.isAutostretchEnabled());

@@ -22,6 +22,8 @@ final class ColorModeCell extends DefaultListCellRenderer {
    private static final int ICON_WIDTH = 64;
    private static final int ICON_HEIGHT = 12;
 
+   // Note: since this is an enum, the values are shared between multiple
+   // combo boxes. Make sure NOT to include any state in Item.
    static enum Item {
       COMPOSITE("Composite"),
       COLOR("Color"),
@@ -55,6 +57,7 @@ final class ColorModeCell extends DefaultListCellRenderer {
    }
 
    private final List<Color> channelColors_ = new ArrayList<Color>();
+   private boolean rgbMode_ = false;
 
    static ColorModeCell create() {
       return new ColorModeCell();
@@ -74,11 +77,20 @@ final class ColorModeCell extends DefaultListCellRenderer {
       }
    }
 
+   boolean isRGBMode() {
+      return rgbMode_;
+   }
+
+   void setRGBMode(boolean rgb) {
+      rgbMode_ = rgb;
+   }
+
    @Override
    public Component getListCellRendererComponent(JList list, Object value,
          int index, boolean isSelected, boolean cellHasFocus) {
       Component superComponent = super.getListCellRendererComponent(list,
-            String.valueOf(value), index, isSelected, cellHasFocus);
+            value == null ? "" : String.valueOf(value),
+            index, isSelected, cellHasFocus);
       if (value == null) {
          return superComponent;
       }
@@ -97,8 +109,18 @@ final class ColorModeCell extends DefaultListCellRenderer {
          case HILIGHT_SAT:
             setIcon(GRAYSCALE_HILO_ICON);
             break;
+         case RGB:
+            setIcon(RGB_ICON);
+            break;
          default:
             setIcon(item.getIcon());
+      }
+
+      if (item.equals(Item.RGB)) {
+         setEnabled(rgbMode_);
+      }
+      else {
+         setEnabled(!rgbMode_);
       }
 
       return this;
@@ -127,6 +149,7 @@ final class ColorModeCell extends DefaultListCellRenderer {
 
    private static final Icon GRAYSCALE_ICON;
    private static final Icon GRAYSCALE_HILO_ICON;
+   private static final Icon RGB_ICON;
    static {
       int[] pixels = new int[ICON_WIDTH * ICON_HEIGHT];
       for (int y = 0; y < ICON_HEIGHT; ++y) {
@@ -152,6 +175,23 @@ final class ColorModeCell extends DefaultListCellRenderer {
             BufferedImage.TYPE_INT_ARGB);
       image.setRGB(0, 0, ICON_WIDTH, ICON_HEIGHT, pixels, 0, ICON_WIDTH);
       GRAYSCALE_HILO_ICON = new ImageIcon(image);
+
+      for (int y = 0; y < ICON_HEIGHT; ++y) {
+         int x = 0;
+         for ( ; x < ICON_WIDTH / 3; ++x) {
+            pixels[x + y * ICON_WIDTH] = 0xffff0000;
+         }
+         for ( ; x < 2 * ICON_WIDTH / 3; ++x) {
+            pixels[x + y * ICON_WIDTH] = 0xff00ff00;
+         }
+         for ( ; x < ICON_WIDTH; ++x) {
+            pixels[x + y * ICON_WIDTH] = 0xff0000ff;
+         }
+      }
+      image = new BufferedImage(ICON_WIDTH, ICON_HEIGHT,
+            BufferedImage.TYPE_INT_ARGB);
+      image.setRGB(0, 0, ICON_WIDTH, ICON_HEIGHT, pixels, 0, ICON_WIDTH);
+      RGB_ICON = new ImageIcon(image);
    }
 
    private Icon getColorIcon(int maxColors) {
