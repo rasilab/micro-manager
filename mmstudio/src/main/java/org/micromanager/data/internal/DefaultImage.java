@@ -338,7 +338,7 @@ public final class DefaultImage implements Image {
       int offset = pixelType_.getComponentSampleOffset(component);
 
       int pixelIndex = y * pixelWidth_ + x;
-      int sampleIndex = pixelIndex * samplesPerPixel + offset + component;
+      int sampleIndex = pixelIndex * samplesPerPixel + offset;
       switch (pixelType_.getBytesPerComponent()) {
          case 1:
             return ImageUtils.unsignedValue(((ByteBuffer) rawPixels_).get(sampleIndex));
