@@ -164,9 +164,14 @@ public final class HistogramView extends JPanel {
    }
 
    public void setSelectedComponent(int component) {
-      Preconditions.checkElementIndex(component, componentStates_.size());
+      Preconditions.checkArgument(component >= 0);
+      if (component == selectedComponent_) {
+         return;
+      }
+      addComponentIfNecessary(component);
       selectedComponent_ = component;
       cachedGammaMappingPath_ = null;
+      repaint();
    }
 
    public void setComponentGraph(int component, long[] graph, long rangeMax) {

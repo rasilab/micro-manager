@@ -13,7 +13,6 @@ import java.awt.event.ActionListener;
 import java.io.IOException;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
-import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JColorChooser;
 import javax.swing.JComboBox;
@@ -50,7 +49,7 @@ public final class ChannelIntensityController implements HistogramView.Listener 
    private final ColorSwatch channelColorSwatch_ = new ColorSwatch();
    private final JLabel channelNameLabel_ = new JLabel();
    private final JToggleButton channelVisibleButton_ = new JToggleButton();
-   private final JToggleButton[] componentButtons_ = new JToggleButton[3];
+   private final RGBComponentSelector componentSelector_ = RGBComponentSelector.create();
    private final JButton fullscaleButton_ = new JButton("Fullscale");
    private final JButton autostretchOnceButton_ = new JButton("Auto Once");
 
@@ -218,22 +217,11 @@ public final class ChannelIntensityController implements HistogramView.Listener 
       }
    }
 
-   private static final Icon[] RGB_ICONS_ACTIVE = new Icon[] {
-      IconLoader.getIcon("/org/micromanager/icons/rgb_red.png"),
-      IconLoader.getIcon("/org/micromanager/icons/rgb_green.png"),
-      IconLoader.getIcon("/org/micromanager/icons/rgb_blue.png")
-   };
-   private static final Icon[] RGB_ICONS_INACTIVE = new Icon[] {
-      IconLoader.getIcon("/org/micromanager/icons/rgb_red_blank.png"),
-      IconLoader.getIcon("/org/micromanager/icons/rgb_green_blank.png"),
-      IconLoader.getIcon("/org/micromanager/icons/rgb_blue_blank.png")
-   };
-
 
    public static ChannelIntensityController create(DataViewer viewer, int channelIndex) {
       ChannelIntensityController instance = new ChannelIntensityController(viewer, channelIndex);
       instance.histogram_.addListener(instance);
-      viewer.registerForEvents(instance); // TODO Unregister!
+      viewer.registerForEvents(instance);
       return instance;
    }
 
@@ -241,24 +229,14 @@ public final class ChannelIntensityController implements HistogramView.Listener 
       viewer_ = viewer;
       channelIndex_ = channelIndex;
 
-      for (int i = 0; i < 3; ++i) {
-         componentButtons_[i] = new JToggleButton(RGB_ICONS_INACTIVE[i]);
-         componentButtons_[i].setSelectedIcon(RGB_ICONS_ACTIVE[i]);
-         componentButtons_[i].setBorder(BorderFactory.createEmptyBorder());
-         componentButtons_[i].setBorderPainted(false);
-         componentButtons_[i].setOpaque(true);
-      }
-      componentButtons_[0].setSelected(true);
-
       channelPanel_.setLayout(new MigLayout(
             new LC().fill().insets("0").gridGap("0", "0")));
       channelPanel_.setOpaque(true);
       channelPanel_.add(channelVisibleButton_, new CC().gapBefore("rel").split(2));
       channelPanel_.add(channelColorSwatch_, new CC().gapBefore("rel").width("32").wrap());
       channelPanel_.add(channelNameLabel_, new CC().gapBefore("rel").pushX().wrap("rel:rel:push"));
-      channelPanel_.add(componentButtons_[0], new CC().gapBefore("push").gapAfter("0").split(3));
-      channelPanel_.add(componentButtons_[1], new CC().gapAfter("0"));
-      channelPanel_.add(componentButtons_[2], new CC().gapAfter("push").wrap("rel"));
+      channelPanel_.add(componentSelector_, new CC().gapBefore("push").gapAfter("push").wrap("rel"));
+      componentSelector_.addListener(this::handleComponentSelection);
       channelPanel_.add(fullscaleButton_, new CC().pushX().wrap());
       channelPanel_.add(autostretchOnceButton_, new CC().pushX().wrap("rel"));
 
@@ -395,9 +373,27 @@ public final class ChannelIntensityController implements HistogramView.Listener 
       }
       histogram_.setOverlayText(null);
 
-      // TODO RGB: Use selected component for aggregate stats
-      int component = 0;
+      if (stats_.getNumberOfComponents() > 1) {
+         // TODO Skip on repeat
+         componentSelector_.setVisible(true);
+         histogram_.setComponentColor(0, Color.RED, new Color(0xff7777));
+         histogram_.setComponentColor(1, Color.GREEN, new Color(0x77ff77));
+         histogram_.setComponentColor(2, Color.BLUE, new Color(0x7777ff));
+         histogram_.setSelectedComponent(
+               componentSelector_.getSelectedComponent());
+         for (int c = 0; c < 3; ++c) {
+            updateHistogram(c);
+         }
+      }
+      else {
+         componentSelector_.setVisible(false);
+         histogram_.setSelectedComponent(0);
+         updateHistogram(0);
+      }
+   }
 
+   @MustCallOnEDT
+   private void updateHistogram(int component) {
       IntegerComponentStats componentStats = stats_.getComponentStats(component);
 
       long min = componentStats.getMinIntensity();
@@ -417,7 +413,7 @@ public final class ChannelIntensityController implements HistogramView.Listener 
          int lengthToUse = Math.min(data.length, (1 << rangeBits) - 1);
          histogram_.setComponentGraph(component, data, lengthToUse, lengthToUse);
          histogram_.setROIIndicator(componentStats.isROIStats());
-      
+
          DisplaySettings settings = viewer_.getDisplaySettings();
          updateScalingIndicators(settings, componentStats, component);
       } catch (IOException ioEx) {
@@ -488,7 +484,7 @@ public final class ChannelIntensityController implements HistogramView.Listener 
    private void handleColor(Color color) {
       color = JColorChooser.showDialog(histoPanel_.getTopLevelAncestor(),
             "Channel Color", color);
-      
+
       if (color != null) {
          DisplaySettings oldDisplaySettings, newDisplaySettings;
          do {
@@ -501,6 +497,10 @@ public final class ChannelIntensityController implements HistogramView.Listener 
                     build();
          } while (!viewer_.compareAndSetDisplaySettings(oldDisplaySettings, newDisplaySettings));
       }
+   }
+
+   private void handleComponentSelection(int index) {
+      histogram_.setSelectedComponent(index);
    }
 
    private void handleFullscale() {
@@ -646,12 +646,15 @@ public final class ChannelIntensityController implements HistogramView.Listener 
       catch (IOException e) {
          numComponents = 1;
       }
+
       if (numComponents == 1) {
          histogram_.setComponentColor(0, channelSettings.getColor(),
                channelSettings.getColor());
          histogram_.setGamma(channelSettings.getComponentSettings(0).
                getScalingGamma());
       }
+      // Multicomponent images: set colors on new stats
+
       for (int comp = 0; comp < numComponents; ++comp) {
          if (stats_ != null) {
             IntegerComponentStats componentStats = stats_.getComponentStats(comp);
