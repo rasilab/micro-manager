@@ -297,7 +297,7 @@ public final class ChannelIntensityController implements HistogramView.Listener 
       autostretchOnceButton_.addActionListener(new ActionListener() {
          @Override
          public void actionPerformed(ActionEvent e) {
-            handleAutoscale();
+            handleAutoscaleOnce();
          }
       });
 
@@ -504,27 +504,32 @@ public final class ChannelIntensityController implements HistogramView.Listener 
    }
 
    private void handleFullscale() {
+      // TODO This is a temporary hack. What is a clean way to have image
+      // pixel format available here?
+      long max;
+      try {
+         int cameraBits = viewer_.getDataProvider().getAnyImage().
+               getMetadata().getBitDepth();
+         max = (1 << cameraBits) - 1;
+      }
+      catch (IOException e) {
+         return;
+      }
+      int nComponents = stats_.getNumberOfComponents();
+
       DisplaySettings oldDisplaySettings, newDisplaySettings;
       do {
          oldDisplaySettings = viewer_.getDisplaySettings();
          ChannelDisplaySettings channelSettings =
                oldDisplaySettings.getChannelSettings(channelIndex_);
          ChannelDisplaySettings.Builder builder = channelSettings.copyBuilder();
-         int nComponents = 1; // TODO
+
          for (int i = 0; i < nComponents; ++i) {
-            try {
-            int cameraBits = viewer_.getDataProvider().getAnyImage(). // can throw IOException
-                    getMetadata().getBitDepth(); 
-            long max = 1 << cameraBits;
             builder.component(i,
-                  channelSettings.getComponentSettings(i).copyBuilder().
-                        scalingRange(0L, 
-                                max >= 0 ? max : Long.MAX_VALUE).
-                        build() );
-            } catch (IOException ioe) {
-               // if we could not find an image, we have bigger problems
-               ReportingUtils.logError(ioe);
-            }
+                  channelSettings.getComponentSettings(i).
+                        copyBuilder().
+                        scalingRange(0L, max >= 0 ? max : Long.MAX_VALUE).
+                        build());
          }
          newDisplaySettings = oldDisplaySettings.
                copyBuilderWithChannelSettings(channelIndex_, builder.build()).
@@ -533,7 +538,9 @@ public final class ChannelIntensityController implements HistogramView.Listener 
       } while (!viewer_.compareAndSetDisplaySettings(oldDisplaySettings, newDisplaySettings));
    }
 
-   void handleAutoscale() {
+   void handleAutoscaleOnce() {
+      int nComponents = stats_.getNumberOfComponents();
+
       DisplaySettings oldDisplaySettings, newDisplaySettings;
       do {
          oldDisplaySettings = viewer_.getDisplaySettings();
@@ -541,11 +548,19 @@ public final class ChannelIntensityController implements HistogramView.Listener 
          ChannelDisplaySettings channelSettings =
                oldDisplaySettings.getChannelSettings(channelIndex_);
          ChannelDisplaySettings.Builder builder = channelSettings.copyBuilder();
-         int nComponents = 1; // TODO
+
          for (int i = 0; i < nComponents; ++i) {
             IntegerComponentStats stats = stats_.getComponentStats(i);
             long min = stats.getAutoscaleMinForQuantile(q);
             long max = stats.getAutoscaleMaxForQuantile(q);
+            if (min == max) {
+               if (min == 0) {
+                  ++max;
+               }
+               else {
+                  --min;
+               }
+            }
             builder.component(i,
                   channelSettings.getComponentSettings(i).copyBuilder().
                         scalingRange(min, max).build());

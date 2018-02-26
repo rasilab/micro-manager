@@ -409,7 +409,7 @@ public class IntensityInspectorPanelController
          // keep the current actual range. That can be accomplished by the
          // equivalent of clicking on Auto Once for each channel.
          for (ChannelIntensityController ch : channelControllers_) {
-            ch.handleAutoscale();
+            ch.handleAutoscaleOnce();
          }
       }
    }
