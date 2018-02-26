@@ -998,6 +998,9 @@ public final class HistogramView extends JPanel {
    //
 
    private void mouseClicked(MouseEvent e) {
+      if (componentStates_.isEmpty()) {
+         return;
+      }
       if (e.getClickCount() == 2) {
          if (isPointInScalingLabel(e.getPoint(), true)) {
             startScalingEdit(true);
