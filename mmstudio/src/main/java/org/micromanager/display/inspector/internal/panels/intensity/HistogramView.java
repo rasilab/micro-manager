@@ -648,6 +648,7 @@ public final class HistogramView extends JPanel {
             1.0f, BasicStroke.CAP_BUTT,
             BasicStroke.JOIN_MITER, 10.0f,
             new float[] { 5.0f, 5.0f }, offset));
+      g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_IN, 0.5f));
       g.draw(new Line2D.Float(loXPos, rect.y, loXPos, rect.y + rect.height));
       g.draw(new Line2D.Float(hiXPos, rect.y, hiXPos, rect.y + rect.height));
    }
@@ -660,18 +661,30 @@ public final class HistogramView extends JPanel {
       if (state.highlightIntensity_ < 0) {
          return;
       }
-      int offset = 2 * component;
-      float xPos = intensityToGraphXPos(component, state.highlightIntensity_, BinEdge.CENTER);
-      Rectangle rect = getGraphRect();
 
+      Rectangle rect = getGraphRect();
       g = (Graphics2D) g.create();
       g.setClip(rect.x, rect.y, rect.width, rect.height);
       g.setColor(state.highlightColor_);
       g.setStroke(new BasicStroke(
-            1.5f, BasicStroke.CAP_BUTT,
+            2.0f, BasicStroke.CAP_BUTT,
             BasicStroke.JOIN_MITER, 10.0f,
-            new float[] { 5.0f, 5.0f }, offset));
-      g.draw(new Line2D.Float(xPos, rect.y, xPos, rect.y + rect.height));
+            new float[]{5.0f, 5.0f}, 2 * component));
+
+      if (2 * (state.rangeMax_ + 1) >= rect.width) {
+         float xPos = intensityToGraphXPos(component,
+               state.highlightIntensity_, BinEdge.CENTER);
+
+         g.draw(new Line2D.Float(xPos, rect.y, xPos, rect.y + rect.height));
+      }
+      else { // Bins > 1px wide
+         float xLeft = intensityToGraphXPos(component,
+               state.highlightIntensity_, BinEdge.LEFT);
+         float xRight = intensityToGraphXPos(component,
+               state.highlightIntensity_, BinEdge.RIGHT);
+         g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_IN, 0.5f));
+         g.drawRect(Math.round(xLeft), rect.y, Math.round(xRight - xLeft + 1), rect.height);
+      }
    }
 
    private void drawScalingHandlesAndLabels(int component, Graphics2D g) {
