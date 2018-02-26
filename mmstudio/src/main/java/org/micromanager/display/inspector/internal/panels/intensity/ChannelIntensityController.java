@@ -410,8 +410,8 @@ public final class ChannelIntensityController implements HistogramView.Listener 
          int cameraBits = viewer_.getDataProvider().getAnyImage().getMetadata().getBitDepth(); // can throw IOException
          int rangeBits = histoRangeComboBoxModel_.getBits(cameraBits);
          long[] data = componentStats.getInRangeHistogram();
-         int lengthToUse = Math.min(data.length, (1 << rangeBits) - 1);
-         histogram_.setComponentGraph(component, data, lengthToUse, lengthToUse);
+         int lengthToUse = Math.min(data.length, 1 << rangeBits);
+         histogram_.setComponentGraph(component, data, lengthToUse, lengthToUse - 1);
          histogram_.setROIIndicator(componentStats.isROIStats());
 
          DisplaySettings settings = viewer_.getDisplaySettings();
