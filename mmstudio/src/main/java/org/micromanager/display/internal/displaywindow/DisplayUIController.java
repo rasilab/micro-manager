@@ -918,7 +918,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
                settings.getChannelSettings(0).getComponentSettings(i);
          int max = Math.min(Integer.MAX_VALUE,
                (int) componentSettings.getScalingMaximum());
-         int min = Math.max(max - 1,
+         int min = Math.min(max - 1,
                (int) componentSettings.getScalingMinimum());
          ijBridge_.mm2ijSetIntensityScaling(i, min, max);
       }
@@ -931,28 +931,33 @@ public final class DisplayUIController implements Closeable, WindowListener,
          return;
       }
 
-      // TODO RGB
-      // TODO "uniform" scaling
+      // TODO "uniform" scaling for channels and components
 
+      // First obtain the mapping from channel index to stats index
       int nChannels = ijBridge_.getIJNumberOfChannels();
       double q = settings.getAutoscaleIgnoredQuantile();
-      for (int i = 0; i < nChannels; ++i) {
+      for (int chanIndex = 0; chanIndex < nChannels; ++chanIndex) {
          int statsIndex = 0;
          for (int j = 0; j < images.getRequest().getNumberOfImages(); ++j) {
             Coords c = images.getRequest().getImage(j).getCoords();
             if (c.hasAxis(Coords.CHANNEL)) {
-               if (c.getChannel() == i) {
+               if (c.getChannel() == chanIndex) {
                   statsIndex = j;
                }
             }
          }
 
          if (images.getResult().size() > statsIndex) {
-         ImageStats stats = images.getResult().get(statsIndex);
-         long min = stats.getComponentStats(0).getAutoscaleMinForQuantile(q);
-         long max = Math.min(Integer.MAX_VALUE,
-               stats.getComponentStats(0).getAutoscaleMaxForQuantile(q));
-         ijBridge_.mm2ijSetIntensityScaling(i, (int) min, (int) max);
+            ImageStats stats = images.getResult().get(statsIndex);
+            // Only allow RGB in single-channel
+            int nComponents = nChannels > 1 ? 1 : stats.getNumberOfComponents();
+            for (int c = 0; c < nComponents; ++c) {
+               long min = stats.getComponentStats(c).getAutoscaleMinForQuantile(q);
+               long max = Math.min(Integer.MAX_VALUE,
+                     stats.getComponentStats(c).getAutoscaleMaxForQuantile(q));
+               int channelOrComponent = chanIndex + c; // One or the other is zero
+               ijBridge_.mm2ijSetIntensityScaling(channelOrComponent, (int) min, (int) max);
+            }
          } else {
             ReportingUtils.logError("DisplayUICOntroller: Received request to " +
                     "autostretch image for which no statistics are available");
