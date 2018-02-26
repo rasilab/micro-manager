@@ -499,18 +499,21 @@ public final class DefaultDisplayManager implements DisplayManager, DataViewerDe
    @Override
    public boolean dataViewerShouldClose(DataViewer viewer) {
       DataProvider provider = viewer.getDataProvider();
-      List<DisplayWindow> displays;
       if (!(provider instanceof Datastore)) {
+         // We do not manage saving for non-Datastore providers
          return true;
       }
       Datastore store = (Datastore) provider;
+      // TODO This should be confined to EDT rather than using monitor
       synchronized (this) {
          if (!storeToManagedDisplays_.containsKey(store)) {
-            // This should never happen.
+            // This should never happen, because we should not be the delegate
+            // of a viewer attached to a datastore we don't manage.
             ReportingUtils.logError("Received request to close a display that is not associated with a managed datastore.");
             return true;
          }
-         displays = getDisplays(store);
+
+         List<DisplayWindow> displays = getDisplays(store);
 
          if (viewer instanceof DisplayWindow) {
             DisplayWindow window = (DisplayWindow) viewer;
@@ -525,6 +528,8 @@ public final class DefaultDisplayManager implements DisplayManager, DataViewerDe
                return true;
             }
             // Last display; check for saving now.
+            // TODO We should check that the store is/will save, not using
+            // whether it has a path as a proxy for that.
             if (store.getSavePath() != null) {
                // No problem with saving.
                removeDisplay(window);
@@ -533,10 +538,7 @@ public final class DefaultDisplayManager implements DisplayManager, DataViewerDe
             // Prompt the user to save their data.
             try {
                if (promptToSave(store, window)) {
-                  window.close();
                   store.freeze();
-                  // This will invoke our onDatastoreClosed() method.
-                  store.close();
                   return true;
                }
             } catch (IOException ioe) {

@@ -129,10 +129,7 @@ public final class DisplayController extends DisplayWindowAPIAdapter
    // what to do when user tries to close)
    private DataViewerDelegate delegate_;
 
-   // A way to know from a non-EDT thread that the display has definitely
-   // closed (may not be true for a short period after closing)
-   // Guarded by monitor on this
-   private volatile boolean closeCompleted_;
+   private volatile boolean closed_;
 
    private final DisplayWindowControlsFactory controlsFactory_;
 
@@ -843,12 +840,6 @@ public final class DisplayController extends DisplayWindowAPIAdapter
    public void onNewImage(final DataProviderHasNewImageEvent event) {
       perfMon_.sampleTimeInterval("NewImageEvent");
 
-      synchronized (this) {
-         if (closeCompleted_) {
-            return;
-         }
-      }
-
       // Generally we want to display new images (if not instructed otherwise
       // by the user), but we let the animation controller coordinate that with
       // any ongoing playback animation. Actual display of new images happens
@@ -1059,12 +1050,12 @@ public final class DisplayController extends DisplayWindowAPIAdapter
 
    @Override
    public void close() {
-      // close is called from DisplayUICOntroller.windowClosing and from 
-      // store.requestToClose, so we need to accomodate multiple calls
-      // This maybe a workaround a bug...
-      if (closeCompleted_) {
+      // Prevent closing more than once (even though that would be a bug)
+      if (closed_) {
          return;
       }
+      closed_ = true;
+
       postEvent(DataViewerWillCloseEvent.create(this));
       // TODO: We need to handle the case of multiple viewers. Of course, if
       // the user closes one by one, only the last remaining viewer's settings
@@ -1089,7 +1080,6 @@ public final class DisplayController extends DisplayWindowAPIAdapter
          uiController_.close();
       }
       uiController_ = null;
-      closeCompleted_ = true;
       dispose();
 
       // TODO This event should probably be posted in response to window event

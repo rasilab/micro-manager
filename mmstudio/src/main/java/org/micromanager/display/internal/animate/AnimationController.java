@@ -219,6 +219,10 @@ public final class AnimationController<P> {
    }
 
    public synchronized void newDataPosition(final P position) {
+      if (scheduler_.isShutdown()) {
+         return;
+      }
+
       // Mode may have switched since schedluing a snap-back, so cancel it here
       if (snapBackFuture_ != null) {
          snapBackFuture_.cancel(false);
