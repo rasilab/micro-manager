@@ -18,6 +18,7 @@
 package org.micromanager.display.inspector.internal.panels.intensity;
 
 import com.google.common.base.Preconditions;
+import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -75,7 +76,7 @@ public final class HistogramView extends JPanel {
          new ArrayList<ComponentState>();
    private boolean allowGammaScaling_ = true;
    private double gamma_ = 1.0;
-   private boolean fillHistograms_ = true;
+   private boolean solidHistograms_ = true;
    private boolean plotLogIntensity_ = false;
    private boolean roiIndicatorEnabled_ = false;
    private String overlayText_ = null;
@@ -300,7 +301,7 @@ public final class HistogramView extends JPanel {
          componentStates_.add(new ComponentState());
       }
       if (componentStates_.size() > 1) {
-         fillHistograms_ = false;
+         solidHistograms_ = false;
          allowGammaScaling_ = false;
          gamma_= 1.0;
          cachedGammaMappingPath_ = null;
@@ -546,29 +547,24 @@ public final class HistogramView extends JPanel {
       drawGraphBackground(g);
       if (numComponents > 0) {
          drawRangeMaxLabel(g);
-      }
 
-      for (int i = 0; i < componentStates_.size(); ++i) {
-         if (i != selectedComponent_) {
-            drawComponentGraph(i, g);
+         // Order drawing so that selected component is drawn last (on top)
+         int start = (selectedComponent_ + 1) % numComponents;
+         int stop = start + numComponents;
+         for (int i = start; i < stop; ++i) {
+            drawComponentGraph(i % numComponents, g, false);
          }
-      }
-      if (numComponents > 0) {
-         drawComponentGraph(selectedComponent_, g);
-      }
-
-      for (int i = 0; i < componentStates_.size(); ++i) {
-         if (i != selectedComponent_) {
-            drawComponentScalingLimits(i, g);
-            drawHighlightedIntensity(i, g);
+         if (!solidHistograms_) {
+            for (int i = start; i < stop; ++i) {
+               drawComponentGraph(i % numComponents, g, true);
+            }
          }
-      }
-      if (numComponents > 0) {
-         drawComponentScalingLimits(selectedComponent_, g);
-         drawHighlightedIntensity(selectedComponent_, g);
-      }
 
-      if (numComponents > 0) {
+         for (int i = start; i < stop; ++i) {
+            drawComponentScalingLimits(i % numComponents, g);
+            drawHighlightedIntensity(i % numComponents, g);
+         }
+
          drawScalingHandlesAndLabels(selectedComponent_, g);
          drawGammaMappingAndHandle(selectedComponent_, g);
       }
@@ -583,8 +579,8 @@ public final class HistogramView extends JPanel {
       Rectangle rect = getGraphRect();
 
       g = (Graphics2D) g.create();
-      g.setColor(Color.BLACK);
-      g.fillRect(rect.x, rect.y, rect.width, rect.height);
+      g.setBackground(Color.BLACK);
+      g.clearRect(rect.x, rect.y, rect.width, rect.height);
    }
 
    private void drawRangeMaxLabel(Graphics2D g) {
@@ -611,8 +607,8 @@ public final class HistogramView extends JPanel {
       g.drawString(text, x, graphBottomRight.y + metrics.getAscent());
    }
 
-   private void drawComponentGraph(int component, Graphics2D g) {
-      Path2D.Float path = getComponentGraphPath(component);
+   private void drawComponentGraph(int component, Graphics2D g, boolean outline) {
+      Path2D.Float path = getComponentGraphPath(component, !outline);
       if (path == null) {
          return;
       }
@@ -621,12 +617,17 @@ public final class HistogramView extends JPanel {
       g = (Graphics2D) g.create();
       g.setClip(rect.x, rect.y, rect.width, rect.height);
       g.setColor(componentStates_.get(component).color_);
-      if (fillHistograms_) {
+
+      if (solidHistograms_) {
          g.fill(path);
       }
-      else {
+      else if (outline) {
          g.setStroke(new BasicStroke(2.0f));
          g.draw(path);
+      }
+      else {
+         g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC, 1/6f));
+         g.fill(path);
       }
    }
 
@@ -831,7 +832,7 @@ public final class HistogramView extends JPanel {
             graphTop.y + metrics.getAscent());
    }
 
-   private Path2D.Float getComponentGraphPath(int component) {
+   private Path2D.Float getComponentGraphPath(int component, boolean closePath) {
       ComponentState state = componentStates_.get(component);
       if (state.cachedPath_ == null) {
          Rectangle rect = getGraphRect();
@@ -856,9 +857,10 @@ public final class HistogramView extends JPanel {
             path.lineTo(x + pixelsPerBin, y); // Horizontal
          }
          path.lineTo((float) rect.width, 0.0f);
-         if (fillHistograms_) {
+         if (closePath) {
             path.closePath();
          }
+
          AffineTransform tfm = AffineTransform.getScaleInstance(1.0, -1.0);
          tfm.preConcatenate(AffineTransform.getTranslateInstance(
                rect.x, rect.y + rect.height));
