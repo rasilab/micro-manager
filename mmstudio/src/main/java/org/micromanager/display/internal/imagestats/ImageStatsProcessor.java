@@ -40,6 +40,8 @@ import net.imglib2.view.IntervalView;
 import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
 import org.micromanager.data.Image;
+import org.micromanager.data.internal.DefaultImage;
+import org.micromanager.data.internal.PixelType;
 import org.micromanager.internal.utils.ThreadFactoryFactory;
 import org.micromanager.internal.utils.performance.CPUTimer;
 import org.micromanager.internal.utils.performance.PerformanceMonitor;
@@ -136,9 +138,6 @@ public final class ImageStatsProcessor {
       int binCountPowerOf2 =
             Math.min(bitDepth, request.getMaxBinCountPowerOf2());
 
-      // RGB888 images can come with an extra component in the pixel buffer.
-      // TODO XXX Handle this case!
-
       // Determine the overlap between the ROI rect/mask and the image
       boolean useROI;
       Rectangle imageBounds = new Rectangle(0, 0, image.getWidth(), image.getHeight());
@@ -179,13 +178,22 @@ public final class ImageStatsProcessor {
          useROI = false;
       }
 
+      long componentBegin = 0;
+      long componentEnd = nComponents;
+      long nSamples = nComponents;
+      if (nComponents == 3 && ((DefaultImage) image).getPixelType() == PixelType.RGB32) {
+         componentBegin = 1;
+         componentEnd = 4;
+         nSamples = 4;
+      }
+
       ImageStats result = null;
       if (bytesPerSample == 1) {
          Img<UnsignedByteType> img =
                ArrayImgs.unsignedBytes((byte[]) image.getRawPixels(),
-                     nComponents, image.getWidth(), image.getHeight());
+                     nSamples, image.getWidth(), image.getHeight());
          result = compute(
-               clipToRect(img, nComponents, statsBounds),
+               clipToRect(img, componentBegin, componentEnd, statsBounds),
                mask,
                nComponents, bitDepth, binCountPowerOf2,
                useROI, index);
@@ -193,9 +201,9 @@ public final class ImageStatsProcessor {
       else if (bytesPerSample == 2) {
          Img<UnsignedShortType> img =
                ArrayImgs.unsignedShorts((short[]) image.getRawPixels(),
-                     nComponents, image.getWidth(), image.getHeight());
+                     nSamples, image.getWidth(), image.getHeight());
          result = compute(
-               clipToRect(img, nComponents, statsBounds),
+               clipToRect(img, componentBegin, componentEnd, statsBounds),
                mask,
                nComponents, bitDepth, binCountPowerOf2,
                useROI, index);
@@ -292,13 +300,14 @@ public final class ImageStatsProcessor {
    }
 
    private <T extends IntegerType<T>> IterableInterval<T> clipToRect(
-         Img<T> fullImg, int nComponents, Rectangle statsBounds)
+         Img<T> fullImg, long componentBegin, long componentEnd,
+         Rectangle statsBounds)
    {
       Preconditions.checkNotNull(statsBounds);
       return Views.interval(fullImg,
             Intervals.createMinSize(
-                  0, statsBounds.x, statsBounds.y,
-                  nComponents, statsBounds.width, statsBounds.height)
+                  componentBegin, statsBounds.x, statsBounds.y,
+                  componentEnd - componentBegin, statsBounds.width, statsBounds.height)
       );
    }
 
