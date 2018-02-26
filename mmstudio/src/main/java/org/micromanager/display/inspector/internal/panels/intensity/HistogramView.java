@@ -344,9 +344,8 @@ public final class HistogramView extends JPanel {
 
    private float getScalingHandlePos(int component, boolean top) {
       ComponentState state = componentStates_.get(component);
-      float intensity = top ? state.scalingMax_ : state.scalingMin_;
-      float xPos = intensityFractionToGraphXPos(intensity / state.rangeMax_);
-      return (float) (top ? Math.ceil(xPos) : Math.floor(xPos));
+      long intensity = top ? state.scalingMax_ : state.scalingMin_;
+      return intensityToGraphXPos(component, intensity, top ? BinEdge.RIGHT : BinEdge.LEFT);
    }
 
    // See also: drawScalingHandle()
@@ -423,9 +422,8 @@ public final class HistogramView extends JPanel {
    private Rectangle getGammaHandleRect() {
       if (gammaHandleRect_ == null) {
          ComponentState state = componentStates_.get(selectedComponent_);
-         Rectangle rect = getGraphRect();
-         float loX = intensityFractionToGraphXPos((float) state.scalingMin_ / state.rangeMax_);
-         float hiX = intensityFractionToGraphXPos((float) state.scalingMax_ / state.rangeMax_);
+         float loX = intensityToGraphXPos(selectedComponent_, state.scalingMin_, BinEdge.LEFT);
+         float hiX = intensityToGraphXPos(selectedComponent_, state.scalingMax_, BinEdge.RIGHT);
          int x = Math.round(0.5f * (loX + hiX));
          float yFrac = (float) Math.pow(0.5, gamma_);
          int y = Math.round(frequencyFractionToGraphYPos(yFrac));
@@ -436,9 +434,62 @@ public final class HistogramView extends JPanel {
       return gammaHandleRect_;
    }
 
-   private float intensityFractionToGraphXPos(float intensityFraction) {
+   private static enum BinEdge {
+      LEFT(0) {
+         @Override
+         float adjustPixels(float xPos) {
+            return (float) Math.floor(xPos);
+         }
+
+         @Override
+         float unadjustPixels(float xPos) {
+            return (float) Math.ceil(xPos);
+         }
+      },
+      CENTER(0.5f) {
+         @Override
+         float adjustPixels(float xPos) {
+            return (float) Math.round(xPos - 0.5f);
+         }
+
+         @Override
+         float unadjustPixels(float xPos) {
+            return (float) Math.round(xPos + 0.5f);
+         }
+      },
+      RIGHT(1) {
+         @Override
+         float adjustPixels(float xPos) {
+            return (float) Math.ceil(xPos - 1.0f);
+         }
+
+         @Override
+         float unadjustPixels(float xPos) {
+            return (float) Math.floor(xPos + 1.0f);
+         }
+      },
+      ;
+
+      private final float binAdj_;
+
+      BinEdge(float binAdjustment) {
+         binAdj_ = binAdjustment;
+      }
+
+      float getBinAdjustment() {
+         return binAdj_;
+      }
+
+      abstract float adjustPixels(float xPos);
+      abstract float unadjustPixels(float xPos);
+   }
+
+   private float intensityToGraphXPos(int component, long intensity, BinEdge edge) {
+      ComponentState state = componentStates_.get(component);
       Rectangle rect = getGraphRect();
-      return rect.x + intensityFraction * rect.width - 0.5f;
+      long nVisibleBins = state.rangeMax_ + 1;
+      float edgeIndex = intensity + edge.getBinAdjustment();
+      return edge.adjustPixels(rect.x + (float) edgeIndex / nVisibleBins * rect.width);
    }
 
    private float frequencyFractionToGraphYPos(float freqFraction) {
@@ -446,9 +497,11 @@ public final class HistogramView extends JPanel {
       return rect.y + (1.0f - freqFraction) * rect.height - 0.5f;
    }
 
-   private float graphXPosToIntensityFraction(float x) {
+   private float graphXPosToIntensity(int component, float x, BinEdge edge) {
+      ComponentState state = componentStates_.get(component);
       Rectangle rect = getGraphRect();
-      return (x - rect.x) / rect.width;
+      long nVisibleBins = state.rangeMax_ + 1;
+      return edge.unadjustPixels(x - rect.x) * nVisibleBins / rect.width - edge.getBinAdjustment();
    }
 
    private float graphYPosToFrequencyFraction(float y) {
@@ -459,8 +512,8 @@ public final class HistogramView extends JPanel {
    private double graphPosToGamma(float x, float y) {
       ComponentState state = componentStates_.get(selectedComponent_);
       Rectangle rect = getGraphRect();
-      float loX = intensityFractionToGraphXPos((float) state.scalingMin_ / state.rangeMax_);
-      float hiX = intensityFractionToGraphXPos((float) state.scalingMax_ / state.rangeMax_);
+      float loX = intensityToGraphXPos(selectedComponent_, state.scalingMin_, BinEdge.LEFT);
+      float hiX = intensityToGraphXPos(selectedComponent_, state.scalingMax_, BinEdge.RIGHT);
 
       float xFrac = (x + 0.5f - loX) / (hiX - loX);
       float yFrac = graphYPosToFrequencyFraction(y);
@@ -584,8 +637,8 @@ public final class HistogramView extends JPanel {
          return;
       }
       int offset = 2 * component;
-      float loXPos = intensityFractionToGraphXPos((float) state.scalingMin_ / state.rangeMax_);
-      float hiXPos = intensityFractionToGraphXPos((float) state.scalingMax_ / state.rangeMax_);
+      float loXPos = intensityToGraphXPos(component, state.scalingMin_, BinEdge.LEFT);
+      float hiXPos = intensityToGraphXPos(component, state.scalingMax_, BinEdge.RIGHT);
 
       g = (Graphics2D) g.create();
       g.setClip(rect.x, rect.y, rect.width, rect.height);
@@ -607,7 +660,7 @@ public final class HistogramView extends JPanel {
          return;
       }
       int offset = 2 * component;
-      float xPos = intensityFractionToGraphXPos((float) state.highlightIntensity_ / state.rangeMax_);
+      float xPos = intensityToGraphXPos(component, state.highlightIntensity_, BinEdge.CENTER);
       Rectangle rect = getGraphRect();
 
       g = (Graphics2D) g.create();
@@ -795,19 +848,21 @@ public final class HistogramView extends JPanel {
 
          Path2D.Float path = state.cachedPath_ =
                new Path2D.Float(Path2D.WIND_EVEN_ODD, 2 * data.length + 2);
-         path.moveTo(0.0f, (float) rect.height);
+         path.moveTo(0.0f, 0.0f);
          for (int i = 0; i < data.length; ++i) {
             float x = i * pixelsPerBin;
-            float y = rect.height - dataScaling * data[i];
+            float y = dataScaling * data[i];
             path.lineTo(x, y);                // Vertical
             path.lineTo(x + pixelsPerBin, y); // Horizontal
          }
-         path.lineTo((float) rect.width, (float) rect.height);
+         path.lineTo((float) rect.width, 0.0f);
          if (fillHistograms_) {
             path.closePath();
          }
-         path.transform(AffineTransform.getTranslateInstance(
-               rect.x - 0.5, rect.y - 0.5));
+         AffineTransform tfm = AffineTransform.getScaleInstance(1.0, -1.0);
+         tfm.preConcatenate(AffineTransform.getTranslateInstance(
+               rect.x, rect.y + rect.height));
+         path.transform(tfm);
       }
       return state.cachedPath_;
    }
@@ -892,9 +947,9 @@ public final class HistogramView extends JPanel {
       if (cachedGammaMappingPath_ == null) {
          ComponentState state = componentStates_.get(component);
          Rectangle rect = getGraphRect();
-         float loX = intensityFractionToGraphXPos((float) state.scalingMin_ / state.rangeMax_);
-         float hiX = intensityFractionToGraphXPos((float) state.scalingMax_ / state.rangeMax_);
-         int width = (int) Math.floor(hiX - loX);
+         float loX = intensityToGraphXPos(component, state.scalingMin_, BinEdge.LEFT);
+         float hiX = intensityToGraphXPos(component, state.scalingMax_, BinEdge.RIGHT);
+         int width = Math.round(hiX - loX);
 
          Path2D.Float path = cachedGammaMappingPath_ = new Path2D.Float();
          path.moveTo(0.0f, (float) rect.height);
@@ -1048,7 +1103,8 @@ public final class HistogramView extends JPanel {
    private void jumpSetScaling(int mouseX, boolean top) {
       ComponentState state = componentStates_.get(selectedComponent_);
       long intensity = (long) Math.round(
-            graphXPosToIntensityFraction(mouseX) * state.rangeMax_);
+            graphXPosToIntensity(selectedComponent_, mouseX,
+                  top ? BinEdge.RIGHT : BinEdge.LEFT));
       intensity = Math.max(0, Math.min(state.rangeMax_, intensity));
       if (top) {
          intensity = Math.max(state.scalingMin_ + 1, intensity);
@@ -1093,8 +1149,9 @@ public final class HistogramView extends JPanel {
       ComponentState state = componentStates_.get(selectedComponent_);
       long intensity;
       if (getValidDragRect().contains(mousePosition)) {
-         float intensityFrac = graphXPosToIntensityFraction(mousePosition.x);
-         intensity = (long) Math.round(intensityFrac * state.rangeMax_);
+         intensity = (long) Math.round(
+               graphXPosToIntensity(selectedComponent_,
+                     mousePosition.x, top ? BinEdge.RIGHT : BinEdge.LEFT));
       }
       else {
          intensity = scalingHandleDragOriginalValue_;
