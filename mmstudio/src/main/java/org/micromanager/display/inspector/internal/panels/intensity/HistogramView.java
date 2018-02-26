@@ -565,6 +565,10 @@ public final class HistogramView extends JPanel {
             drawHighlightedIntensity(i % numComponents, g);
          }
 
+         for (int i = start; i < stop - 1; ++i) {
+            drawMiniScalingHandles(i % numComponents, g);
+         }
+
          drawScalingHandlesAndLabels(selectedComponent_, g);
          drawGammaMappingAndHandle(selectedComponent_, g);
       }
@@ -687,15 +691,20 @@ public final class HistogramView extends JPanel {
       }
    }
 
+   private void drawMiniScalingHandles(int component, Graphics2D g) {
+      drawScalingHandle(component, true, g, true);
+      drawScalingHandle(component, false, g, true);
+   }
+
    private void drawScalingHandlesAndLabels(int component, Graphics2D g) {
-      drawScalingHandle(component, true, g);
-      drawScalingHandle(component, false, g);
+      drawScalingHandle(component, true, g, false);
+      drawScalingHandle(component, false, g, false);
       drawScalingLabel(component, true, g);
       drawScalingLabel(component, false, g);
    }
 
    // See also: getScalingHandleRect()
-   private void drawScalingHandle(int component, boolean top, Graphics2D g) {
+   private void drawScalingHandle(int component, boolean top, Graphics2D g, boolean mini) {
       Rectangle rect = getGraphRect();
       ComponentState state = componentStates_.get(component);
       if (state.rangeMax_ <= 0) {
@@ -707,7 +716,7 @@ public final class HistogramView extends JPanel {
          return;
       }
 
-      final int s = LUT_HANDLE_SIZE * (top ? -1 : 1);
+      final int s = LUT_HANDLE_SIZE / (mini ? 2 : 1) * (top ? -1 : 1);
       Path2D.Float path = new Path2D.Float(Path2D.WIND_EVEN_ODD, 3);
       path.moveTo(x, y);
       path.lineTo(x, y + s);
@@ -718,8 +727,10 @@ public final class HistogramView extends JPanel {
       g.setStroke(new BasicStroke(1.0f));
       g.setColor(state.color_);
       g.fill(path);
-      g.setColor(Color.BLACK);
-      g.draw(path);
+      if (!mini) {
+         g.setColor(Color.BLACK);
+         g.draw(path);
+      }
    }
 
    // See also: getScalingLabelRect()
