@@ -7,7 +7,9 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Insets;
+import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
@@ -31,7 +33,6 @@ import org.micromanager.display.internal.event.DataViewerMousePixelInfoChangedEv
 import org.micromanager.display.internal.imagestats.ImageStats;
 import org.micromanager.display.internal.imagestats.IntegerComponentStats;
 import org.micromanager.internal.utils.MustCallOnEDT;
-import org.micromanager.internal.utils.ReportingUtils;
 
 /**
  *
@@ -93,6 +94,9 @@ public final class ChannelIntensityController implements HistogramView.Listener 
       private final Font valueFont_ = getFont().deriveFont(9.0f);
       private final Font keyFont_ = valueFont_.deriveFont(Font.BOLD);
       private final FontMetrics valueFontMetrics_ = getFontMetrics(valueFont_);
+      private static final RenderingHints TEXT_RENDERING_HINTS =
+            new RenderingHints(RenderingHints.KEY_TEXT_ANTIALIASING,
+                  RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
       private final int keyX1 = 0;
       private final int keyX2;
       private final int valueX1;
@@ -183,6 +187,7 @@ public final class ChannelIntensityController implements HistogramView.Listener 
       public void paintComponent(Graphics g) {
          super.paintComponent(g);
          g = g.create();
+         ((Graphics2D) g).setRenderingHints(TEXT_RENDERING_HINTS);
          g.setFont(keyFont_);
          g.drawString("MAX", keyX1, y1);
          g.drawString("MIN", keyX1, y2);
