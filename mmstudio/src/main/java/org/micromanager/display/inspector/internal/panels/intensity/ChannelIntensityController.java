@@ -42,6 +42,8 @@ public final class ChannelIntensityController implements HistogramView.Listener 
    private final DataViewer viewer_;
    private final int channelIndex_;
 
+   private boolean rgbMode_ = false;
+
    private ImageStats stats_;
 
    private final JPanel channelPanel_ = new JPanel();
@@ -239,7 +241,7 @@ public final class ChannelIntensityController implements HistogramView.Listener 
       channelPanel_.setOpaque(true);
       channelPanel_.add(channelVisibleButton_, new CC().gapBefore("rel").split(2));
       channelPanel_.add(channelColorSwatch_, new CC().gapBefore("rel").width("32").wrap());
-      channelPanel_.add(channelNameLabel_, new CC().gapBefore("rel").pushX().wrap("rel:rel:push"));
+      channelPanel_.add(channelNameLabel_, new CC().gapBefore("rel:rel:push").gapAfter("rel:rel:push").wrap("rel:rel:push"));
       channelPanel_.add(componentSelector_, new CC().gapBefore("push").gapAfter("push").wrap("rel"));
       componentSelector_.addListener(this::handleComponentSelection);
       channelPanel_.add(fullscaleButton_, new CC().pushX().wrap());
@@ -257,6 +259,7 @@ public final class ChannelIntensityController implements HistogramView.Listener 
       histoPanel_.add(intensityStatsPanel_, new CC().gapAfter("push"));
       histoPanel_.add(intensityLinkButton_, new CC());
 
+      channelNameLabel_.setHorizontalTextPosition(JLabel.CENTER);
       Font labelFont = channelNameLabel_.getFont().
             deriveFont(11.0f).deriveFont(Font.BOLD);
       channelNameLabel_.setFont(labelFont);
@@ -379,13 +382,7 @@ public final class ChannelIntensityController implements HistogramView.Listener 
       histogram_.setOverlayText(null);
 
       if (stats_.getNumberOfComponents() > 1) {
-         // TODO Skip on repeat
-         componentSelector_.setVisible(true);
-         histogram_.setComponentColor(0, Color.RED, new Color(0xff7777));
-         histogram_.setComponentColor(1, Color.GREEN, new Color(0x77ff77));
-         histogram_.setComponentColor(2, Color.BLUE, new Color(0x7777ff));
-         histogram_.setSelectedComponent(
-               componentSelector_.getSelectedComponent());
+         switchToRGBMode();
          for (int c = 0; c < 3; ++c) {
             updateHistogram(c);
          }
@@ -395,6 +392,23 @@ public final class ChannelIntensityController implements HistogramView.Listener 
          histogram_.setSelectedComponent(0);
          updateHistogram(0);
       }
+   }
+
+   @MustCallOnEDT
+   private void switchToRGBMode() {
+      if (rgbMode_) {
+         return;
+      }
+      componentSelector_.setVisible(true);
+      channelVisibleButton_.setVisible(false);
+      channelColorSwatch_.setVisible(false);
+      intensityStatsPanel_.setVisible(false);
+      histogram_.setComponentColor(0, Color.RED, new Color(0xff7777));
+      histogram_.setComponentColor(1, Color.GREEN, new Color(0x77ff77));
+      histogram_.setComponentColor(2, Color.BLUE, new Color(0x7777ff));
+      histogram_.setSelectedComponent(
+            componentSelector_.getSelectedComponent());
+      rgbMode_ = true;
    }
 
    @MustCallOnEDT
