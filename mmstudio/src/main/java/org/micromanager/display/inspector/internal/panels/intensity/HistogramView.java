@@ -652,7 +652,6 @@ public final class HistogramView extends JPanel {
             1.0f, BasicStroke.CAP_BUTT,
             BasicStroke.JOIN_MITER, 10.0f,
             new float[] { 5.0f, 5.0f }, offset));
-      g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_IN, 0.5f));
       g.draw(new Line2D.Float(loXPos, rect.y, loXPos, rect.y + rect.height));
       g.draw(new Line2D.Float(hiXPos, rect.y, hiXPos, rect.y + rect.height));
    }
