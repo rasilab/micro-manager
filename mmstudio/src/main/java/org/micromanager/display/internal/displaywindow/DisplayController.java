@@ -909,6 +909,10 @@ public final class DisplayController extends DisplayWindowAPIAdapter
 
    @Override
    public boolean isClosed() {
+       // NS 2018-02-05: This code can cause a StackOverflow.  
+       // Now idea why, but I also do not understand
+       // why this null test absolutely needs to be on the EDT
+       /*
       if (!SwingUtilities.isEventDispatchThread()) {
          RunnableFuture<Boolean> edtFuture = new FutureTask(
                new Callable<Boolean>() {
@@ -929,7 +933,7 @@ public final class DisplayController extends DisplayWindowAPIAdapter
             throw new RuntimeException(unexpected);
          }
       }
-
+*/
       return (uiController_ == null);
    }
 
