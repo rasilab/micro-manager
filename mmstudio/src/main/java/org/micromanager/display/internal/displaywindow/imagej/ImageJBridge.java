@@ -281,7 +281,7 @@ public final class ImageJBridge {
       int oldNChannels =
             ((IMMImagePlus) imagePlus_).getNChannelsWithoutSideEffect();
 
-      if (nChannels > 1 && nChannels != oldNChannels) {
+      if (nChannels > 1 && nChannels != oldNChannels && !isIJRGB()) {
          if (!(imagePlus_ instanceof CompositeImage)) {
             switchToCompositeImage();
          }
