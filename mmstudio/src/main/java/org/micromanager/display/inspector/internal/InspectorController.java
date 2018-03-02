@@ -42,7 +42,6 @@ import net.miginfocom.layout.LC;
 import net.miginfocom.swing.MigLayout;
 import org.micromanager.EventPublisher;
 import org.micromanager.display.DataViewer;
-import org.micromanager.display.DisplayWindow;
 import org.micromanager.display.internal.DataViewerCollection;
 import org.micromanager.display.internal.event.DataViewerDidBecomeActiveEvent;
 import org.micromanager.display.internal.event.DataViewerDidBecomeInactiveEvent;
@@ -268,9 +267,10 @@ public final class InspectorController
    }
 
    private void showPanelsForDataViewer(DataViewer viewer) {
-      // TODO We need to store and reuse panels, because their height should
-      // not change when we reattach to another image.
-      // TODO Also each panel needs to detach from previous viewer
+      // TODO The panel collapsed/expanded state and height should be
+      // persisted.
+      // TODO Although not critical for performance, it will look nicer if
+      // we detach each panel from the old viewer and recycle them.
 
       sections_.clear();
 
@@ -286,17 +286,15 @@ public final class InspectorController
             }
          });
 
-         boolean isFirst = true;
          for (InspectorPanelPlugin plugin : plugins) {
             if (plugin.isApplicableToDataViewer(viewer)) {
                InspectorPanelController panelController =
                      plugin.createPanelController();
                InspectorSectionController section =
-                     InspectorSectionController.create(this, panelController, isFirst);
+                     InspectorSectionController.create(this, plugin, panelController);
                panelController.addInspectorPanelListener(section);
                panelController.attachDataViewer(viewer);
                sections_.add(section);
-               isFirst = false;
             }
          }
       }

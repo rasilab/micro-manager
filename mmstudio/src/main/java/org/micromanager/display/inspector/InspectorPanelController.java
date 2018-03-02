@@ -10,7 +10,8 @@ import javax.swing.JPopupMenu;
 import org.micromanager.display.DataViewer;
 
 /**
- *
+ * Interface to be implemented by instantiated inspector panels.
+ * @see AbstractInspectorPanelController
  * @author Mark A. Tsuchida
  */
 public interface InspectorPanelController {

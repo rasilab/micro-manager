@@ -30,6 +30,7 @@ import net.miginfocom.swing.MigLayout;
 import org.micromanager.internal.utils.PopupButton;
 import org.micromanager.display.inspector.InspectorPanelListener;
 import org.micromanager.display.inspector.InspectorPanelController;
+import org.micromanager.display.inspector.InspectorPanelPlugin;
 
 /**
  * Controller for a section in the inspector window.
@@ -38,6 +39,7 @@ import org.micromanager.display.inspector.InspectorPanelController;
  */
 final class InspectorSectionController implements InspectorPanelListener {
    private final InspectorController inspectorController_;
+   private final InspectorPanelPlugin panelPlugin_;
    private final InspectorPanelController panelController_;
    private final JPanel panel_;
    private final JPanel contentPanel_;
@@ -47,17 +49,24 @@ final class InspectorSectionController implements InspectorPanelListener {
 
    public static InspectorSectionController create(
          InspectorController inspectorController,
-         InspectorPanelController panelController, boolean initiallyVisible)
+         InspectorPanelPlugin panelPlugin,
+         InspectorPanelController panelController)
    {
       return new InspectorSectionController(
-            inspectorController, panelController, initiallyVisible);
+            inspectorController, panelPlugin, panelController);
    }
 
    private InspectorSectionController(InspectorController inspectorController,
-         InspectorPanelController panelController, boolean initiallyExpanded)
+         InspectorPanelPlugin panelPlugin,
+         InspectorPanelController panelController)
    {
       inspectorController_ = inspectorController;
+      panelPlugin_ = panelPlugin;
       panelController_ = panelController;
+
+      // TODO Expanded/collapsed should be persisted in profile (overriding
+      // the default porvided by the plugin)
+      boolean initiallyExpanded = panelPlugin_.isPanelExpandedByDefault();
 
       contentPanel_ = panelController_.getPanel();
 

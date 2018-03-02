@@ -23,6 +23,11 @@ public class IntensityInspectorPanelPlugin implements InspectorPanelPlugin {
    }
 
    @Override
+   public boolean isPanelExpandedByDefault() {
+      return true;
+   }
+
+   @Override
    public InspectorPanelController createPanelController() {
       return IntensityInspectorPanelController.create();
    }

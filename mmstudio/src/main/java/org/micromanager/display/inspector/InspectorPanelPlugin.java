@@ -41,5 +41,18 @@ public interface InspectorPanelPlugin extends MMGenericPlugin {
     */
    boolean isApplicableToDataViewer(DataViewer viewer);
 
+   /**
+    * Return whether the inspector panel implemented by this plugin should be
+    * presented in the expanded state by default.
+    *
+    * This method must return a fixed value. Remembering user preference is
+    * handled by the system.
+    *
+    * @return true if the panel should be expanded by default
+    */
+   default boolean isPanelExpandedByDefault() {
+      return false;
+   }
+
    InspectorPanelController createPanelController();
 }
