@@ -926,6 +926,14 @@ public final class DisplayController extends DisplayWindowAPIAdapter
 
       return (uiController_ == null);
    }
+   
+   public String getChannelName(int channelIndex) {
+      if (dataProvider_ != null) {
+         return dataProvider_.getSummaryMetadata().getChannelNameList().
+                 get(channelIndex);
+      }
+      return null;
+   }
 
    private String getDefaultTitle() {
       if (dataProvider_ != null) {

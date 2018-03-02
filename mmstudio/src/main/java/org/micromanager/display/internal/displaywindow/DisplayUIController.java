@@ -77,6 +77,7 @@ import net.miginfocom.layout.LC;
 import net.miginfocom.swing.MigLayout;
 import org.micromanager.data.Coords;
 import org.micromanager.data.Image;
+import org.micromanager.data.Metadata;
 import org.micromanager.data.internal.DefaultCoords;
 import org.micromanager.display.ChannelDisplaySettings;
 import org.micromanager.display.ComponentDisplaySettings;
@@ -115,9 +116,6 @@ import org.micromanager.internal.utils.ReportingUtils;
  * This is the object that holds the state describing which images are
  * currently displayed (as opposed to {@code DisplayController}'s notion of
  * the current display position, which may update faster than the actual UI.
- * 
- * TODO: indication of the currently displayed time (in seconds), channel (name),
- * and z (in microns)
  *
  * @author Mark A. Tsuchida
  */
@@ -148,6 +146,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
    private JButton zoomInButton_;
    private JButton zoomOutButton_;
    private JLabel pixelInfoLabel_;
+   private JLabel imageInfoLabel_;
    private JLabel newImageIndicator_;
    private JLabel fpsLabel_;
    private JLabel infoLabel_;
@@ -471,8 +470,12 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
       pixelInfoLabel_ = new JLabel(" ");
       pixelInfoLabel_.setFont(pixelInfoLabel_.getFont().deriveFont(10.0f));
+      pixelInfoLabel_.setMinimumSize(new Dimension(0, 10));
       panel.add(pixelInfoLabel_, new CC().split(5));
-      panel.add(new JPanel(), new CC().growX());
+      imageInfoLabel_ = new JLabel("Image Info here");
+      imageInfoLabel_.setFont(pixelInfoLabel_.getFont().deriveFont(10.0f));
+      JPanel tempPanel = new JPanel();
+      panel.add(imageInfoLabel_, new CC().growX());
       newImageIndicator_ = new JLabel("NEW IMAGE");
       newImageIndicator_.setFont(newImageIndicator_.getFont().
             deriveFont(10.0f).deriveFont(Font.BOLD));
@@ -556,7 +559,12 @@ public final class DisplayUIController implements Closeable, WindowListener,
       // TODO Avoid static studio
       panel.add(new SaveButton(MMStudio.getInstance(), displayController_));
       panel.add(new GearButton(displayController_, MMStudio.getInstance()));
-
+      
+      // automatic calculation of minimum size of bottom panel
+      // can be misleading because no minimum size for the scrollbars is included.
+      // So, help out a bit by setting a reasonable minimum
+      panel.setMinimumSize(new Dimension(345, 10));
+      
       return panel;
    }
 
@@ -824,9 +832,56 @@ public final class DisplayUIController implements Closeable, WindowListener,
          infoLabelFilled_ = true;
       }
 
+      imageInfoLabel_.setText(getImageInfoLabel(images));
+
       repaintScheduledForNewImages_.set(true);
    }
 
+   private String getImageInfoLabel(ImagesAndStats images) {
+      StringBuilder sb = new StringBuilder();
+      // feeble and ugly way of getting the correct channel
+      Coords nominalCoords = images.getRequest().getNominalCoords();
+      Metadata metadata = null;
+      for (Image image : images.getRequest().getImages()) {
+         if (image.getCoords().getC() == nominalCoords.getC()) {
+            metadata = image.getMetadata();
+         }   
+      }
+      if (metadata == null) {
+         return "";
+      }
+      for (int i = 0; i < displayedAxes_.size(); ++i) {
+         if (displayedAxisLengths_.get(i) > 1) {
+            switch (displayedAxes_.get(i)) {
+               case Coords.P:
+                  String positionName = metadata.getPositionName();
+                  if (positionName.length() > 0) {
+                     sb.append(positionName).append(" ");
+                  }  break;
+               case Coords.T:
+                  double elapsedTimeMs = metadata.getElapsedTimeMs();
+                  if (elapsedTimeMs > 10000) {
+                     sb.append(elapsedTimeMs / 1000).append("s ");
+                  } else {
+                     sb.append(elapsedTimeMs).append("ms ");
+                  }  break;
+               case Coords.Z:
+                  double zPositionUm = metadata.getZPositionUm();
+                  sb.append(zPositionUm).append("um ");
+                  break;
+               case Coords.C:
+                  int channelIndex = nominalCoords.getC();
+                  sb.append(displayController_.getChannelName(channelIndex));
+                  break;
+               default:
+                  break;
+            }
+         }
+      }
+      
+      return sb.toString();
+   }
+   
    @MustCallOnEDT
    public void applyDisplaySettings(DisplaySettings settings) {
       if (ijBridge_ == null) {
@@ -1739,8 +1794,13 @@ public final class DisplayUIController implements Closeable, WindowListener,
       else {
          int lastChannel = 0;
          for (Coords c : coords) {
-            while (c.getChannel() > lastChannel++) {
-               chStrings.add("_");
+            if (c.getChannel() > lastChannel) {
+            while (c.getChannel() > lastChannel) {
+               chStrings.add("-");
+               lastChannel++;
+            }
+            } else {
+               lastChannel++;
             }
             chStrings.add(e.getComponentValuesStringForCoords(c));
          }
@@ -1756,5 +1816,9 @@ public final class DisplayUIController implements Closeable, WindowListener,
 
       pixelInfoLabel_.setText(String.format("%s = %s",
             e.getXYString(), valuesString));
+      if (pixelInfoLabel_.getSize().width > pixelInfoLabel_.getMinimumSize().width) {
+         pixelInfoLabel_.setMinimumSize(new Dimension(
+                 pixelInfoLabel_.getSize().width, 10));
+      }
    }
 }
