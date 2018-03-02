@@ -1,12 +1,32 @@
-/**
- * 
- */
+///////////////////////////////////////////////////////////////////////////////
+//PROJECT:       Micro-Manager
+//SUBSYSTEM:     mmstudio
+//-----------------------------------------------------------------------------
+//
+// AUTHOR:       Nico Stuurman, 2018
+//
+// COPYRIGHT:    Regents of the University of California, 2018
+//
+// LICENSE:      This file is distributed under the BSD license.
+//               License text is included with the source distribution.
+//
+//               This file is distributed in the hope that it will be useful,
+//               but WITHOUT ANY WARRANTY; without even the implied warranty
+//               of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+//
+//               IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+//               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+//               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
+
 package org.micromanager.internal.navigation;
 
 import com.google.common.eventbus.Subscribe;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Point2D;
+import java.util.concurrent.ExecutorService;
 import javax.swing.JOptionPane;
 import mmcorej.CMMCore;
 import mmcorej.MMCoreJ;
@@ -14,25 +34,70 @@ import org.micromanager.display.internal.displaywindow.DisplayUIController;
 import org.micromanager.display.internal.event.DisplayMouseEvent;
 import org.micromanager.events.XYStagePositionChangedEvent;
 import org.micromanager.events.internal.DefaultEventManager;
+import org.micromanager.internal.utils.AffineUtils;
 import org.micromanager.internal.utils.ReportingUtils;
 
 /**
- * @author OD
+ * @author OD, nico
  *
  */
 public final class CenterAndDragListener {
 
    private final CMMCore core_;
+   private final ExecutorService executorService_;
+   private final StageMover stageMover_;
    private boolean mirrorX_;
    private boolean mirrorY_;
    private boolean transposeXY_;
    private boolean correction_;
+   private AffineTransform affineTransform_;
+   
    private int lastX_, lastY_;
 
-   public CenterAndDragListener(CMMCore core) {
+   public CenterAndDragListener(final CMMCore core, 
+         final ExecutorService executorService) {
       core_ = core;
+      executorService_ = executorService;
+      stageMover_ = new StageMover();
       getOrientation();
    }
+   
+   private class StageMover implements Runnable {
+
+      private String xyStage_;
+      private double xRel_;                                   
+      private double yRel_;
+
+      /**
+       * Always call this function first before executing the Runnable
+       * Otherwise, the previous movement will be repeated...
+       * @param xyStage - Stage to move
+       * @param xRel - relative movement in X in microns
+       * @param yRel - relative movement in Y in microns
+       */
+      public void setPosition(String xyStage, double xRel, double yRel) {
+         xyStage_ = xyStage;
+         xRel_ = xRel;
+         yRel_ = yRel;
+      }
+
+      @Override
+      public void run() {
+
+         // Move the stage
+         try {
+            core_.setRelativeXYPosition(xyStage_, xRel_, yRel_);
+            double[] xs = new double[1];
+            double[] ys = new double[1];
+            core_.getXYPosition(xyStage_, xs, ys);
+            DefaultEventManager.getInstance().post(
+                    new XYStagePositionChangedEvent(xyStage_, xs[0], ys[0]));
+         } catch (Exception ex) {
+            ReportingUtils.showError(ex);
+         }
+      }
+   }
+
 
    /*
     * Ensures that the stage moves in the expected direction
@@ -43,21 +108,37 @@ public final class CenterAndDragListener {
          JOptionPane.showMessageDialog(null, "This function does not work without a camera");
          return;
       }
-      // we could possibly cache the current camera and only execute the code
-      // below if the camera changed.  However, that will make it difficult 
-      // to experiment with these settings, and it probably is not very expensive
-      // to check every time
+      // If there is an affine transform, use that, otherwise fallbakc to 
+      // the old mechanism
       try {
-         String tmp = core_.getProperty(camera, "TransposeCorrection");
-         correction_ = !(tmp.equals("0"));
-         tmp = core_.getProperty(camera, MMCoreJ.getG_Keyword_Transpose_MirrorX());
-         mirrorX_ = !(tmp.equals("0"));
-         tmp = core_.getProperty(camera, MMCoreJ.getG_Keyword_Transpose_MirrorY());
-         mirrorY_ = !(tmp.equals("0"));
-         tmp = core_.getProperty(camera, MMCoreJ.getG_Keyword_Transpose_SwapXY());
-         transposeXY_ = !(tmp.equals("0"));
+         affineTransform_ = AffineUtils.doubleToAffine(core_.getPixelSizeAffine(true));
+         double pixelSize = core_.getPixelSizeUm();
+         if (Math.abs(pixelSize - 
+                 AffineUtils.deducePixelSize(affineTransform_)) > 0.1 * pixelSize) {
+            // affine transform does not correspond to pixelSize, so do not 
+            // trust it and fallback to old mechanism
+            affineTransform_ = null;
+         }
       } catch (Exception exc) {
          ReportingUtils.showError(exc);
+      }
+      if (affineTransform_ == null) {
+         // we could possibly cache the current camera and only execute the code
+         // below if the camera changed.  However, that will make it difficult 
+         // to experiment with these settings, and it probably is not very expensive
+         // to check every time
+         try {
+            String tmp = core_.getProperty(camera, "TransposeCorrection");
+            correction_ = !(tmp.equals("0"));
+            tmp = core_.getProperty(camera, MMCoreJ.getG_Keyword_Transpose_MirrorX());
+            mirrorX_ = !(tmp.equals("0"));
+            tmp = core_.getProperty(camera, MMCoreJ.getG_Keyword_Transpose_MirrorY());
+            mirrorY_ = !(tmp.equals("0"));
+            tmp = core_.getProperty(camera, MMCoreJ.getG_Keyword_Transpose_SwapXY());
+            transposeXY_ = !(tmp.equals("0"));
+         } catch (Exception exc) {
+            ReportingUtils.showError(exc);
+         }
       }
    }
 
@@ -86,7 +167,7 @@ public final class CenterAndDragListener {
                if (xyStage == null) {
                   return;
                }
-               double pixSizeUm = core_.getPixelSizeUm();
+               double pixSizeUm = core_.getPixelSizeUm(true);
                if (!(pixSizeUm > 0.0)) {
                   JOptionPane.showMessageDialog(null, 
                           "Please provide pixel size calibration data before using this function");
@@ -101,28 +182,13 @@ public final class CenterAndDragListener {
                        location.x + location.width / 2,
                        location.y + location.height / 2);
 
-               // calculate needed relative movement
-               double tmpXUm = ((0.5 * width) - center.x) * pixSizeUm;
-               double tmpYUm = ((0.5 * height) - center.y) * pixSizeUm;
+               // calculate needed relative movement in pixels
+               double tmpXUm = (0.5 * width) - center.x;
+               double tmpYUm = (0.5 * height) - center.y;
 
-               double mXUm = tmpXUm;
-               double mYUm = tmpYUm;
-               // if camera does not correct image orientation, we'll correct for it here:
-               if (!correction_) {
-                  // Order: swapxy, then mirror axis
-                  if (transposeXY_) {
-                     mXUm = tmpYUm;
-                     mYUm = tmpXUm;
-                  }
-                  if (mirrorX_) {
-                     mXUm = -mXUm;
-                  }
-                  if (mirrorY_) {
-                     mYUm = -mYUm;
-                  }
-               }
+               Point2D stagePos = toStageSpace(pixSizeUm, tmpXUm, tmpYUm);
 
-               moveStage(xyStage, mXUm, mYUm);
+               moveStage(xyStage, stagePos.getX(), stagePos.getY());
 
             }
             break;
@@ -168,52 +234,59 @@ public final class CenterAndDragListener {
             double tmpXUm = center2.x - lastX_;
             double tmpYUm = center2.y - lastY_;
 
-            tmpXUm *= pixSizeUm;
-            tmpYUm *= pixSizeUm;
-            double mXUm = tmpXUm;
-            double mYUm = tmpYUm;
-            // if camera does not correct image orientation, we'll correct for it here:
-            if (!correction_) {
-               // Order: swapxy, then mirror axis
-               if (transposeXY_) {
-                  mXUm = tmpYUm;
-                  mYUm = tmpXUm;
-               }
-               if (mirrorX_) {
-                  mXUm = -mXUm;
-               }
-               if (mirrorY_) {
-                  mYUm = -mYUm;
-               }
-            }
+            Point2D stagePos = toStageSpace(pixSizeUm, tmpXUm, tmpYUm);
 
             lastX_ = center2.x;
             lastY_ = center2.y;
 
-            moveStage(xyStage, mXUm, mYUm);
+            moveStage(xyStage, stagePos.getX(), stagePos.getY());
             break;
       }
    }
-    
 
    private void moveStage(String xyStage, double xRel, double yRel) {
-      // Move the stage
-      try {
-         // TODO: make sure to not run on EDT?
-         core_.setRelativeXYPosition(xyStage, xRel, yRel);
-         double[] xs = new double[1];
-         double[] ys = new double[1];
-         core_.getXYPosition(xyStage, xs, ys);
-         // studio_.updateXYStagePosition();
-         DefaultEventManager.getInstance().post(
-                 new XYStagePositionChangedEvent(xyStage, xs[0], ys[0]));
-         // alternative, less correct but possibly faster:
-         //      if (studio_ instanceof MMStudio) {
-         //  ((MMStudio) studio_).updateXYPosRelative(mXUm, mYUm);
-         // }
-      } catch (Exception ex) {
-         ReportingUtils.showError(ex);
-      }
+      stageMover_.setPosition(xyStage, xRel, yRel);
+      executorService_.submit(stageMover_);
    }
+
+   /**
+    * Converts Camera-Pixel Space to Stage-micron space
+    * Use the affine transform when available, otherwise uses pixelSize
+    * and orientation booleans, determined using the getOrientation function.
+    * 
+    * @param pixSizeUm - pixelSize in micron
+    * @param x - Desired x movement in pixels
+    * @param y - Desired y movement in pixels
+    * @return - Needed stage movement as a Point2D.Double
+    */
+   private Point2D toStageSpace(double pixSizeUm, double x, double y) {
+      Point2D dest = new Point2D.Double();
+      if (affineTransform_ != null) {
+         Point2D source = new Point2D.Double(x, y);
+         affineTransform_.transform(source, dest);
+         // not sure why, but for the stage movement to be correct, we need 
+         // to invert both axes"
+         dest.setLocation(-dest.getX(), -dest.getY());
+      } else {
+         // if camera does not toStageSpace image orientation, we'll toStageSpace for it here:
+         dest.setLocation(x * pixSizeUm, y * pixSizeUm);
+         if (!correction_) {
+            // Order: swapxy, then mirror axis
+            if (transposeXY_) {
+               dest.setLocation(y * pixSizeUm, x * pixSizeUm);
+            }
+            if (mirrorX_) {
+               dest.setLocation(-dest.getX(), dest.getY());
+            }
+            if (mirrorY_) {
+               dest.setLocation(dest.getX(), -dest.getY());
+            }
+         }
+      }
+      
+      return dest;
+   }
+
+
 
 }

@@ -54,6 +54,7 @@ public final class CalibrationListDlg extends MMDialog {
    private CMMCore core_;
    private CalibrationList calibrationList_;
    private Studio parentGUI_;
+   private ConfigDialog configDialog_;
    private boolean disposed_ = false;
 
    private class CalTableModel extends AbstractTableModel {
@@ -305,6 +306,11 @@ public final class CalibrationListDlg extends MMDialog {
    }
 
    public void addNewCalibration() {
+      if (configDialog_ != null) {
+         configDialog_.setVisible(true);
+         configDialog_.toFront();
+         return;
+      }
       String name = "Res" + calibrationList_.size();
       if (editPreset(name, "0.00", true)) {
          // Clear calibrationlist and re-read from core
@@ -317,6 +323,11 @@ public final class CalibrationListDlg extends MMDialog {
    }
 
    public void editCalibration() {
+      if (configDialog_ != null) {
+         configDialog_.setVisible(true);
+         configDialog_.toFront();
+         return;
+      }
       CalTableModel ptm = (CalTableModel)calTable_.getModel();
       int idx = calTable_.getSelectedRow();
       if (idx < 0) {
@@ -359,6 +370,9 @@ public final class CalibrationListDlg extends MMDialog {
       if (!disposed_) {
          if (parentGUI_ != null && !disposed_) {
             parentGUI_.events().unregisterForEvents(this);
+         }
+         if (configDialog_ != null) {
+            configDialog_.dispose();
          }
          super.dispose();
          disposed_ = true;
@@ -420,29 +434,32 @@ public final class CalibrationListDlg extends MMDialog {
             JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
       if (result == JOptionPane.OK_OPTION) {
          if (calibrationList_.size() == 0) {
-            PixelConfigEditor pce = new PixelConfigEditor(calibrationName, 
-                    parentGUI_, pixelSize, true); 
-            pce.setVisible(true);
+            configDialog_ = new PixelConfigEditor(calibrationName, 
+                    this, pixelSize, true);
          } else {
-            PixelPresetEditor ppe = new PixelPresetEditor(calibrationName, 
-                    parentGUI_, pixelSize, newConfig);
-            ppe.setVisible(true);
-            /*
-            if (dlg.isChanged()) {
-               ((MMStudio) parentGUI_).setConfigChanged(true);
-            }
-            return dlg.isChanged();
-            */
+            configDialog_ = new PixelPresetEditor(calibrationName, 
+                    this, pixelSize, newConfig);
          }
+         configDialog_.setVisible(true);
       }
       return false;
    }
+   
+   public void endedEditingPreset(ConfigDialog dialog) {
+      if (dialog.equals(configDialog_)) {
+         configDialog_ = null;
+      }
+   }
+   
+   public Studio getStudio() {
+      return parentGUI_;
+   }
 
    private void handleException (Exception e) {
-      ReportingUtils.showError(e);
+      ReportingUtils.showError(e, this);
    }
 
    private void handleError (String errText) {
-      ReportingUtils.showError(errText);
+      ReportingUtils.showError(errText, this);
    }
 }

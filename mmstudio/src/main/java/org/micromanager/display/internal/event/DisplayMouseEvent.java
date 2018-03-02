@@ -14,9 +14,11 @@
 
 package org.micromanager.display.internal.event;
 
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
 import org.micromanager.display.internal.displaywindow.DisplayUIController;
+import java.awt.geom.Point2D;
 
 /**
  * Provides a MouseEvent and the location (in image pixel coordinates) where
@@ -53,6 +55,17 @@ public class DisplayMouseEvent {
     */
    public Rectangle getLocation() {
       return location_;
+   }
+   
+   /**
+    * Provides center location in image coordinates
+    * Calculates the center of the Rectangle returned in getLocation
+    * @return Center location in image coordinates
+    */
+   public Point2D getCenterLocation() {
+      return new Point(
+              location_.x + location_.width / 2,
+              location_.y + location_.height / 2);
    }
    
    /**

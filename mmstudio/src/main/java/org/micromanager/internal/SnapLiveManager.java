@@ -816,7 +816,14 @@ public final class SnapLiveManager implements org.micromanager.SnapLiveManager, 
             for (Image image : images) {
                displayImage(image);
             }
-            display_.toFront();
+            // If we are not on the EDT, the display is constructed 
+            // asynchronously, so there is no guarantee that the display 
+            // object exists after calling displayImage. 
+            // This leads to inconsistent behavior, since the display is brought 
+            // to the front only if it was there already or made quickly enough
+            if (display_ != null) {
+               display_.toFront();
+            }
          }
          return images;
       }

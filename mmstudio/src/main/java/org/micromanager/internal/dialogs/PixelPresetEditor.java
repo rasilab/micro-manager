@@ -53,9 +53,12 @@ public class PixelPresetEditor extends ConfigDialog implements PixelSizeProvider
    protected String pixelSize_;
    private DoubleVector affineTransform_;
    private final AffineEditorPanel affineEditorPanel_;
+   private final CalibrationListDlg parent_;
 
-   public PixelPresetEditor(String pixelSizeConfigName, Studio gui, String pixelSize, boolean newItem) {
-      super("ConfigPixelSize", pixelSizeConfigName, gui, gui.getCMMCore(), newItem);
+   public PixelPresetEditor(String pixelSizeConfigName, 
+         CalibrationListDlg parent, String pixelSize, boolean newItem) {
+      super("ConfigPixelSize", pixelSizeConfigName, parent.getStudio(), 
+            parent.getStudio().getCMMCore(), newItem);
       // note: pixelSizeConfigName is called presetName_ in ConfigDialog
       instructionsText_ = "Specify pixel size configuration";
       nameFieldLabelText_ = "Pixel Config Name:";
@@ -67,6 +70,7 @@ public class PixelPresetEditor extends ConfigDialog implements PixelSizeProvider
       showFlagsPanelVisible_ = false;
       scrollPaneTop_ = 140;
       numColumns_ = 2;
+      Studio gui = parent.getStudio();
       try {
          if (gui.getCMMCore().isPixelSizeConfigDefined(pixelSizeConfigName)) {
             gui.getCMMCore().setPixelSizeConfig(pixelSizeConfigName);
@@ -79,12 +83,13 @@ public class PixelPresetEditor extends ConfigDialog implements PixelSizeProvider
       PropertyTableData.Builder ptdb = new PropertyTableData.Builder(core_);
       data_ = ptdb.groupName(groupName_).presetName(presetName_).propertyValueColumn(1).
               propertyUsedColumn(2).groupOnly(true).allowChangingProperties(true).
-              allowChangesOnlyWhenUser(true).isPixelSizeConfig(true).build();
+              allowChangesOnlyWhenUsed(true).isPixelSizeConfig(true).build();
       data_.setShowReadOnly(true);
       super.initializeData();
       data_.setColumnNames("Property Name", "Use in Group?", "Current Property Value");
       showShowReadonlyCheckBox_ = true;
-      affineEditorPanel_ = new AffineEditorPanel(gui, this, affineTransform_);
+      parent_ = parent;
+      affineEditorPanel_ = new AffineEditorPanel(parent_.getStudio(), this, affineTransform_);
 
       super.initialize();  // will cal out initializeWidgets, which overrides the base class
 
@@ -95,7 +100,17 @@ public class PixelPresetEditor extends ConfigDialog implements PixelSizeProvider
       writeGroup(nameField_.getText());
       this.dispose();      
    }
-
+   
+   @Override
+   public void dispose() {
+      if (parent_ != null) {
+         parent_.endedEditingPreset(this);
+      }
+      if (affineEditorPanel_ != null) {
+         affineEditorPanel_.cleanup();
+      }
+      super.dispose();
+   }
 
    public boolean writeGroup(String newName) {
 
@@ -143,7 +158,7 @@ public class PixelPresetEditor extends ConfigDialog implements PixelSizeProvider
          return false;
       }
 
-      ((MMStudio) gui_).setConfigChanged(true);
+      ((MMStudio) studio_).setConfigChanged(true);
       return true;
    }
      
@@ -215,7 +230,7 @@ public class PixelPresetEditor extends ConfigDialog implements PixelSizeProvider
       try {
          return NumberUtils.displayStringToDouble(pixelSizeField_.getText());
       } catch (ParseException ex) {
-         gui_.logs().showError("Pixel Size is not a valid Number");
+         studio_.logs().showError("Pixel Size is not a valid Number");
          pixelSizeField_.requestFocus();
       }
       return 0.0;

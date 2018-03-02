@@ -3,7 +3,7 @@
 //SUBSYSTEM:     mmstudio
 //-----------------------------------------------------------------------------
 //
-// AUTHOR:       Arthur Edelstin, 2010
+// AUTHOR:       Arthur Edelstein, 2010
 //               Nico Stuurman, 2018
 //
 // COPYRIGHT:    Regents of the University of California, 2010-2018
@@ -26,38 +26,44 @@ import com.google.common.eventbus.Subscribe;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.geom.AffineTransform;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JProgressBar;
 import javax.swing.SwingUtilities;
-import org.apache.commons.math.util.MathUtils;
+import net.miginfocom.swing.MigLayout;
 import org.micromanager.Studio;
 import org.micromanager.events.ShutdownCommencingEvent;
 import org.micromanager.internal.dialogs.PixelSizeProvider;
+import org.micromanager.internal.utils.AffineUtils;
 import org.micromanager.internal.utils.GUIUtils;
 import org.micromanager.internal.utils.MMFrame;
 import org.micromanager.internal.utils.ReportingUtils;
 
 /**
  *
- * @author arthur
+ * @author arthur, Nico
  */
 public class PixelCalibratorDialog extends MMFrame {
+
+   private static final long serialVersionUID = 8504268289532100411L;
+   
+   private static final String METHOD_AUTO = "Automatic";
+   private static final String METHOD_MANUAL_SIMPLE = "Manual-Simple";
+   private static final String METHOD_MANUAL_PRECISE = "Manual-Precise";
+   
    private final Studio studio_;
    private final PixelSizeProvider pixelSizeProvider_;
    private CalibrationThread calibrationThread_;
 
    private JProgressBar calibrationProgressBar_;
    private JLabel explanationLabel_;
-   private JLabel jLabel1_;
    private JComboBox safeTravelRadiusComboBox_;
+   private JComboBox methodComboBox_;
    private JButton startButton_;
    private JButton stopButton_;
-   
-   private double safeTravelRadiusUm_;
-
 
     /** 
      * The  PixelCalibratorDialog executes an automated calibration of 
@@ -67,13 +73,15 @@ public class PixelCalibratorDialog extends MMFrame {
      * @param studio - Current studio instance
      * @param psp - PixelSizeProvider that is requesting our services
      */
+   @SuppressWarnings("LeakingThisInConstructor")
    public PixelCalibratorDialog(Studio studio, PixelSizeProvider psp) {
-      this.safeTravelRadiusUm_ = 1000;
       studio_ = studio;
       pixelSizeProvider_ = psp;
       initComponents();
       super.loadPosition(200, 200);
       super.setVisible(true);
+      
+      studio_.events().registerForEvents(this);
    }
 
    private void initComponents() {
@@ -82,8 +90,8 @@ public class PixelCalibratorDialog extends MMFrame {
       calibrationProgressBar_ = new JProgressBar();
       startButton_ = new JButton();
       stopButton_ = new JButton();
-      jLabel1_ = new JLabel();
       safeTravelRadiusComboBox_ = new JComboBox();
+      methodComboBox_ = new JComboBox();
 
       setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
       setTitle("Pixel Calibrator");
@@ -97,13 +105,32 @@ public class PixelCalibratorDialog extends MMFrame {
          }
       });
 
-      explanationLabel_.setText("<html>This plugin automatically measures size " +
-              "of the default camera's pixels at the sample plane.<br><br>" +
+      explanationLabel_.setText("<html>This plugin measures the size " +
+              "of the current camera's pixels at the sample plane.<br><br>" +
               "To calibrate:<br><ol><li>Make sure you are using a correctly " +
               "calibrated motorized xy stage.</li><li>Choose a nonperiodic " +
-              "specimen (e.g., a cell) and adjust your illumination and focus " +
+              "specimen (e.g., a cell) and adjust <br>your illumination and focus " +
               "until you obtain crisp, high-contrast images. " +
               "<li>Press Start (below).</li></ol></html>");
+
+      JLabel methodLabel = new JLabel("Select method:");
+      methodComboBox_.setModel(new DefaultComboBoxModel(
+              new String[] {METHOD_AUTO, METHOD_MANUAL_SIMPLE} ) );
+      final String mKey = "methodComboxSelection";
+      final Class ourClass = this.getClass();
+      methodComboBox_.setSelectedItem(studio_.profile().getSettings(ourClass).
+              getString(mKey, METHOD_MANUAL_SIMPLE ) );
+      methodComboBox_.addActionListener(new ActionListener() {
+         @Override
+         public void actionPerformed(ActionEvent e) {
+            studio_.profile().getSettings(ourClass).putString(mKey, 
+                    (String) methodComboBox_.getSelectedItem());
+         }
+      });
+      
+      JLabel safeTravelLabel = new JLabel("Safe travel radius, um:");
+      safeTravelRadiusComboBox_.setModel(new DefaultComboBoxModel(
+              new String[] { "1000", "10000", "100000" }));
 
       calibrationProgressBar_.setForeground(new java.awt.Color(255, 0, 51));
 
@@ -124,58 +151,19 @@ public class PixelCalibratorDialog extends MMFrame {
          }
       });
 
-      jLabel1_.setText("Safe travel radius, um:");
 
-      safeTravelRadiusComboBox_.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "1000", "10000", "100000" }));
-      safeTravelRadiusComboBox_.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent evt) {
-            safeTravelRadiusUm_ = Double.parseDouble(
-                    safeTravelRadiusComboBox_.getSelectedItem().toString());
-    
-         }
-      });
+      getContentPane().setLayout(new MigLayout());
+      super.add(explanationLabel_, "span 2, wrap");
+      super.add(methodLabel);
+      super.add(methodComboBox_, "wrap");
+      super.add(safeTravelLabel);
+      super.add(safeTravelRadiusComboBox_, "wrap");
+      super.add(startButton_, "split 2");
+      super.add(stopButton_);
+      super.add(calibrationProgressBar_, "wrap");
+      
+      super.pack();
 
-      javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
-      getContentPane().setLayout(layout);
-      layout.setHorizontalGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-         .addGroup(layout.createSequentialGroup()
-            .addContainerGap()
-            .addComponent(explanationLabel_, javax.swing.GroupLayout.PREFERRED_SIZE, 363, javax.swing.GroupLayout.PREFERRED_SIZE)
-            .addContainerGap(31, Short.MAX_VALUE))
-         .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-            .addContainerGap(24, Short.MAX_VALUE)
-            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-               .addGroup(layout.createSequentialGroup()
-                  .addGap(70, 70, 70)
-                  .addComponent(stopButton_))
-               .addComponent(startButton_)
-               .addComponent(jLabel1_, javax.swing.GroupLayout.PREFERRED_SIZE, 159, javax.swing.GroupLayout.PREFERRED_SIZE))
-            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-               .addComponent(calibrationProgressBar_, javax.swing.GroupLayout.PREFERRED_SIZE, 190, javax.swing.GroupLayout.PREFERRED_SIZE)
-               .addComponent(safeTravelRadiusComboBox_, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-            .addGap(31, 31, 31))
-      );
-      layout.setVerticalGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-         .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-            .addContainerGap()
-            .addComponent(explanationLabel_, javax.swing.GroupLayout.DEFAULT_SIZE, 183, Short.MAX_VALUE)
-            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-               .addComponent(jLabel1_)
-               .addComponent(safeTravelRadiusComboBox_, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-            .addGap(18, 18, 18)
-            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-               .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                  .addComponent(stopButton_)
-                  .addComponent(startButton_))
-               .addComponent(calibrationProgressBar_, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE))
-            .addContainerGap())
-      );
-
-      setSize(new java.awt.Dimension(414, 328));
-      setLocationRelativeTo(null);
    }
 
 
@@ -205,6 +193,7 @@ public class PixelCalibratorDialog extends MMFrame {
 
    @Override
    public void dispose() {
+      stopCalibration();
       if (studio_ != null) {
          studio_.events().unregisterForEvents(this);
       }
@@ -221,16 +210,27 @@ public class PixelCalibratorDialog extends MMFrame {
 
    
    private void startCalibration() {
-      calibrationThread_ = new CalibrationThread(studio_, this);
-      if (!calibrationThread_.isAlive()) {
-         calibrationThread_.start();
+      if (METHOD_AUTO.equals(methodComboBox_.getSelectedItem())) {
+         calibrationThread_ = new AutomaticCalibrationThread(studio_, this);
+         
+      } else if (METHOD_MANUAL_SIMPLE.equals(methodComboBox_.getSelectedItem())) {
+         calibrationThread_ = new ManualSimpleCalibrationThread(studio_, this);
+      } else if (METHOD_MANUAL_PRECISE.equals(methodComboBox_.getSelectedItem())) {
+         calibrationThread_ = new ManualPreciseCalibrationThread(studio_, this);
+      }
+      if (calibrationThread_ != null && !calibrationThread_.isAlive()) {
+            calibrationThread_.start();
       }
       updateStatus(true, 0);
+      
    }
 
    
    private void stopCalibration() {
       if (calibrationThread_ != null && calibrationThread_.isAlive()) {
+         synchronized(CalibrationThread.class) {
+            CalibrationThread.class.notify();
+         }
          calibrationThread_.interrupt();
          try {
             calibrationThread_.join();
@@ -238,32 +238,17 @@ public class PixelCalibratorDialog extends MMFrame {
             ReportingUtils.logError(ex);
          }
       }
-   }
-   
-   
-   private double getPixelSize(AffineTransform cameraToStage) {
-      return Math.sqrt(Math.abs(cameraToStage.getDeterminant()));
+      updateStatus(false, 0);
    }
    
    private void promptToSaveResult() {
       AffineTransform result = calibrationThread_.getResult();
       if (result == null) {
-         int res = JOptionPane.showConfirmDialog(this, 
-                 "Calibration failed. Please improve the contrast by adjusting the\n" +
-                  "sample, focus and illumination. Also make sure the specimen is\n" +
-                  "securely immobilized on the stage. Try again?" ,
-                 "Calibration failed", 
-                 JOptionPane.YES_NO_OPTION );
-         if (res == JOptionPane.YES_OPTION) {
-            startCalibration();
-            return;
-         } else {
-            dispose();
-            return;
-         }
+         showFailureMessage();
+         return;
       }
 
-      double pixelSize = MathUtils.round(getPixelSize(result), 4);
+      double pixelSize = AffineUtils.deducePixelSize(result);
 
       int response = JOptionPane.showConfirmDialog(this,
             String.format("Affine transform parameters: XScale=%.2f YScale=%.2f XShear=%.4f YShear=%.4f\n", result.getScaleX(), result.getScaleY(), result.getShearX(), result.getShearY()) + 
@@ -286,7 +271,15 @@ public class PixelCalibratorDialog extends MMFrame {
             "securely immobilized on the stage. When you are ready, press\n" +
             "Start to try again.");
    }
+   
+ 
+   // The following functions are used by the spawend threads to communicate
+   // back to this dialog
+    
 
+   public Double getCalibratedPixelSize() {
+      return pixelSizeProvider_.getPixelSize();
+   }
    
    public void calibrationDone() {
       updateStatus(false, 1.);
@@ -301,7 +294,8 @@ public class PixelCalibratorDialog extends MMFrame {
    }
    
    public double safeTravelRadius() {
-      return safeTravelRadiusUm_;
+      return Double.parseDouble(
+                    safeTravelRadiusComboBox_.getSelectedItem().toString());
    }
    
    public void update() {
