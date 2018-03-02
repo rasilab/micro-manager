@@ -466,44 +466,38 @@ public class IntensityInspectorPanelController
    @Override
    @MustCallOnEDT
    public void attachDataViewer(DataViewer viewer) {
-      Preconditions.checkNotNull(viewer);
-      if (!(viewer instanceof ImageStatsPublisher)) {
-         throw new IllegalArgumentException("Programming error");
+      Preconditions.checkArgument(viewer == null || viewer instanceof ImageStatsPublisher);
+      if (viewer == viewer_) {
+         return;
       }
-      detachDataViewer();
+      if (viewer_ != null) {
+         viewer_.getDataProvider().unregisterForEvents(this);
+         viewer_.unregisterForEvents(this);
+      }
+      if (viewer == null) {
+         setUpChannelHistogramsPanel(0);
+         viewer_ = null;
+         return;
+      }
+
       viewer_ = viewer;
       viewer.registerForEvents(this);
       viewer.getDataProvider().registerForEvents(this);
-      SwingUtilities.invokeLater(new Runnable() {
-         @Override
-         public void run() {
-            if (viewer_ == null) {
-               return;
-            }
-            setUpChannelHistogramsPanel(
-                  viewer_.getDataProvider().getAxisLength(Coords.CHANNEL));
-            newDisplaySettings(viewer_.getDisplaySettings());
-            updateImageStats(((ImageStatsPublisher) viewer_).getCurrentImagesAndStats());
-            String updateRate = UserProfileStaticInterface.getInstance().
-                    getSettings(IntensityInspectorPanelController.class).
-                           getString(HISTOGRAM_UPDATE_FREQUENCY, "1 Hz");
-            if (histogramMenuMap_.get(updateRate) != null) {
-              handleHistogramUpdateRate(histogramMenuMap_.get(updateRate));
-            }
+      SwingUtilities.invokeLater(() -> {
+         if (viewer_ == null) {
+            return;
+         }
+         setUpChannelHistogramsPanel(
+               viewer_.getDataProvider().getAxisLength(Coords.CHANNEL));
+         newDisplaySettings(viewer_.getDisplaySettings());
+         updateImageStats(((ImageStatsPublisher) viewer_).getCurrentImagesAndStats());
+         String updateRate = UserProfileStaticInterface.getInstance().
+               getSettings(IntensityInspectorPanelController.class).
+               getString(HISTOGRAM_UPDATE_FREQUENCY, "1 Hz");
+         if (histogramMenuMap_.get(updateRate) != null) {
+            handleHistogramUpdateRate(histogramMenuMap_.get(updateRate));
          }
       });
-   }
-
-   @Override
-   @MustCallOnEDT
-   public void detachDataViewer() {
-      if (viewer_ == null) {
-         return;
-      }
-      viewer_.getDataProvider().unregisterForEvents(this);
-      viewer_.unregisterForEvents(this);
-      setUpChannelHistogramsPanel(0);
-      viewer_ = null;
    }
 
    @Override

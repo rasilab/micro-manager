@@ -160,23 +160,28 @@ public final class OverlaysInspectorPanelController
 
    @Override
    public void attachDataViewer(DataViewer viewer) {
-      Preconditions.checkState(viewer_ == null);
-      Preconditions.checkArgument(viewer instanceof DisplayWindow);
+      Preconditions.checkArgument(viewer == null || viewer instanceof DisplayWindow);
+
+      if (viewer == viewer_) {
+         return;
+      }
+      if (viewer_ != null) {
+         viewer_.unregisterForEvents(this);
+         configsPanel_.removeAll();
+         overlays_.clear();
+         configPanelControllers_.clear();
+      }
+      if (viewer == null) {
+         viewer_ = null;
+         return;
+      }
+
       viewer_ = (DisplayWindow) viewer;
       viewer_.registerForEvents(this);
 
       for (Overlay overlay : viewer_.getOverlays()) {
          addConfigPanel(overlay);
       }
-   }
-
-   @Override
-   public void detachDataViewer() {
-      viewer_.unregisterForEvents(this);
-      viewer_ = null;
-      configsPanel_.removeAll();
-      overlays_.clear();
-      configPanelControllers_.clear();
    }
 
    @Override

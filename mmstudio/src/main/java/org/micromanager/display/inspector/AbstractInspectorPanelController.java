@@ -89,16 +89,10 @@ public abstract class AbstractInspectorPanelController
    /**
     * Attach to a data viewer.
     *
-    * @param viewer a {@code DataViewer} (never null)
+    * @param viewer a {@code DataViewer}, or null to detach.
     */
    @Override
    public abstract void attachDataViewer(DataViewer viewer);
-
-   /**
-    * Detach from any currently attached data viewer.
-    */
-   @Override
-   public abstract void detachDataViewer();
 
    /**
     * Indicate whether the panel can be resized vertically by the user.

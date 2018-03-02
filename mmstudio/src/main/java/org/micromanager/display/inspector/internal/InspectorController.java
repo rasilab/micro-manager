@@ -24,8 +24,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.Closeable;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -35,6 +33,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
+import javax.swing.SwingUtilities;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import net.miginfocom.layout.CC;
@@ -70,6 +69,8 @@ public final class InspectorController
       implements EventPublisher, PopupMenuListener, Closeable
 {
    private final DataViewerCollection viewerCollection_;
+
+   private DataViewer attachedViewer_;
 
    private JFrame frame_;
    private JPanel headerPanel_;
@@ -191,7 +192,7 @@ public final class InspectorController
    @Override
    public void close() {
       frame_.setVisible(false);
-      detachFromDataViewer();
+      attachedViewer_ = null;
       frame_.dispose();
       frame_ = null;
       viewerCollection_.unregisterForEvents(this);
@@ -268,34 +269,45 @@ public final class InspectorController
 
    private void showPanelsForDataViewer(DataViewer viewer) {
       // TODO The panel collapsed/expanded state and height should be
-      // persisted.
-      // TODO Although not critical for performance, it will look nicer if
-      // we detach each panel from the old viewer and recycle them.
+      // persisted. (Could allow section controller to handle this)
 
+      for (InspectorSectionController section : sections_) {
+         InspectorPanelController panelController = section.getPanelController();
+         panelController.removeInspectorPanelListener(section);
+      }
+      List<InspectorSectionController> oldSections = new ArrayList<>(sections_);
       sections_.clear();
 
       if (viewer != null && !viewer.isClosed()) {
-         List<InspectorPanelPlugin> plugins = new ArrayList<InspectorPanelPlugin>(
+         List<InspectorPanelPlugin> plugins = new ArrayList<>(
                MMStudio.getInstance().plugins().getInspectorPlugins().values());
-         Collections.sort(plugins, new Comparator<InspectorPanelPlugin>() {
-            @Override
-            public int compare(InspectorPanelPlugin o1, InspectorPanelPlugin o2) {
-               Plugin p1 = o1.getClass().getAnnotation(Plugin.class);
-               Plugin p2 = o2.getClass().getAnnotation(Plugin.class);
-               return -Double.compare(p1.priority(), p2.priority());
-            }
-         });
+
+         // For now (since we don't allow the user to reorder sections), we
+         // always order the panels by their plugin priority.
+         plugins.sort((p1, p2) -> -Double.compare(
+               p1.getClass().getAnnotation(Plugin.class).priority(),
+               p2.getClass().getAnnotation(Plugin.class).priority()));
 
          for (InspectorPanelPlugin plugin : plugins) {
-            if (plugin.isApplicableToDataViewer(viewer)) {
-               InspectorPanelController panelController =
-                     plugin.createPanelController();
-               InspectorSectionController section =
-                     InspectorSectionController.create(this, plugin, panelController);
-               panelController.addInspectorPanelListener(section);
-               panelController.attachDataViewer(viewer);
-               sections_.add(section);
+            if (!plugin.isApplicableToDataViewer(viewer)) {
+               oldSections.stream().
+                     filter(s -> s.getPanelPlugin() == plugin).
+                     findFirst().
+                     ifPresent(s -> s.getPanelController().attachDataViewer(null));
+               continue;
             }
+
+            InspectorSectionController section = oldSections.stream().
+                  filter(s -> s.getPanelPlugin() == plugin).
+                  findFirst().
+                  orElse(InspectorSectionController.create(this, plugin));
+
+            InspectorPanelController panelController = section.
+                  getPanelController();
+            panelController.addInspectorPanelListener(section);
+            panelController.attachDataViewer(viewer);
+
+            sections_.add(section);
          }
       }
 
@@ -431,18 +443,19 @@ public final class InspectorController
    }
 
    private void attachToDataViewer(DataViewer viewer) {
-      // TODO Record viewer and do nothing if same as current
-      if (viewer == null || viewer.isClosed()) {
-         detachFromDataViewer(); // Just in case
-         return;
-      }
-      frame_.setTitle(String.format("Inspect \"%s\"", viewer.getName()));
-      showPanelsForDataViewer(viewer);
-   }
-
-   private void detachFromDataViewer() {
-      frame_.setTitle(String.format("Inspector: No Image"));
-      showPanelsForDataViewer(null);
+      attachedViewer_ = viewer;
+      // To prevent visibly flasing through different states, perform the
+      // actual view update later
+      SwingUtilities.invokeLater(() -> {
+         if (viewer != attachedViewer_) {
+            // We have attched to a different viewer (or detached entirely)
+            // since invocation of this method was scheduled.
+            return;
+         }
+         frame_.setTitle(viewer == null ? "Inspector: No Image" :
+               String.format("Inspect \"%s\"", viewer.getName()));
+         showPanelsForDataViewer(viewer);
+      });
    }
 
    @Override
@@ -470,7 +483,7 @@ public final class InspectorController
    private class NullAttachmentStrategy implements AttachmentStrategy {
       @Override
       public void attachmentStrategySelected() {
-         detachFromDataViewer();
+         attachToDataViewer(null);
       }
 
       @Override
@@ -503,14 +516,10 @@ public final class InspectorController
 
       @Override
       public void attachmentStrategySelected() {
-         if (viewer_ != null) {
-            attachToDataViewer(viewer_);
-         }
-         else {
-            detachFromDataViewer();
-         }
+         attachToDataViewer(viewer_);
+
          // TODO Coordinate with explicit show/hide of the inspector
-         InspectorController.this.setVisible(viewer_.isVisible());
+         InspectorController.this.setVisible(viewer_ != null && viewer_.isVisible());
       }
 
       @Override
@@ -553,12 +562,7 @@ public final class InspectorController
       @Override
       public void attachmentStrategySelected() {
          viewer_ = viewerCollection_.getActiveDataViewer();
-         if (viewer_ != null) {
-            attachToDataViewer(viewer_);
-         }
-         else {
-            detachFromDataViewer();
-         }
+         attachToDataViewer(viewer_);
       }
 
       @Override
@@ -578,7 +582,7 @@ public final class InspectorController
       @Override
       public void viewerDeactivated(DataViewer viewer) {
          if (viewer == viewer_) {
-            detachFromDataViewer();
+            attachToDataViewer(null);
             viewer_ = null;
          }
       }
@@ -586,7 +590,7 @@ public final class InspectorController
       @Override
       public void viewerWillClose(DataViewer viewer) {
          if (viewer == viewer_) {
-            detachFromDataViewer();
+            attachToDataViewer(null);
             viewer_ = null;
          }
       }

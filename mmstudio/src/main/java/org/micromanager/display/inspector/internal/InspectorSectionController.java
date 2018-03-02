@@ -49,20 +49,18 @@ final class InspectorSectionController implements InspectorPanelListener {
 
    public static InspectorSectionController create(
          InspectorController inspectorController,
-         InspectorPanelPlugin panelPlugin,
-         InspectorPanelController panelController)
+         InspectorPanelPlugin panelPlugin)
    {
       return new InspectorSectionController(
-            inspectorController, panelPlugin, panelController);
+            inspectorController, panelPlugin);
    }
 
    private InspectorSectionController(InspectorController inspectorController,
-         InspectorPanelPlugin panelPlugin,
-         InspectorPanelController panelController)
+         InspectorPanelPlugin panelPlugin)
    {
       inspectorController_ = inspectorController;
       panelPlugin_ = panelPlugin;
-      panelController_ = panelController;
+      panelController_ = panelPlugin_.createPanelController();
 
       // TODO Expanded/collapsed should be persisted in profile (overriding
       // the default porvided by the plugin)
@@ -73,7 +71,7 @@ final class InspectorSectionController implements InspectorPanelListener {
       headerPanel_ = new JPanel(new MigLayout(
             new LC().fillX().insets("0").gridGap("0", "0")));
 
-      headerLabel_ = new JLabel(panelController.getTitle(),
+      headerLabel_ = new JLabel(panelController_.getTitle(),
             UIManager.getIcon(initiallyExpanded ?
                   "Tree.expandedIcon" : "Tree.collapsedIcon"),
             SwingConstants.LEFT);
@@ -112,6 +110,14 @@ final class InspectorSectionController implements InspectorPanelListener {
          panel_.add(contentPanel_, new CC().grow().push());
       }
       panel_.validate();
+   }
+
+   InspectorPanelPlugin getPanelPlugin() {
+      return panelPlugin_;
+   }
+
+   InspectorPanelController getPanelController() {
+      return panelController_;
    }
 
    public JPanel getSectionPanel() {

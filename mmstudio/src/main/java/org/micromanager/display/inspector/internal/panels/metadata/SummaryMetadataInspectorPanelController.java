@@ -120,21 +120,19 @@ public class SummaryMetadataInspectorPanelController extends AbstractInspectorPa
 
    @Override
    public void attachDataViewer(DataViewer viewer) {
-      Preconditions.checkNotNull(viewer);
-      detachDataViewer();
+      if (dataProvider_ != null) {
+         dataProvider_.unregisterForEvents(this);
+         dataProvider_ = null;
+         updateSummaryMetadata(null);
+      }
+
+      if (viewer == null) {
+         return;
+      }
+
       dataProvider_ = viewer.getDataProvider();
       dataProvider_.registerForEvents(this);
       updateSummaryMetadata(dataProvider_.getSummaryMetadata());
-   }
-
-   @Override
-   public void detachDataViewer() {
-      if (dataProvider_ == null) {
-         return;
-      }
-      dataProvider_.unregisterForEvents(this);
-      dataProvider_ = null;
-      updateSummaryMetadata(null);
    }
 
    @Override

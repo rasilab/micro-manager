@@ -101,8 +101,31 @@ public final class CommentsInspectorPanelController
 
    @Override
    public void attachDataViewer(DataViewer viewer) {
-      Preconditions.checkNotNull(viewer);
-      Preconditions.checkState(viewer_ == null);
+      if (viewer == viewer_) {
+         return;
+      }
+
+      if (viewer_ != null) {
+         savePlaneComments();
+         saveSummaryComments();
+         viewer_.unregisterForEvents(this);
+      }
+
+      if (viewer == null) {
+         programmaticallySettingText_ = true;
+         try {
+            summaryTextArea_.setText(null);
+            planeTextArea_.setText(null);
+         }
+         finally {
+            programmaticallySettingText_ = false;
+         }
+         summaryTextArea_.setEnabled(false);
+         planeTextArea_.setEnabled(false);
+         viewer_ = null;
+         return;
+      }
+
       viewer_ = viewer;
       viewer_.registerForEvents(this);
       boolean editable = viewer_.getDataProvider() instanceof Datastore;
@@ -125,25 +148,6 @@ public final class CommentsInspectorPanelController
       finally {
          programmaticallySettingText_ = false;
       }
-   }
-
-   @Override
-   public void detachDataViewer() {
-      Preconditions.checkState(viewer_ != null);
-      savePlaneComments();
-      saveSummaryComments();
-      viewer_.unregisterForEvents(this);
-      viewer_ = null;
-      programmaticallySettingText_ = true;
-      try {
-         summaryTextArea_.setText(null);
-         planeTextArea_.setText(null);
-      }
-      finally {
-         programmaticallySettingText_ = false;
-      }
-      summaryTextArea_.setEnabled(false);
-      planeTextArea_.setEnabled(false);
    }
 
    @Override

@@ -161,8 +161,18 @@ public final class PlaneMetadataInspectorPanelController extends AbstractInspect
 
    @Override
    public void attachDataViewer(DataViewer viewer) {
-      Preconditions.checkNotNull(viewer);
-      detachDataViewer();
+      if (viewer == viewer_) {
+         return;
+      }
+      if (viewer_ != null) {
+         viewer_.unregisterForEvents(this);
+         background_.submit(() -> updateMetadata(null, true));
+      }
+      if (viewer == null) {
+         viewer_ = null;
+         return;
+      }
+
       viewer_ = viewer;
       viewer_.registerForEvents(this);
       final List<Image> images;
@@ -174,34 +184,16 @@ public final class PlaneMetadataInspectorPanelController extends AbstractInspect
          return;
       }
 
-      background_.submit(new Runnable() {
-         @Override
-         public void run() {
-            // Note: This will initialize all state even if we receive an
-            // event from the viewer before we get here.
-            unchangingValues_.clear();
-            unchangingValuesInitialized_ = false;
-            if (images.isEmpty()) {
-               updateMetadata(null, true);
-            }
-            else {
-               updateMetadata(images.get(0).getMetadata(), true);
-            }
-         }
-      });
-   }
-
-   @Override
-   public void detachDataViewer() {
-      if (viewer_ == null) {
-         return;
-      }
-      viewer_.unregisterForEvents(this);
-      viewer_ = null;
-      background_.submit(new Runnable() {
-         @Override
-         public void run() {
+      background_.submit(() -> {
+         // Note: This will initialize all state even if we receive an
+         // event from the viewer before we get here.
+         unchangingValues_.clear();
+         unchangingValuesInitialized_ = false;
+         if (images.isEmpty()) {
             updateMetadata(null, true);
+         }
+         else {
+            updateMetadata(images.get(0).getMetadata(), true);
          }
       });
    }

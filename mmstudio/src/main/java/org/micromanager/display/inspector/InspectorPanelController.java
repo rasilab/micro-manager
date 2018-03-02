@@ -21,6 +21,5 @@ public interface InspectorPanelController {
    JPanel getPanel();
    JPopupMenu getGearMenu();
    void attachDataViewer(DataViewer viewer);
-   void detachDataViewer();
    boolean isVerticallyResizableByUser();
 }
