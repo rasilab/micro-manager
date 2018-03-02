@@ -43,7 +43,6 @@ import org.micromanager.internal.utils.CoalescentEDTRunnablePool.CoalescentRunna
 import org.micromanager.internal.utils.ColorPalettes;
 import org.micromanager.internal.utils.MustCallOnEDT;
 import org.micromanager.data.DataProviderHasNewImageEvent;
-import org.micromanager.internal.utils.ReportingUtils;
 import org.micromanager.internal.utils.UserProfileStaticInterface;
 
 /**
@@ -511,11 +510,6 @@ public class IntensityInspectorPanelController
    public boolean isVerticallyResizableByUser() {
       return true;
    }
-       
-   @Override
-   public boolean initiallyExpand() {
-      return true;
-   }
 
    @Subscribe
    @MustCallOnEDT
@@ -606,15 +600,8 @@ public class IntensityInspectorPanelController
       SwingUtilities.invokeLater(new Runnable() {
          @Override
          public void run() {
-            try {
             if (channel >= channelControllers_.size()) {
                setUpChannelHistogramsPanel(channel + 1);
-            }
-            } catch (NullPointerException npe) {
-               // it is possible that the dataprovider send a new image event
-               // and immediately closed.  That will result in a null pointer
-               // exception somewhere down the line.  Catch it here
-               ReportingUtils.logError(npe);
             }
          }
       });
