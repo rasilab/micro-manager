@@ -949,7 +949,7 @@
       "KeepShutterOpenChannels" (:keep-shutter-open-channels settings)
       "KeepShutterOpenSlices" (:keep-shutter-open-slices settings)
       "MicroManagerVersion" (if gui (.getVersion gui) "N/A")
-      "MetadataVersion" (DefaultSummaryMetadata/METADATA_VERSION)
+      "MetadataVersion" (DefaultSummaryMetadata/CURRENT_METADATA_VERSION)
       "PixelSize_um" (core getPixelSizeUm)
       "PixelType" (get-pixel-type)
       "Positions" (max 1 (count (:positions settings)))
