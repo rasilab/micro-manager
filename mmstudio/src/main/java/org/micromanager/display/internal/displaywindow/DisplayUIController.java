@@ -838,60 +838,6 @@ public final class DisplayUIController implements Closeable, WindowListener,
       repaintScheduledForNewImages_.set(true);
    }
 
-   private String getCoordsString(ImagesAndStats stats) {
-      if (stats == null || stats.getRequest().getNumberOfImages() == 0) {
-         return "";
-      }
-
-      Coords nominalCoords = stats.getRequest().getNominalCoords();
-      Metadata metadata = stats.getRequest().getImages().stream().
-            filter(i -> i.getCoords().getChannel() == nominalCoords.getChannel()).
-            map(i -> i.getMetadata()).
-            findFirst().get();
-
-      return IntStream.range(0, displayedAxes_.size()).
-            filter(i -> displayedAxisLengths_.get(i) > 1).
-            mapToObj(i -> displayedAxes_.get(i)).
-            map(axis -> {
-               switch (axis) {
-                  case Coords.STAGE_POSITION:
-                     return metadata.getPositionName();
-                  case Coords.TIME_POINT:
-                     Double elapsedMs = metadata.getElapsedTimeMs();
-                     return elapsedMs != null ? formatElapsedTimeMs(elapsedMs) : null;
-                  case Coords.Z_SLICE:
-                     Double zUm = metadata.getZPositionUm();
-                     return zUm != null ? (Double.toString(zUm) + " µm") : null;
-                  case Coords.CHANNEL:
-                     return displayController_.getChannelName(nominalCoords.getChannel());
-                  default:
-                     return null;
-               }
-            }).
-            filter(s -> s != null && !s.isEmpty()).
-            reduce("", (a, b) -> a.isEmpty() ? b : a + "  |  " + b);
-   }
-
-   private String formatElapsedTimeMs(double elapsedMs) {
-      long ms = Math.round(elapsedMs);
-      if (ms < 1000) {
-         return String.format("%d ms", ms);
-      }
-      double s = ms / 1000.0;
-      if (s < 60) {
-         // TODO User should be able to select seconds vs hour/min/sec in options
-         return String.format("%.3f s", s);
-      }
-      long min = (long) Math.ceil(s) / 60;
-      s -= 60 * min;
-      if (min < 60) {
-         return String.format("%d min %.3f s", min, s);
-      }
-      long h = min / 60;
-      min -= 60 * h;
-      return String.format("%d h %d min %2.3f s", h, min, s);
-   }
-
    @MustCallOnEDT
    public void applyDisplaySettings(DisplaySettings settings) {
       if (ijBridge_ == null) {
@@ -1633,6 +1579,60 @@ public final class DisplayUIController implements Closeable, WindowListener,
       }
       
       return infoStringB.toString();
+   }
+
+   private String getCoordsString(ImagesAndStats stats) {
+      if (stats == null || stats.getRequest().getNumberOfImages() == 0) {
+         return "";
+      }
+
+      Coords nominalCoords = stats.getRequest().getNominalCoords();
+      Metadata metadata = stats.getRequest().getImages().stream().
+            filter(i -> i.getCoords().getChannel() == nominalCoords.getChannel()).
+            map(i -> i.getMetadata()).
+            findFirst().get();
+
+      return IntStream.range(0, displayedAxes_.size()).
+            filter(i -> displayedAxisLengths_.get(i) > 1).
+            mapToObj(i -> displayedAxes_.get(i)).
+            map(axis -> {
+               switch (axis) {
+                  case Coords.STAGE_POSITION:
+                     return metadata.getPositionName();
+                  case Coords.TIME_POINT:
+                     Double elapsedMs = metadata.getElapsedTimeMs();
+                     return elapsedMs != null ? formatElapsedTimeMs(elapsedMs) : null;
+                  case Coords.Z_SLICE:
+                     Double zUm = metadata.getZPositionUm();
+                     return zUm != null ? (Double.toString(zUm) + " µm") : null;
+                  case Coords.CHANNEL:
+                     return displayController_.getChannelName(nominalCoords.getChannel());
+                  default:
+                     return null;
+               }
+            }).
+            filter(s -> s != null && !s.isEmpty()).
+            reduce("", (a, b) -> a.isEmpty() ? b : a + "  |  " + b);
+   }
+
+   private static String formatElapsedTimeMs(double elapsedMs) {
+      long ms = Math.round(elapsedMs);
+      if (ms < 1000) {
+         return String.format("%d ms", ms);
+      }
+      double s = ms / 1000.0;
+      if (s < 60) {
+         // TODO User should be able to select seconds vs hour/min/sec in options
+         return String.format("%.3f s", s);
+      }
+      long min = (long) Math.ceil(s) / 60;
+      s -= 60 * min;
+      if (min < 60) {
+         return String.format("%d min %.3f s", min, s);
+      }
+      long h = min / 60;
+      min -= 60 * h;
+      return String.format("%d h %d min %2.3f s", h, min, s);
    }
 
    public List<Image> getDisplayedImages() {
