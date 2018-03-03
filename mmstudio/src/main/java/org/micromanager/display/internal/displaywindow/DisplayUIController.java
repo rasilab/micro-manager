@@ -488,7 +488,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
       fpsLabel_.setFont(fpsLabel_.getFont().deriveFont(10.0f));
       panel.add(fpsLabel_, new CC());
 
-      SpinnerModel fpsModel = new SpinnerNumberModel(10.0, 0.1, 1000.0, 5.0);
+      SpinnerModel fpsModel = new FpsSpinnerNumberModel(10.0, 1.0, 1000.0);
       playbackFpsSpinner_ = new JSpinner(fpsModel);
       playbackFpsSpinner_.addChangeListener(new ChangeListener() {
          @Override
@@ -1141,6 +1141,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
       displayController_.setDisplaySettings(displayController_.getDisplaySettings().
               copyBuilder().zoomRatio(factor).build());
       updateTitle();
+      canvasDidChangeSize();
    }
 
    public void canvasDidChangeSize() {
@@ -1185,8 +1186,8 @@ public final class DisplayUIController implements Closeable, WindowListener,
          int newCanvasHeight = Math.min(canvasMaxSize.height,
                screenBounds.height - frameInsets.top - frameInsets.bottom -
                      2 * BORDER_THICKNESS -
-                     topControlPanel_.getMinimumSize().height -
-                     bottomControlPanel_.getMinimumSize().height);
+                     topControlPanel_.getSize().height -
+                     bottomControlPanel_.getSize().height);
          ijBridge_.getIJImageCanvas().setPreferredSize(
                new Dimension(newCanvasWidth, newCanvasHeight));
          ijBridge_.getIJImageCanvas().invalidate();
