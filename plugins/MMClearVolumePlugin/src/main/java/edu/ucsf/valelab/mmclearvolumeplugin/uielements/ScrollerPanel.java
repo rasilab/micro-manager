@@ -28,7 +28,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.AdjustmentEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -40,13 +39,16 @@ import java.util.TimerTask;
 
 import net.miginfocom.swing.MigLayout;
 
-import javax.swing.event.MouseInputAdapter;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollBar;
+import javax.swing.JSpinner;
 import javax.swing.JTextField;
+import javax.swing.SpinnerModel;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import org.micromanager.data.Coordinates;
 
 import org.micromanager.data.Coords;
@@ -55,6 +57,8 @@ import org.micromanager.data.DataProviderHasNewImageEvent;
 import org.micromanager.display.DataViewer;
 
 import org.micromanager.data.internal.DefaultCoords;
+import org.micromanager.display.internal.displaywindow.FpsSpinnerNumberModel;
+import org.micromanager.internal.utils.PopupButton;
 import org.micromanager.internal.utils.ReportingUtils;
 import org.micromanager.internal.utils.UserProfileStaticInterface;
 
@@ -75,8 +79,7 @@ public class ScrollerPanel extends JPanel {
 
    private final HashMap<String, AxisState> axisToState_;
    private final HashMap<String, Integer> axisToSavedPosition_;
-   private JButton fpsButton_;
-   private final FPSPopupMenu fpsMenu_;
+   private PopupButton fpsButton_;
 
    private Timer snapbackTimer_;
    private Timer animationTimer_;
@@ -93,9 +96,8 @@ public class ScrollerPanel extends JPanel {
    private boolean shouldPostEvents_ = true;
 
    @SuppressWarnings("LeakingThisInConstructor")
-   public ScrollerPanel(final DataProvider dataProvider, 
-           final DataViewer display) {
-      dataProvider_ = dataProvider;
+   public ScrollerPanel(final DataViewer display) {
+      dataProvider_ = display.getDataProvider();
       display_ = display;
 
       updateQueue_ = new LinkedBlockingQueue<>();
@@ -112,15 +114,13 @@ public class ScrollerPanel extends JPanel {
       // Don't prevent other components from shrinking
       super.setMinimumSize(new Dimension(1, 1));
 
-
       // Although it would be nice to rely on AnimationFPS stored in the display-
       // setting, it is most often set too high for our use.  Better to keep a 
       // separate fps for 3D
 
       animationFPS_ = UserProfileStaticInterface.getInstance().
               getSettings(this.getClass()).getDouble(CV_ANIMATION_FPS, animationFPS_);
-      fpsMenu_ = new FPSPopupMenu(display_, animationFPS_);
-
+      
       List<String> axes;
       List<String> axisOrder = dataProvider_.getSummaryMetadata().getOrderedAxes();
       if (axisOrder != null) {
@@ -196,7 +196,7 @@ public class ScrollerPanel extends JPanel {
       });
       add(scrollbar, "shrinkx, growx, wrap");
 
-      /* TODO:
+      /* Think about:
       ScrollbarLockIcon lock = new ScrollbarLockIcon(axis, display_);
       add(lock, "grow 0");
 
@@ -208,19 +208,46 @@ public class ScrollerPanel extends JPanel {
       axisToState_.put(axis, new AxisState(positionButton, scrollbar, maxLabel));
 
 
+
       if (fpsButton_ == null) {
+         
          // We have at least one scroller, so add our FPS control button.
-         fpsButton_ = new JButton("FPS: " + animationFPS_);
-         //fpsButton_.setFont(GUIUtils.buttonFont);
+         SpinnerModel fpsModel = new FpsSpinnerNumberModel(animationFPS_, 1.0, 50.0);
+         final JSpinner playbackFpsSpinner = new JSpinner(fpsModel);
+         fpsButton_ = PopupButton.create("FPS: " + animationFPS_, playbackFpsSpinner);
+         playbackFpsSpinner.addChangeListener(new ChangeListener() {
+            @Override
+            public void stateChanged(ChangeEvent e) {
+               animationFPS_ = (Double) playbackFpsSpinner.getValue();
+               display_.setDisplaySettings(display_.
+                       getDisplaySettings().copyBuilder().playbackFPS(animationFPS_).build());
+               fpsButton_.setText("FPS: " + animationFPS_);
+               UserProfileStaticInterface.getInstance().
+                     getSettings(this.getClass()).putDouble(CV_ANIMATION_FPS, 
+                          animationFPS_);
+            }
+         });
+
+         fpsButton_.setFont(fpsButton_.getFont().deriveFont(10.0f));
+         int width = 24 + fpsButton_.getFontMetrics(
+                 fpsButton_.getFont()).stringWidth("FPS: 100.0");
+         fpsButton_.addPopupButtonListener(new PopupButton.Listener() {
+            @Override
+            public void popupButtonWillShowPopup(PopupButton button) {
+               playbackFpsSpinner.setValue(display_.getDisplaySettings().getPlaybackFPS());
+            }
+         });
+/*
          fpsButton_.addMouseListener(new MouseInputAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-               fpsMenu_.show(fpsButton_, e.getX(), e.getY());
+               playbackFpsSpinner.setVisible(true);
             }
          });
+         */
          add(fpsButton_, "dock east, growy");
       }
-      
+
    }
    
    public void stopUpdateThread() {
@@ -385,57 +412,6 @@ public class ScrollerPanel extends JPanel {
       }
    }
 
-   /**
-    * A new image has arrived; update our scrollbar maxima and positions. Add
-    * new scrollbars as needed.
-    * @param event
-    
-   @Subscribe
-   public void onNewImage(NewImageEvent event) {
-      try {
-         Coords coords = event.getImage().getCoords();
-         Coords.CoordsBuilder displayedBuilder = coords.copy();
-         boolean didAddScrollers = false;
-         for (String axis : store_.getAxes()) {
-            int newPos = coords.getIndex(axis);
-            didAddScrollers = updateScrollbar(axis, newPos) || didAddScrollers;
-            if (axisToState_.containsKey(axis)) {
-               displayedBuilder.index(axis,
-                     axisToState_.get(axis).scrollbar_.getValue());
-            }
-         }
-         if (didAddScrollers) {
-            // Ensure new scrollers get displayed properly.
-            //display_.postEvent(new LayoutChangedEvent());
-         }
-         display_.setDisplayedImageTo(displayedBuilder.build());
-
-         // Set up snapping back to our current positions. 
-         if (snapbackTimer_ != null) {
-            snapbackTimer_.cancel();
-         }
-         if (axisToSavedPosition_.size() > 0) {
-            snapbackTimer_ = new Timer("Scroller panel snapback");
-            TimerTask task = new TimerTask() {
-               @Override
-               public void run() {
-                  shouldPostEvents_ = false;
-                  for (String axis : axisToSavedPosition_.keySet()) {
-                     int pos = axisToSavedPosition_.get(axis);
-                     axisToState_.get(axis).scrollbar_.setValue(pos);
-                  }
-                  shouldPostEvents_ = true;
-                  //postDrawEvent();
-               }
-            };
-            snapbackTimer_.schedule(task, 500);
-         }
-      }
-      catch (Exception e) {
-        // ReportingUtils.logError(e, "Error in onNewImage for ScrollerPanel");
-      }
-   }
-*/
    /**
     * Update the specified  scrollbar to the desired position. 
     * Lengthen the scrollbar if necessary,
