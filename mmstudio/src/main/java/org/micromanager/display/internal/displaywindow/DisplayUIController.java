@@ -150,7 +150,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
    private JLabel coordsLabel_;
    private JLabel newImageIndicator_;
    private JLabel fpsLabel_;
-   private JLabel infoLabel_;
+   private JLabel formatLabel_;
    private PopupButton playbackFpsButton_;
    private JSpinner playbackFpsSpinner_;
    private MDScrollBarPanel scrollBarPanel_;
@@ -196,7 +196,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
    private ImagesAndStats displayedImages_;
    private Double cachedPixelSize_ = -1.0;
 
-   private boolean infoLabelFilled_ = false;
+   private boolean formatLabelFilled_ = false;
 
    private BoundsRectAndMask lastSeenSelection_;
 
@@ -455,11 +455,11 @@ public final class DisplayUIController implements Closeable, WindowListener,
       zoomOutButton_.setEnabled(false); // No canvas yet
       buttonPanel.add(zoomOutButton_);
 
-      panel.add(buttonPanel, "split 3");
-      panel.add(new JPanel(), "growx");
+      panel.add(buttonPanel, new CC().split(2).gapAfter("push"));
 
-      infoLabel_ = new JLabel("No Image yet");
-      panel.add(infoLabel_, "wrap");
+      formatLabel_ = new JLabel(" ");
+      formatLabel_.setFont(formatLabel_.getFont().deriveFont(10.0f));
+      panel.add(formatLabel_, new CC().gapAfter("rel").wrap());
 
       return panel;
    }
@@ -472,8 +472,8 @@ public final class DisplayUIController implements Closeable, WindowListener,
       pixelInfoLabel_ = new JLabel(" ");
       pixelInfoLabel_.setFont(pixelInfoLabel_.getFont().deriveFont(10.0f));
       pixelInfoLabel_.setMinimumSize(new Dimension(0, 10));
-      panel.add(pixelInfoLabel_, new CC().split(5));
-      coordsLabel_ = new JLabel("Image Info here");
+      panel.add(pixelInfoLabel_, new CC().gapBefore("rel").split(5));
+      coordsLabel_ = new JLabel(" ");
       coordsLabel_.setFont(pixelInfoLabel_.getFont().deriveFont(10.0f));
       JPanel tempPanel = new JPanel();
       panel.add(coordsLabel_, new CC().growX());
@@ -828,9 +828,10 @@ public final class DisplayUIController implements Closeable, WindowListener,
          cachedPixelSize_ = pixelSize;
          ijBridge_.mm2ijSetMetadata();
       }
-      if (!infoLabelFilled_ || pixelSizeChanged) {
-         infoLabel_.setText(getInfoString(displayedImages_));
-         infoLabelFilled_ = true;
+
+      if (!formatLabelFilled_ || pixelSizeChanged) {
+         formatLabel_.setText(getImageFormatString(displayedImages_));
+         formatLabelFilled_ = true;
       }
 
       coordsLabel_.setText(getCoordsString(displayedImages_));
@@ -1510,75 +1511,32 @@ public final class DisplayUIController implements Closeable, WindowListener,
       }
    }
 
-   /**
-    * 
-    * @return Human readable String explaining the pixel Type
-    * TODO: Formalize these Strings
-    */
-   
-   public String getPixelType() {
-      try {
-         int bytesPerPixel = displayController_.getDataProvider().getAnyImage().getBytesPerPixel();
-         int numComponents = displayController_.getDataProvider().getAnyImage().getNumComponents();
-         if (numComponents == 1) {
-            switch (bytesPerPixel) {
-               case 1:
-                  return "8-bit";
-               case 2:
-                  return "16-bit";
-               case 4:
-                  return "32-bit";
-               default:
-                  break;
-            }
-         } else if (numComponents == 3) {
-            switch (bytesPerPixel) {
-               case 4:
-                  return "RGB32";
-               case 8:
-                  return "RGB64;";
-            }
-         }
-      } catch (IOException e) {
-      }
-      return "Unknown pixelType";
-   }
-  
-   public String getInfoString(ImagesAndStats images) {
-      StringBuilder infoStringB = new StringBuilder();
-      Double pixelSize;
-      long nrBytes;
-      try {
-         if (displayController_.getDataProvider().getAnyImage() == null) {
-            return "No image yet";
-         }
-         // TODO: is 0 always the right choice?  
-         images.getRequest().getImage(0);
-         pixelSize = images.getRequest().getImage(0).getMetadata().getPixelSizeUm();
-         nrBytes = getImageWidth() * getImageHeight()
-                 * images.getRequest().getImage(0).getBytesPerPixel()
-                 * images.getRequest().getImage(0).getNumComponents();
-
-      } catch (IOException io) {
-         return "Failed to find image";
+   public String getImageFormatString(ImagesAndStats stats) {
+      if (stats == null || stats.getRequest().getNumberOfImages() == 0) {
+         return "";
       }
 
-      double widthUm = getImageWidth() * pixelSize;
-      double heightUm = getImageHeight() * pixelSize;
-      infoStringB.append(NumberUtils.doubleToDisplayString(widthUm)).append("x").
-              append(NumberUtils.doubleToDisplayString(heightUm)).
-              append("\u00B5").append("m  ");
+      Image image = stats.getRequest().getImage(0);
+      int widthPx = image.getWidth();
+      int heightPx = image.getHeight();
+      Double pixelSize = image.getMetadata().getPixelSizeUm();
+      long sizeBytes = widthPx * heightPx * image.getBytesPerPixel() * image.getNumComponents();
 
-      infoStringB.append(getImageWidth()).append("x").append(getImageHeight());
-      infoStringB.append("px  ").append(this.getPixelType()).append(" ");
+      StringBuilder sb = new StringBuilder();
+      String sep = "  |  ";
 
-      if (nrBytes / 1000 < 1000) {
-         infoStringB.append((int) nrBytes / 1024).append("KB");
-      } else {
-         infoStringB.append((int) nrBytes / 1048576).append("MB");
+      if (pixelSize != null) {
+         double widthUm = getImageWidth() * pixelSize;
+         double heightUm = getImageHeight() * pixelSize;
+         sb.append(NumberUtils.doubleToDisplayString(widthUm)).append("x").
+                 append(NumberUtils.doubleToDisplayString(heightUm)).
+                 append(" \u00B5m").append(sep);
       }
-      
-      return infoStringB.toString();
+      sb.append(getImageWidth()).append("x").append(getImageHeight()).
+            append(" px").append(sep);
+      sb.append(formatPixelType(image)).append(sep);
+      sb.append(formatSizeBytes(sizeBytes));
+      return sb.toString();
    }
 
    private String getCoordsString(ImagesAndStats stats) {
@@ -1604,7 +1562,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
                      return elapsedMs != null ? formatElapsedTimeMs(elapsedMs) : null;
                   case Coords.Z_SLICE:
                      Double zUm = metadata.getZPositionUm();
-                     return zUm != null ? (Double.toString(zUm) + " µm") : null;
+                     return zUm != null ? (NumberUtils.doubleToDisplayString(zUm) + " \u00B5m") : null;
                   case Coords.CHANNEL:
                      return displayController_.getChannelName(nominalCoords.getChannel());
                   default:
@@ -1613,6 +1571,31 @@ public final class DisplayUIController implements Closeable, WindowListener,
             }).
             filter(s -> s != null && !s.isEmpty()).
             reduce("", (a, b) -> a.isEmpty() ? b : a + "  |  " + b);
+   }
+
+   // TODO Generalize the following utility methods.
+
+   private static String formatPixelType(Image image) {
+      int bytesPerPixel = image.getBytesPerPixel();
+      int numComponents = image.getNumComponents();
+      if (numComponents == 1) {
+         return String.format("%d-bit", bytesPerPixel * 8);
+      }
+      else if (numComponents == 3) {
+         return String.format("%d-bit RGB", bytesPerPixel / 4 * 8);
+      }
+      return "Unknown";
+   }
+
+   private static final String[] SIZE_UNITS = { "B", "KiB", "MiB", "GiB" };
+   private static String formatSizeBytes(long size) {
+      for (String unit : SIZE_UNITS) {
+         if (size < 1024) {
+            return String.format("%d %s", size, unit);
+         }
+         size >>= 10;
+      }
+      return String.format("%d TiB", size);
    }
 
    private static String formatElapsedTimeMs(double elapsedMs) {
