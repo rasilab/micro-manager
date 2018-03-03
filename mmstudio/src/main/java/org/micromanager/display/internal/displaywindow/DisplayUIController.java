@@ -55,6 +55,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.IntStream;
 import javax.swing.BorderFactory;
 import javax.swing.Icon;
 import javax.swing.JButton;
@@ -146,7 +147,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
    private JButton zoomInButton_;
    private JButton zoomOutButton_;
    private JLabel pixelInfoLabel_;
-   private JLabel imageInfoLabel_;
+   private JLabel coordsLabel_;
    private JLabel newImageIndicator_;
    private JLabel fpsLabel_;
    private JLabel infoLabel_;
@@ -472,10 +473,10 @@ public final class DisplayUIController implements Closeable, WindowListener,
       pixelInfoLabel_.setFont(pixelInfoLabel_.getFont().deriveFont(10.0f));
       pixelInfoLabel_.setMinimumSize(new Dimension(0, 10));
       panel.add(pixelInfoLabel_, new CC().split(5));
-      imageInfoLabel_ = new JLabel("Image Info here");
-      imageInfoLabel_.setFont(pixelInfoLabel_.getFont().deriveFont(10.0f));
+      coordsLabel_ = new JLabel("Image Info here");
+      coordsLabel_.setFont(pixelInfoLabel_.getFont().deriveFont(10.0f));
       JPanel tempPanel = new JPanel();
-      panel.add(imageInfoLabel_, new CC().growX());
+      panel.add(coordsLabel_, new CC().growX());
       newImageIndicator_ = new JLabel("NEW IMAGE");
       newImageIndicator_.setFont(newImageIndicator_.getFont().
             deriveFont(10.0f).deriveFont(Font.BOLD));
@@ -832,56 +833,65 @@ public final class DisplayUIController implements Closeable, WindowListener,
          infoLabelFilled_ = true;
       }
 
-      imageInfoLabel_.setText(getImageInfoLabel(images));
+      coordsLabel_.setText(getCoordsString(displayedImages_));
 
       repaintScheduledForNewImages_.set(true);
    }
 
-   private String getImageInfoLabel(ImagesAndStats images) {
-      StringBuilder sb = new StringBuilder();
-      // feeble and ugly way of getting the correct channel
-      Coords nominalCoords = images.getRequest().getNominalCoords();
-      Metadata metadata = null;
-      for (Image image : images.getRequest().getImages()) {
-         if (image.getCoords().getC() == nominalCoords.getC()) {
-            metadata = image.getMetadata();
-         }   
-      }
-      if (metadata == null) {
+   private String getCoordsString(ImagesAndStats stats) {
+      if (stats == null || stats.getRequest().getNumberOfImages() == 0) {
          return "";
       }
-      for (int i = 0; i < displayedAxes_.size(); ++i) {
-         if (displayedAxisLengths_.get(i) > 1) {
-            switch (displayedAxes_.get(i)) {
-               case Coords.P:
-                  String positionName = metadata.getPositionName();
-                  if (positionName.length() > 0) {
-                     sb.append(positionName).append(" ");
-                  }  break;
-               case Coords.T:
-                  double elapsedTimeMs = metadata.getElapsedTimeMs();
-                  if (elapsedTimeMs > 10000) {
-                     sb.append(elapsedTimeMs / 1000).append("s ");
-                  } else {
-                     sb.append(elapsedTimeMs).append("ms ");
-                  }  break;
-               case Coords.Z:
-                  double zPositionUm = metadata.getZPositionUm();
-                  sb.append(zPositionUm).append("um ");
-                  break;
-               case Coords.C:
-                  int channelIndex = nominalCoords.getC();
-                  sb.append(displayController_.getChannelName(channelIndex));
-                  break;
-               default:
-                  break;
-            }
-         }
-      }
-      
-      return sb.toString();
+
+      Coords nominalCoords = stats.getRequest().getNominalCoords();
+      Metadata metadata = stats.getRequest().getImages().stream().
+            filter(i -> i.getCoords().getChannel() == nominalCoords.getChannel()).
+            map(i -> i.getMetadata()).
+            findFirst().get();
+
+      return IntStream.range(0, displayedAxes_.size()).
+            filter(i -> displayedAxisLengths_.get(i) > 1).
+            mapToObj(i -> displayedAxes_.get(i)).
+            map(axis -> {
+               switch (axis) {
+                  case Coords.STAGE_POSITION:
+                     return metadata.getPositionName();
+                  case Coords.TIME_POINT:
+                     Double elapsedMs = metadata.getElapsedTimeMs();
+                     return elapsedMs != null ? formatElapsedTimeMs(elapsedMs) : null;
+                  case Coords.Z_SLICE:
+                     Double zUm = metadata.getZPositionUm();
+                     return zUm != null ? (Double.toString(zUm) + " µm") : null;
+                  case Coords.CHANNEL:
+                     return displayController_.getChannelName(nominalCoords.getChannel());
+                  default:
+                     return null;
+               }
+            }).
+            filter(s -> s != null && !s.isEmpty()).
+            reduce("", (a, b) -> a.isEmpty() ? b : a + "  |  " + b);
    }
-   
+
+   private String formatElapsedTimeMs(double elapsedMs) {
+      long ms = Math.round(elapsedMs);
+      if (ms < 1000) {
+         return String.format("%d ms", ms);
+      }
+      double s = ms / 1000.0;
+      if (s < 60) {
+         // TODO User should be able to select seconds vs hour/min/sec in options
+         return String.format("%.3f s", s);
+      }
+      long min = (long) Math.ceil(s) / 60;
+      s -= 60 * min;
+      if (min < 60) {
+         return String.format("%d min %.3f s", min, s);
+      }
+      long h = min / 60;
+      min -= 60 * h;
+      return String.format("%d h %d min %2.3f s", h, min, s);
+   }
+
    @MustCallOnEDT
    public void applyDisplaySettings(DisplaySettings settings) {
       if (ijBridge_ == null) {
