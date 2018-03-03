@@ -455,7 +455,12 @@ public final class DisplayUIController implements Closeable, WindowListener,
       zoomOutButton_.setEnabled(false); // No canvas yet
       buttonPanel.add(zoomOutButton_);
 
-      panel.add(buttonPanel, new CC().split(2).gapAfter("push"));
+      panel.add(buttonPanel, new CC().split(3));
+
+      pixelInfoLabel_ = new JLabel(" ");
+      pixelInfoLabel_.setFont(pixelInfoLabel_.getFont().deriveFont(10.0f));
+      pixelInfoLabel_.setMinimumSize(new Dimension(0, 10));
+      panel.add(pixelInfoLabel_, new CC().gapBefore("rel").gapAfter("push"));
 
       formatLabel_ = new JLabel(" ");
       formatLabel_.setFont(formatLabel_.getFont().deriveFont(10.0f));
@@ -469,14 +474,19 @@ public final class DisplayUIController implements Closeable, WindowListener,
       JPanel panel = makeValidationRootJPanel(
             new MigLayout(new LC().insets("1").gridGap("0", "0").fillX()));
 
-      pixelInfoLabel_ = new JLabel(" ");
-      pixelInfoLabel_.setFont(pixelInfoLabel_.getFont().deriveFont(10.0f));
-      pixelInfoLabel_.setMinimumSize(new Dimension(0, 10));
-      panel.add(pixelInfoLabel_, new CC().gapBefore("rel").split(3));
-
       coordsLabel_ = new JLabel(" ");
       coordsLabel_.setFont(pixelInfoLabel_.getFont().deriveFont(10.0f));
-      panel.add(coordsLabel_, new CC().growX());
+      panel.add(coordsLabel_, new CC().gapBefore("rel").growX().split(4));
+
+      newImageIndicator_ = new JLabel("NEW IMAGE");
+      newImageIndicator_.setFont(newImageIndicator_.getFont().
+            deriveFont(10.0f).deriveFont(Font.BOLD));
+      newImageIndicator_.setVisible(false);
+      panel.add(newImageIndicator_, new CC().hideMode(2));
+
+      fpsLabel_ = new JLabel(" ");
+      fpsLabel_.setFont(fpsLabel_.getFont().deriveFont(10.0f));
+      panel.add(fpsLabel_, new CC());
 
       SpinnerModel fpsModel = new SpinnerNumberModel(10.0, 0.1, 1000.0, 5.0);
       playbackFpsSpinner_ = new JSpinner(fpsModel);
@@ -548,18 +558,8 @@ public final class DisplayUIController implements Closeable, WindowListener,
          }
       }
 
-      panel.add(customControlsPanel, new CC().split());
+      panel.add(customControlsPanel, new CC().growX().split(3));
 
-      JPanel tmp2Panel = new JPanel();
-      newImageIndicator_ = new JLabel("NEW IMAGE");
-      newImageIndicator_.setFont(newImageIndicator_.getFont().
-            deriveFont(10.0f).deriveFont(Font.BOLD));
-      newImageIndicator_.setVisible(false);
-      tmp2Panel.add(newImageIndicator_, new CC().hideMode(2));
-      fpsLabel_ = new JLabel(" ");
-      fpsLabel_.setFont(fpsLabel_.getFont().deriveFont(10.0f));
-      tmp2Panel.add(fpsLabel_, new CC());
-      panel.add(tmp2Panel, new CC().growX());
       // TODO Avoid static studio
       panel.add(new SaveButton(MMStudio.getInstance(), displayController_));
       panel.add(new GearButton(displayController_, MMStudio.getInstance()));
