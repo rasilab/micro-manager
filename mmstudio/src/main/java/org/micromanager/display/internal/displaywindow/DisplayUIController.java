@@ -472,19 +472,12 @@ public final class DisplayUIController implements Closeable, WindowListener,
       pixelInfoLabel_ = new JLabel(" ");
       pixelInfoLabel_.setFont(pixelInfoLabel_.getFont().deriveFont(10.0f));
       pixelInfoLabel_.setMinimumSize(new Dimension(0, 10));
-      panel.add(pixelInfoLabel_, new CC().gapBefore("rel").split(5));
+      panel.add(pixelInfoLabel_, new CC().gapBefore("rel").split(3));
+
       coordsLabel_ = new JLabel(" ");
       coordsLabel_.setFont(pixelInfoLabel_.getFont().deriveFont(10.0f));
-      JPanel tempPanel = new JPanel();
       panel.add(coordsLabel_, new CC().growX());
-      newImageIndicator_ = new JLabel("NEW IMAGE");
-      newImageIndicator_.setFont(newImageIndicator_.getFont().
-            deriveFont(10.0f).deriveFont(Font.BOLD));
-      newImageIndicator_.setVisible(false);
-      panel.add(newImageIndicator_, new CC().hideMode(2));
-      fpsLabel_ = new JLabel(" ");
-      fpsLabel_.setFont(fpsLabel_.getFont().deriveFont(10.0f));
-      panel.add(fpsLabel_, new CC());
+
       SpinnerModel fpsModel = new SpinnerNumberModel(10.0, 0.1, 1000.0, 5.0);
       playbackFpsSpinner_ = new JSpinner(fpsModel);
       playbackFpsSpinner_.addChangeListener(new ChangeListener() {
@@ -498,7 +491,7 @@ public final class DisplayUIController implements Closeable, WindowListener,
       int width = 24 + playbackFpsButton_.getFontMetrics(
             playbackFpsButton_.getFont()).stringWidth("Playback: 9999.0 fps");
       Dimension fpsButtonSize = new Dimension(width,
-            fpsLabel_.getPreferredSize().height + 12);
+            pixelInfoLabel_.getPreferredSize().height + 12);
       playbackFpsButton_.setMinimumSize(fpsButtonSize);
       playbackFpsButton_.setMaximumSize(fpsButtonSize);
       playbackFpsButton_.setPreferredSize(fpsButtonSize);
@@ -556,16 +549,26 @@ public final class DisplayUIController implements Closeable, WindowListener,
       }
 
       panel.add(customControlsPanel, new CC().split());
-      panel.add(new JPanel(), new CC().growX());
+
+      JPanel tmp2Panel = new JPanel();
+      newImageIndicator_ = new JLabel("NEW IMAGE");
+      newImageIndicator_.setFont(newImageIndicator_.getFont().
+            deriveFont(10.0f).deriveFont(Font.BOLD));
+      newImageIndicator_.setVisible(false);
+      tmp2Panel.add(newImageIndicator_, new CC().hideMode(2));
+      fpsLabel_ = new JLabel(" ");
+      fpsLabel_.setFont(fpsLabel_.getFont().deriveFont(10.0f));
+      tmp2Panel.add(fpsLabel_, new CC());
+      panel.add(tmp2Panel, new CC().growX());
       // TODO Avoid static studio
       panel.add(new SaveButton(MMStudio.getInstance(), displayController_));
       panel.add(new GearButton(displayController_, MMStudio.getInstance()));
-      
+
       // automatic calculation of minimum size of bottom panel
       // can be misleading because no minimum size for the scrollbars is included.
       // So, help out a bit by setting a reasonable minimum
       panel.setMinimumSize(new Dimension(345, 10));
-      
+
       return panel;
    }
 
@@ -1291,7 +1294,8 @@ public final class DisplayUIController implements Closeable, WindowListener,
             mouseLocationOnImage_.x + mouseLocationOnImage_.width / 2,
             mouseLocationOnImage_.y + mouseLocationOnImage_.height / 2);
 
-      if (center.y > images.get(0).getHeight() || center.x > images.get(0).getWidth()) {
+      if (center.y >= images.get(0).getHeight() || 
+              center.x >= images.get(0).getWidth()) {
          displayController_.postDisplayEvent(
                DataViewerMousePixelInfoChangedEvent.createUnavailable());
          return;
@@ -1545,8 +1549,12 @@ public final class DisplayUIController implements Closeable, WindowListener,
       }
 
       Coords nominalCoords = stats.getRequest().getNominalCoords();
+      int displayedChannel = nominalCoords.hasChannelAxis() ?
+            nominalCoords.getChannel() : 0;
       Metadata metadata = stats.getRequest().getImages().stream().
-            filter(i -> i.getCoords().getChannel() == nominalCoords.getChannel()).
+            filter(i ->
+                  !i.getCoords().hasChannelAxis() ||
+                  i.getCoords().getChannel() == displayedChannel).
             map(i -> i.getMetadata()).
             findFirst().get();
 
