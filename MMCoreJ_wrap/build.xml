@@ -1,23 +1,22 @@
 <project name="MMCoreJ" basedir="." default="jar">
 	<include file="../buildscripts/buildprops.xml"/>
-	<property name="srcdir" value="${mm.swig.javasrcdir}"/>
-	<property name="json.srcdir" value="${mm.basedir}/mmstudio/src/main/java"/>
+	<property name="gensrcdir" value="${mm.swig.javasrcdir}"/>
 	<property name="package" value="mmcorej"/>
 
 	<import file="../buildscripts/javabuild.xml"/>
 
 	<!-- Override mm.javabuild.compile -->
-	<target name="compile" depends="prepare" description="Compile Java sources">
+
+	<target name="compile-json-org-and-tagged-image" depends="prepare">
 		<mkdir dir="${intdir}"/>
+		<mm-javac srcdir="${srcdir}" destdir="${intdir}"/>
+	</target>
 
-		<copy todir="${srcdir}/${package}" file="TaggedImage.java"/>
-
-		<mm-javac destdir="${intdir}">
-			<src path="${json.srcdir}"/>
-			<include name="org/json/**"/>
-
-			<src path="${srcdir}"/>
-			<include name="${package}/**"/>
+	<target name="compile-swig-gensrc" depends="compile-json-org-and-tagged-image">
+		<mm-javac srcdir="${gensrcdir}" destdir="${intdir}">
+			<classpath refid="project.classpath"/>
 		</mm-javac>
 	</target>
+
+	<target name="compile" depends="compile-swig-gensrc" description="Compile Java sources"/>
 </project>
