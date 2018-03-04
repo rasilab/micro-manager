@@ -310,8 +310,8 @@ public interface DisplayWindow extends DataViewer, Closeable {
     * This allows you to set the window title to something different from the
     * name of the data provider.
     *
-    * Calling this method does <b>not</b> change the data provider&quote;s
-    * name or the filename of the dataset.
+    * Calling this method does <b>not</b> change the name of the data provider
+    * or the filename of the dataset.
     *
     * @param title a custom window title, or {@code null} to revert to the
     * default

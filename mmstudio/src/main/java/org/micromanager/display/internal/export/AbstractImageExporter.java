@@ -26,7 +26,7 @@ import org.micromanager.internal.utils.ReportingUtils;
 // have a use for it. However, we should also think twice before exposing
 // ListenableFuture to the API (what is a better way?).
 /**
- * Common base implementation for {@ImageExporter}.
+ * Common base implementation for {@code ImageExporter}.
  *
  * @author Mark A. Tsuchida
  */
