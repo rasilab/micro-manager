@@ -102,6 +102,7 @@ public class MainForm extends JFrame {
    private static final String TIMEINTERVALMS = "TimeIntervalMs";
    private static final String ZSTEPSIZE = "ZStepSize";
    private static final String BACKGROUNDLEVEL = "BackgroundLevel";
+   private static final String READNOISE = "ReadNoise";
    private static final String SIGMAMAX = "SigmaMax";
    private static final String SIGMAMIN = "SigmaMin";
    private static final String USEFILTER = "UseFilter";
@@ -144,7 +145,8 @@ public class MainForm extends JFrame {
    private JTextField pixelSizeTextField_;
    private JTextField timeIntervalTextField_;
    private JTextField zStepTextField_;
-   private JTextField baseLevelTextField;
+   private JTextField baseLevelTextField_;
+   private JTextField readNoiseTextField_;
    
    private JToggleButton showOverlay_;
    private JComboBox preFilterComboBox_;
@@ -204,7 +206,8 @@ public class MainForm extends JFrame {
        photonConversionTextField_.setText(Double.toString(up.getDouble(oc, PCF, 10.41)));
        emGainTextField_.setText(Double.toString(up.getDouble(oc, GAIN, 50.0)));
        pixelSizeTextField_.setText(Double.toString(up.getDouble(oc, PIXELSIZE, 107.0)));
-       baseLevelTextField.setText(Double.toString(up.getDouble(oc, BACKGROUNDLEVEL, 100.0)));
+       baseLevelTextField_.setText(Double.toString(up.getDouble(oc, BACKGROUNDLEVEL, 100.0)));
+       readNoiseTextField_.setText(Double.toString(up.getDouble(oc, READNOISE, 0.0)));
        timeIntervalTextField_.setText(Double.toString(up.getDouble(oc, TIMEINTERVALMS, 1.0)));
        zStepTextField_.setText(Double.toString(up.getDouble(oc, ZSTEPSIZE, 50.0))); 
        
@@ -311,7 +314,8 @@ public class MainForm extends JFrame {
       
       photonConversionTextField_ = new JTextField();
       emGainTextField_ = new JTextField();
-      baseLevelTextField = new JTextField();
+      baseLevelTextField_ = new JTextField();
+      readNoiseTextField_ = new JTextField();
       minSigmaTextField_ = new JTextField();
       noiseToleranceTextField_ = new JTextField();
       pixelSizeTextField_ = new JTextField();
@@ -423,10 +427,19 @@ public class MainForm extends JFrame {
       jLabel.setFont(gFont); 
       getContentPane().add(jLabel, indent);
             
-      baseLevelTextField.setFont(gFont); 
-      baseLevelTextField.setText("100");
-      baseLevelTextField.setMinimumSize(textFieldDim);
-      getContentPane().add(baseLevelTextField, "wrap");
+      baseLevelTextField_.setFont(gFont); 
+      baseLevelTextField_.setText("100");
+      baseLevelTextField_.setMinimumSize(textFieldDim);
+      getContentPane().add(baseLevelTextField_, "wrap");
+      
+      jLabel = new JLabel("Read Noise (e)");
+      jLabel.setFont(gFont);
+      getContentPane().add(jLabel, indent);
+      
+      readNoiseTextField_.setFont(gFont);
+      readNoiseTextField_.setText("0.0");
+      readNoiseTextField_.setMinimumSize(textFieldDim);
+      getContentPane().add(readNoiseTextField_, "wrap");
       
       getContentPane().add(new JSeparator(), "span, grow, wrap");
       
@@ -805,7 +818,8 @@ public class MainForm extends JFrame {
          up.setDouble(oc, PIXELSIZE, NumberUtils.displayStringToDouble(pixelSizeTextField_.getText()));
          up.setDouble(oc, TIMEINTERVALMS, NumberUtils.displayStringToDouble(timeIntervalTextField_.getText()));
          up.setDouble(oc, ZSTEPSIZE, NumberUtils.displayStringToDouble(zStepTextField_.getText()));
-         up.setDouble(oc, BACKGROUNDLEVEL, NumberUtils.displayStringToDouble(baseLevelTextField.getText()));
+         up.setDouble(oc, BACKGROUNDLEVEL, NumberUtils.displayStringToDouble(baseLevelTextField_.getText()));
+         up.setDouble(oc, READNOISE, NumberUtils.displayStringToDouble(readNoiseTextField_.getText()));
          up.setBoolean(oc, USEFILTER, filterDataCheckBoxWidth_.isSelected());
          up.setDouble(oc, SIGMAMIN, NumberUtils.displayStringToDouble(minSigmaTextField_.getText()));
          up.setDouble(oc, SIGMAMAX, NumberUtils.displayStringToDouble(maxSigmaTextField_.getText()));
@@ -1043,7 +1057,7 @@ public class MainForm extends JFrame {
             if (rois != null && rois.length > 0) {
                for (Roi roi : rois) {
                   siPlus.setRoi(roi, false);
-                  Polygon pol = FindLocalMaxima.FindMax(siPlus, halfSize, val, preFilterType_);
+                  Polygon pol = FindLocalMaxima.FindMax(siPlus, 2 *  halfSize, val, preFilterType_);
                   for (int i = 0; i < pol.npoints && !aStop_.get(); i++) {
                      int x = pol.xpoints[i];
                      int y = pol.ypoints[i];
@@ -1055,7 +1069,7 @@ public class MainForm extends JFrame {
                   }
                }
             } else {  // no Rois in RoiManager
-               Polygon pol = FindLocalMaxima.FindMax(siPlus, halfSize, val, preFilterType_);
+               Polygon pol = FindLocalMaxima.FindMax(siPlus, 2 * halfSize, val, preFilterType_);
                for (int i = 0; i < pol.npoints && !aStop_.get(); i++) {
                   int x = pol.xpoints[i];
                   int y = pol.ypoints[i];
@@ -1119,7 +1133,8 @@ public class MainForm extends JFrame {
          tT.setPixelSize((float) NumberUtils.displayStringToDouble(pixelSizeTextField_.getText()));
          tT.setZStackStepSize((float) NumberUtils.displayStringToDouble(zStepTextField_.getText()));
          tT.setTimeIntervalMs(NumberUtils.displayStringToDouble(timeIntervalTextField_.getText()));
-         tT.setBaseLevel(NumberUtils.displayStringToDouble(baseLevelTextField.getText()));
+         tT.setBaseLevel(NumberUtils.displayStringToDouble(baseLevelTextField_.getText()));
+         tT.setReadNoise(NumberUtils.displayStringToDouble(readNoiseTextField_.getText()));
          tT.setUseWidthFilter(filterDataCheckBoxWidth_.isSelected());
          tT.setSigmaMin(NumberUtils.displayStringToDouble(minSigmaTextField_.getText()));
          tT.setSigmaMax(NumberUtils.displayStringToDouble(maxSigmaTextField_.getText()));

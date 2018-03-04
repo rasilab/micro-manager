@@ -30,6 +30,7 @@ either expressed or implied, of the FreeBSD Project.
 package edu.ucsf.valelab.gaussianfit.data;
 
 import com.google.protobuf.ExtensionRegistry;
+import com.google.protobuf.InvalidProtocolBufferException;
 import edu.ucsf.valelab.tsf.MMLocM;
 import edu.ucsf.valelab.tsf.TaggedSpotsProtos;
 import edu.ucsf.valelab.gaussianfit.DataCollectionForm;
@@ -59,6 +60,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
+import org.micromanager.internal.utils.ReportingUtils;
 
 /**
  * Static functions for loading and saving files
@@ -202,18 +204,36 @@ public class LoadAndSave {
     * @param caller - JFrame calling code, used to set Waitcursor
     */
    public static void loadText(File selectedFile, JFrame caller) {
-      try {
-         ij.IJ.showStatus("Loading data..");
 
-         caller.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+      ij.IJ.showStatus("Loading data..");
+
+      caller.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+      try {
          BufferedReader fr = new BufferedReader(new FileReader(selectedFile));
+         loadTextFromBufferedReader(fr);
+      } catch (FileNotFoundException ex) {
+         JOptionPane.showMessageDialog(getInstance(), "File not found");
+      } finally {
+         caller.setCursor(Cursor.getDefaultCursor());
+         ij.IJ.showStatus("");
+         ij.IJ.showProgress(1.0);
+      }
+   }
+   
+   /**
+    * 
+    * @param fr - input data as a stream
+    */
+   public static void loadTextFromBufferedReader(BufferedReader fr) {
+      
+      try {
 
          String info = fr.readLine();
          String[] infos = info.split("\t");
          HashMap<String, String> infoMap = new HashMap<String, String>();
          for (String info1 : infos) {
             String[] keyValue = info1.split(": ");
-            if (keyValue.length == 2) {
+            if (keyValue.length >= 2) {
                infoMap.put(keyValue[0], keyValue[1]);
             }
          }
@@ -233,28 +253,32 @@ public class LoadAndSave {
 
          while ((spot = fr.readLine()) != null) {
             String[] spotTags = spot.split("\t");
+            if (spotTags.length != headers.length) {
+               ReportingUtils.logError("Failed to import spot " + spotTags[0]);
+               continue;
+            }
             HashMap<String, String> k = new HashMap<String, String>();
             for (int i = 0; i < headers.length; i++) {
                k.put(headers[i], spotTags[i]);
             }
 
             SpotData gsd = new SpotData(null,
-                    Integer.parseInt(k.get("channel")),
-                    Integer.parseInt(k.get("slice")),
-                    Integer.parseInt(k.get("frame")),
-                    Integer.parseInt(k.get("pos")),
-                    Integer.parseInt(k.get("molecule")),
-                    Integer.parseInt(k.get("x_position")),
-                    Integer.parseInt(k.get("y_position"))
+                    Integer.parseInt(k.get(headers[3])),
+                    Integer.parseInt(k.get(headers[2])),
+                    Integer.parseInt(k.get(headers[1])),
+                    Integer.parseInt(k.get(headers[4])),
+                    Integer.parseInt(k.get(headers[0])),
+                    Integer.parseInt(k.get(headers[5])),
+                    Integer.parseInt(k.get(headers[6]))
             );
-            gsd.setData(Double.parseDouble(k.get("intensity")),
-                    Double.parseDouble(k.get("background")),
-                    Double.parseDouble(k.get("x")),
-                    Double.parseDouble(k.get("y")), 0.0,
-                    Double.parseDouble(k.get("width")),
-                    Double.parseDouble(k.get("a")),
-                    Double.parseDouble(k.get("theta")),
-                    Double.parseDouble(k.get("x_precision"))
+            gsd.setData(Double.parseDouble(k.get(headers[9])),
+                    Double.parseDouble(k.get(headers[10])),
+                    Double.parseDouble(k.get(headers[7])),
+                    Double.parseDouble(k.get(headers[8])), 0.0,
+                    Double.parseDouble(k.get(headers[11])),
+                    Double.parseDouble(k.get(headers[12])),
+                    Double.parseDouble(k.get(headers[13])),
+                    Double.parseDouble(k.get(headers[14]))
             );
             if (appId == MMAPPID) {
                gsd.addKeyValue(SpotData.Keys.APERTUREINTENSITY, 
@@ -308,15 +332,10 @@ public class LoadAndSave {
 
       } catch (NumberFormatException ex) {
          JOptionPane.showMessageDialog(getInstance(), "File format did not meet expectations");
-      } catch (FileNotFoundException ex) {
-         JOptionPane.showMessageDialog(getInstance(), "File not found");
+      
       } catch (IOException ex) {
          JOptionPane.showMessageDialog(getInstance(), "Error while reading file");
-      } finally {
-         caller.setCursor(Cursor.getDefaultCursor());
-         ij.IJ.showStatus("");
-         ij.IJ.showProgress(1.0);
-      }
+      } 
 
    }
 
@@ -328,6 +347,8 @@ public class LoadAndSave {
     */
    public static void loadTSF(File selectedFile, JFrame caller) {
       TaggedSpotsProtos.SpotList psl;
+      long spotsMissedWithErrors = 0;
+         
       try {
 
          ij.IJ.showStatus("Loading data..");
@@ -389,42 +410,47 @@ public class LoadAndSave {
          ArrayList<SpotData> spotList = new ArrayList<SpotData>();
          TaggedSpotsProtos.Spot pSpot;
          while (fi.available() > 0 && (expectedSpots == 0 || maxNrSpots < expectedSpots)) {
+        
+            try {
+               pSpot = TaggedSpotsProtos.Spot.parseDelimitedFrom(fi, registry);
 
-            pSpot = TaggedSpotsProtos.Spot.parseDelimitedFrom(fi, registry);
-
-            SpotData gSpot = new SpotData((ImageProcessor) null, pSpot.getChannel(),
-                    pSpot.getSlice(), pSpot.getFrame(), pSpot.getPos(),
-                    pSpot.getMolecule(), pSpot.getXPosition(), pSpot.getYPosition());
-            gSpot.setData(pSpot.getIntensity(), pSpot.getBackground(), pSpot.getX(),
-                    pSpot.getY(), 0.0, pSpot.getWidth(), pSpot.getA(), pSpot.getTheta(),
-                    pSpot.getXPrecision());
-            if (appId == MMAPPID) {
-               gSpot.addKeyValue(SpotData.Keys.APERTUREINTENSITY, 
-                       pSpot.getExtension(MMLocM.intensityAperture));
-               gSpot.addKeyValue(SpotData.Keys.APERTUREBACKGROUND, 
-                       pSpot.getExtension(MMLocM.intensityBackground));
-               gSpot.addKeyValue(SpotData.Keys.INTENSITYRATIO, 
-                       pSpot.getExtension(MMLocM.intensityRatio));
-               gSpot.addKeyValue(SpotData.Keys.MSIGMA, 
-                       pSpot.getExtension(MMLocM.mSigma));
-            }
-            if (pSpot.hasZ()) {
-               double zc = pSpot.getZ();
-               gSpot.setZCenter(zc);
-               hasZ = true;
-               if (zc > maxZ) {
-                  maxZ = zc;
+               SpotData gSpot = new SpotData((ImageProcessor) null, pSpot.getChannel(),
+                       pSpot.getSlice(), pSpot.getFrame(), pSpot.getPos(),
+                       pSpot.getMolecule(), pSpot.getXPosition(), pSpot.getYPosition());
+               gSpot.setData(pSpot.getIntensity(), pSpot.getBackground(), pSpot.getX(),
+                       pSpot.getY(), 0.0, pSpot.getWidth(), pSpot.getA(), pSpot.getTheta(),
+                       pSpot.getXPrecision());
+               if (appId == MMAPPID) {
+                  gSpot.addKeyValue(SpotData.Keys.APERTUREINTENSITY,
+                          pSpot.getExtension(MMLocM.intensityAperture));
+                  gSpot.addKeyValue(SpotData.Keys.APERTUREBACKGROUND,
+                          pSpot.getExtension(MMLocM.intensityBackground));
+                  gSpot.addKeyValue(SpotData.Keys.INTENSITYRATIO,
+                          pSpot.getExtension(MMLocM.intensityRatio));
+                  gSpot.addKeyValue(SpotData.Keys.MSIGMA,
+                          pSpot.getExtension(MMLocM.mSigma));
                }
-               if (zc < minZ) {
-                  minZ = zc;
+               if (pSpot.hasZ()) {
+                  double zc = pSpot.getZ();
+                  gSpot.setZCenter(zc);
+                  hasZ = true;
+                  if (zc > maxZ) {
+                     maxZ = zc;
+                  }
+                  if (zc < minZ) {
+                     minZ = zc;
+                  }
                }
-            }
-            maxNrSpots++;
-            if ((esf > 0) && ((maxNrSpots % esf) == 0)) {
-               ij.IJ.showProgress((double) maxNrSpots / (double) expectedSpots);
-            }
+               maxNrSpots++;
+               if ((esf > 0) && ((maxNrSpots % esf) == 0)) {
+                  ij.IJ.showProgress((double) maxNrSpots / (double) expectedSpots);
+               }
 
-            spotList.add(gSpot);
+               spotList.add(gSpot);
+            } catch (InvalidProtocolBufferException ipbe) {
+               spotsMissedWithErrors++;
+               ReportingUtils.logError("ProtocolBuffer Exception: " + ipbe.getMessage());
+            }
          }
 
          RowData.Builder builder = new RowData.Builder();
@@ -446,22 +472,27 @@ public class LoadAndSave {
          caller.setCursor(Cursor.getDefaultCursor());
          ij.IJ.showStatus("");
          ij.IJ.showProgress(1.0);
+         if (spotsMissedWithErrors > 0) {
+            ReportingUtils.showError("Failed to read " + spotsMissedWithErrors + " spot(s)");
+         }
       }
    }
 
-   
    /**
     * Save data set in TSF (Tagged Spot File) format
     *
-    * @param rowData  row with spot data to be saved
+    * @param rowData row with spot data to be saved
     * @param bypassFileDialog
     * @param dir
     * @param caller
-    * @return 
+    * @return
     */
-   public static String saveData(final RowData rowData, boolean bypassFileDialog, 
-           String dir, final JFrame caller) {
-      String[] parts = rowData.getName().split(File.separator);
+
+   public static String saveData(final RowData[] rowData, 
+           boolean bypassFileDialog, 
+           String dir, 
+           final JFrame caller) {
+      String[] parts = rowData[0].getName().split(File.separator);
       String name = parts[parts.length - 1];
       String fn = name + EXTENSION;
       if (!bypassFileDialog) {
@@ -474,35 +505,36 @@ public class LoadAndSave {
          }
          fn = fd.getFile();
          if (!fn.contains(".")) {
-            fn = fn + EXTENSION;
+            fn += EXTENSION;
          }
          dir = fd.getDirectory();
       }
       final File selectedFile = new File(dir + File.separator + fn);
+      final String fdir = dir;
 
       Runnable doWorkRunnable = new Runnable() {
 
          @Override
          public void run() {
-
+            for (int rowNr = 0; rowNr < rowData.length; rowNr++) {
             TaggedSpotsProtos.SpotList.Builder tspBuilder = TaggedSpotsProtos.SpotList.newBuilder();
             tspBuilder.setApplicationId(MMAPPID).
-                    setName(rowData.getName()).
-                    setFilepath(rowData.title_).
-                    setNrPixelsX(rowData.width_).
-                    setNrPixelsY(rowData.height_).
-                    setNrSpots(rowData.spotList_.size()).
-                    setPixelSize(rowData.pixelSizeNm_).
-                    setBoxSize(rowData.halfSize_ * 2).
-                    setNrChannels(rowData.nrChannels_).
-                    setNrSlices(rowData.nrSlices_).
-                    setIsTrack(rowData.isTrack_).
-                    setNrPos(rowData.nrPositions_).
-                    setNrFrames(rowData.nrFrames_).
+                    setName(rowData[rowNr].getName()).
+                    setFilepath(rowData[rowNr].title_).
+                    setNrPixelsX(rowData[rowNr].width_).
+                    setNrPixelsY(rowData[rowNr].height_).
+                    setNrSpots(rowData[rowNr].spotList_.size()).
+                    setPixelSize(rowData[rowNr].pixelSizeNm_).
+                    setBoxSize(rowData[rowNr].halfSize_ * 2).
+                    setNrChannels(rowData[rowNr].nrChannels_).
+                    setNrSlices(rowData[rowNr].nrSlices_).
+                    setIsTrack(rowData[rowNr].isTrack_).
+                    setNrPos(rowData[rowNr].nrPositions_).
+                    setNrFrames(rowData[rowNr].nrFrames_).
                     setLocationUnits(TaggedSpotsProtos.LocationUnits.NM).
                     setIntensityUnits(TaggedSpotsProtos.IntensityUnits.PHOTONS).
-                    setNrSpots(rowData.maxNrSpots_);
-            switch (rowData.shape_) {
+                    setNrSpots(rowData[rowNr].maxNrSpots_);
+            switch (rowData[rowNr].shape_) {
                case (1):
                   tspBuilder.setFitMode(TaggedSpotsProtos.FitMode.ONEAXIS);
                   break;
@@ -519,18 +551,25 @@ public class LoadAndSave {
             try {
                caller.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 
-               FileOutputStream fo = new FileOutputStream(selectedFile);
+               FileOutputStream fo;
+               if (rowNr == 0) {
+                  fo = new FileOutputStream(selectedFile);
+               } else {
+                  String[] nameParts = rowData[rowNr].getName().split(File.separator);
+                  String tmpName = nameParts[nameParts.length - 1];
+                  fo = new FileOutputStream(new File(fdir + File.separator + tmpName + EXTENSION));
+               }
                // write space for magic nr and offset to spotList
                for (int i = 0; i < 12; i++) {
                   fo.write(0);
                }
 
                int counter = 0;
-               for (SpotData gd : rowData.spotList_) {
+               for (SpotData gd : rowData[rowNr].spotList_) {
 
                   if ((counter % 1000) == 0) {
                      ij.IJ.showStatus("Saving spotData...");
-                     ij.IJ.showProgress(counter, rowData.spotList_.size());
+                     ij.IJ.showProgress(counter, rowData[rowNr].spotList_.size());
                   }
 
                   if (gd != null) {
@@ -560,7 +599,7 @@ public class LoadAndSave {
                                   gd.getValue(SpotData.Keys.INTENSITYRATIO).floatValue()).
                              setExtension(MMLocM.mSigma, 
                                   gd.getValue(SpotData.Keys.MSIGMA).floatValue());
-                     if (rowData.hasZ_) {
+                     if (rowData[rowNr].hasZ_) {
                         spotBuilder.setZ((float) gd.getZCenter());
                      }
 
@@ -591,6 +630,7 @@ public class LoadAndSave {
                caller.setCursor(Cursor.getDefaultCursor());
             }
          }
+         }
       };
 
       (new Thread(doWorkRunnable)).start();
@@ -601,12 +641,15 @@ public class LoadAndSave {
    /**
     * Save data set as a text file
     *
-    * @param rowData - row with spot data to be saved
+    * @param rows - row with spot data to be saved
+    * @param dir
     * @param caller - JFrame of calling code to provide visual feedback
+    * @return 
     */
-   public static void saveDataAsText(final RowData rowData, final JFrame caller) {
-      FileDialog fd = new FileDialog(caller, "Save Spot Data", FileDialog.SAVE);
-      String[] parts = rowData.getName().split(File.separator);
+
+   public static String saveDataAsText(final RowData[] rows, String dir, final JFrame caller) {
+      final FileDialog fd = new FileDialog(caller, "Save Spot Data", FileDialog.SAVE);
+      String[] parts = rows[0].getName().split(File.separator);
       String name = parts[parts.length - 1];
       fd.setFile(name + ".txt");
       FilenameFilter fnf = new FilenameFilter() {
@@ -622,7 +665,7 @@ public class LoadAndSave {
       if (selectedItem != null) {
          String fn = fd.getFile();
          if (!fn.contains(".")) {
-            fn = fn + ".txt";
+            fn += ".txt";
          }
          final File selectedFile = new File(fd.getDirectory() + File.separator + fn);
 
@@ -631,91 +674,101 @@ public class LoadAndSave {
             @Override
             public void run() {
                try {
-                  String tab = "\t";
-                  caller.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-                  FileWriter fw = new FileWriter(selectedFile);
-                  fw.write(""
-                          + "application_id: " + MMAPPID + tab
-                          + "name: " + rowData.getName() + tab
-                          + "filepath: " + rowData.title_ + tab
-                          + "nr_pixels_x: " + rowData.width_ + tab
-                          + "nr_pixels_y: " + rowData.height_ + tab
-                          + "pixel_size: " + rowData.pixelSizeNm_ + tab
-                          + "nr_spots: " + rowData.maxNrSpots_ + tab
-                          + "box_size: " + rowData.halfSize_ * 2 + tab
-                          + "nr_channels: " + rowData.nrChannels_ + tab
-                          + "nr_frames: " + rowData.nrFrames_ + tab
-                          + "nr_slices: " + rowData.nrSlices_ + tab
-                          + "nr_pos: " + rowData.nrPositions_ + tab
-                          + "location_units: " + TaggedSpotsProtos.LocationUnits.NM + tab
-                          + "intensity_units: " + TaggedSpotsProtos.IntensityUnits.PHOTONS + tab
-                          + "fit_mode: " + rowData.shape_ + tab
-                          + "is_track: " + rowData.isTrack_ + tab
-                          + "has_Z: " + rowData.hasZ_ + "\n");
-                  fw.write("molecule\tchannel\tframe\tslice\tpos\tx\ty\tintensity\t"
-                          + "background\twidth\ta\ttheta\tx_position\ty_position\t"
-                          + "x_precision\tintensity_aperture\tbackground_aperture\t"
-                          + "intensity_ratio\tm_sigma");
-                  if (rowData.hasZ_) {
-                     fw.write("\tz");
-                  }
-                  fw.write("\n");
-
-                  int counter = 1;
-                  for (SpotData gd : rowData.spotList_) {
-
-                     if ((counter % 1000) == 0) {
-                        ij.IJ.showStatus("Saving spotData...");
-                        ij.IJ.showProgress(counter, rowData.spotList_.size());
+                  for (int rowNr = 0; rowNr < rows.length; rowNr++) {
+                     String tab = "\t";
+                     caller.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+                     FileWriter fw;
+                     if (rowNr == 0) {
+                        fw= new FileWriter(selectedFile);
+                     } else {      
+                        String[] nameParts = rows[rowNr].getName().split(File.separator);
+                        String tmpName = nameParts[nameParts.length - 1];
+                        fw = new FileWriter (new File(fd.getDirectory() + File.separator + tmpName+ ".txt"));
                      }
-                     
-                     if (gd != null) {
-                        fw.write("" + counter + tab +
-                                gd.getChannel() + tab +
-                                gd.getFrame() + tab +
-                                gd.getSlice() + tab + 
-                                gd.getPosition() + tab + 
-                                String.format("%.2f", gd.getXCenter()) + tab + 
-                                String.format("%.2f", gd.getYCenter()) + tab +
-                                String.format("%.2f", gd.getIntensity()) + tab +
-                                String.format("%.2f", gd.getBackground()) + tab +
-                                String.format("%.2f",gd.getWidth()) + tab +
-                                String.format("%.3f", gd.getA()) + tab + 
-                                String.format("%.3f",gd.getTheta()) + tab + 
-                                gd.getX() + tab + 
-                                gd.getY() + tab + 
-                                String.format("%.3f", gd.getSigma()) + tab);
-                        String remainder = "";
-                        if (gd.hasKey(SpotData.Keys.APERTUREINTENSITY)) {
-                           remainder += String.format("%.2f", gd.getValue(SpotData.Keys.APERTUREINTENSITY).floatValue());
-                        }
-                        remainder += tab;
-                        if (gd.hasKey(SpotData.Keys.APERTUREBACKGROUND)) {
-                           remainder += String.format("%.2f", gd.getValue(SpotData.Keys.APERTUREBACKGROUND).floatValue());
-                        }
-                        
-                        remainder += tab;
-                        if (gd.hasKey(SpotData.Keys.INTENSITYRATIO)) {
-                           remainder += String.format("%.3f", gd.getValue(SpotData.Keys.INTENSITYRATIO).floatValue());
-                        }
-                        remainder += tab;
-                        if (gd.hasKey(SpotData.Keys.MSIGMA)) {
-                           remainder += String.format("%.3f", gd.getValue(SpotData.Keys.MSIGMA).floatValue());
-                        }
-                        fw.write(remainder);                     
-                        if (rowData.hasZ_) {
-                           fw.write(tab + String.format("%.2f", gd.getZCenter()));
-                        }
-                        fw.write("\n");
-
-                        counter++;
+                     fw.write(""
+                             + "application_id: " + MMAPPID + tab
+                             + "name: " + rows[rowNr].getName() + tab
+                             + "filepath: " + rows[rowNr].title_ + tab
+                             + "nr_pixels_x: " + rows[rowNr].width_ + tab
+                             + "nr_pixels_y: " + rows[rowNr].height_ + tab
+                             + "pixel_size: " + rows[rowNr].pixelSizeNm_ + tab
+                             + "nr_spots: " + rows[rowNr].maxNrSpots_ + tab
+                             + "box_size: " + rows[rowNr].halfSize_ * 2 + tab
+                             + "nr_channels: " + rows[rowNr].nrChannels_ + tab
+                             + "nr_frames: " + rows[rowNr].nrFrames_ + tab
+                             + "nr_slices: " + rows[rowNr].nrSlices_ + tab
+                             + "nr_pos: " + rows[rowNr].nrPositions_ + tab
+                             + "location_units: " + TaggedSpotsProtos.LocationUnits.NM + tab
+                             + "intensity_units: " + TaggedSpotsProtos.IntensityUnits.PHOTONS + tab
+                             + "fit_mode: " + rows[rowNr].shape_ + tab
+                             + "is_track: " + rows[rowNr].isTrack_ + tab
+                             + "has_Z: " + rows[rowNr].hasZ_ + "\n");
+                     fw.write("molecule\tframe\tslice\tchannel\tpos\tx_position\t"
+                             + "y_position\tx\ty\tintensity\t"
+                             + "background\twidth\ta\ttheta\t"
+                             + "sigma\tintensity_aperture\tbackground_aperture\t"
+                             + "intensity_ratio\tm_sigma");
+                     if (rows[rowNr].hasZ_) {
+                        fw.write("\tz");
                      }
+                     fw.write("\n");
+
+                     int counter = 1;
+                     for (SpotData gd : rows[rowNr].spotList_) {
+
+                        if ((counter % 1000) == 0) {
+                           ij.IJ.showStatus("Saving spotData...");
+                           ij.IJ.showProgress(counter, rows[rowNr].spotList_.size());
+                        }
+
+                        if (gd != null) {
+                           fw.write("" + counter + tab
+                                   + gd.getFrame() + tab
+                                   + gd.getSlice() + tab
+                                   + gd.getChannel() + tab
+                                   + gd.getPosition() + tab
+                                   + gd.getX() + tab
+                                   + gd.getY() + tab
+                                   + String.format("%.2f", gd.getXCenter()) + tab
+                                   + String.format("%.2f", gd.getYCenter()) + tab
+                                   + String.format("%.2f", gd.getIntensity()) + tab
+                                   + String.format("%.2f", gd.getBackground()) + tab
+                                   + String.format("%.2f", gd.getWidth()) + tab
+                                   + String.format("%.3f", gd.getA()) + tab
+                                   + String.format("%.3f", gd.getTheta()) + tab
+                                   + String.format("%.3f", gd.getSigma()) + tab);
+                           String remainder = "";
+                           if (gd.hasKey(SpotData.Keys.APERTUREINTENSITY)) {
+                              remainder += String.format("%.2f", gd.getValue(SpotData.Keys.APERTUREINTENSITY).floatValue());
+                           }
+                           remainder += tab;
+                           if (gd.hasKey(SpotData.Keys.APERTUREBACKGROUND)) {
+                              remainder += String.format("%.2f", gd.getValue(SpotData.Keys.APERTUREBACKGROUND).floatValue());
+                           }
+
+                           remainder += tab;
+                           if (gd.hasKey(SpotData.Keys.INTENSITYRATIO)) {
+                              remainder += String.format("%.3f", gd.getValue(SpotData.Keys.INTENSITYRATIO).floatValue());
+                           }
+                           remainder += tab;
+                           if (gd.hasKey(SpotData.Keys.MSIGMA)) {
+                              remainder += String.format("%.3f", gd.getValue(SpotData.Keys.MSIGMA).floatValue());
+                           }
+                           fw.write(remainder);
+                           if (rows[rowNr].hasZ_) {
+                              fw.write(tab + String.format("%.2f", gd.getZCenter()));
+                           }
+                           fw.write("\n");
+
+                           counter++;
+                        }
+                     }
+
+                     fw.close();
+
+                     ij.IJ.showProgress(1);
+                     ij.IJ.showStatus("Finished saving spotData to text file...");
                   }
-                  
-                  fw.close();
-                  
-                  ij.IJ.showProgress(1);
-                  ij.IJ.showStatus("Finished saving spotData to text file...");
                } catch (IOException ex) {
                   JOptionPane.showMessageDialog(getInstance(), "Error while saving data in text format");
                } finally {
@@ -727,6 +780,7 @@ public class LoadAndSave {
          (new Thread(doWorkRunnable)).start();
          
       }
+      return dir;
    }
    
 }

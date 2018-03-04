@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import javax.swing.SwingUtilities;
+import org.micromanager.LogManager;
 
 import org.micromanager.Studio;
 import org.micromanager.UserProfile;
@@ -70,6 +71,7 @@ import org.micromanager.display.DisplayWindow;
 import org.micromanager.display.inspector.internal.panels.intensity.ImageStatsPublisher;
 import org.micromanager.display.internal.event.DataViewerDidBecomeActiveEvent;
 import org.micromanager.display.internal.event.DataViewerDidBecomeInactiveEvent;
+import org.micromanager.display.internal.event.DataViewerDidBecomeVisibleEvent;
 import org.micromanager.display.internal.event.DataViewerWillCloseEvent;
 import org.micromanager.display.internal.event.DefaultDisplaySettingsChangedEvent;
 import org.micromanager.display.internal.imagestats.BoundsRectAndMask;
@@ -98,7 +100,6 @@ public class CVViewer implements DataViewer, ImageStatsPublisher {
    private String name_;
    private final EventBus displayBus_;
    private final CVFrame cvFrame_;
-   private Coords.CoordsBuilder coordsBuilder_;
    private int maxValue_;
    private final String XLOC = "XLocation";
    private final String YLOC = "YLocation";
@@ -151,7 +152,6 @@ public class CVViewer implements DataViewer, ImageStatsPublisher {
       }
       displayBus_ = new EventBus();
       cvFrame_ = new CVFrame();
-      coordsBuilder_ = Coordinates.builder();
       
       if (dataProvider_ == null) {
          studio_.logs().showMessage("No data set open");
@@ -277,6 +277,7 @@ public class CVViewer implements DataViewer, ImageStatsPublisher {
 
          SwingUtilities.invokeLater(() -> {
             cvFrame_.setVisible(true);
+            postEvent(DataViewerDidBecomeVisibleEvent.create(this));
          });
 
          clearVolumeRenderer_.setTransferFunction(TransferFunctions.getDefault());
@@ -518,8 +519,9 @@ public class CVViewer implements DataViewer, ImageStatsPublisher {
          */
 
          // Only return the middle image
-         coordsBuilder_ = coordsBuilder_.z(nrZ / 2).channel(ch).time(0).stagePosition(0);
-         Coords coords = coordsBuilder_.build();
+         
+         Coords coords = Coordinates.builder().z(nrZ / 2).channel(ch).t(0).
+                           stagePosition(0).build();
          imageList.add(dataProvider_.getImage(coords));
 
       }
@@ -583,8 +585,8 @@ public class CVViewer implements DataViewer, ImageStatsPublisher {
       for (int ch = 0; ch < nrCh; ch++) {
          FragmentedMemory fragmentedMemory = new FragmentedMemory();
          for (int i = 0; i < nrZ; i++) {
-            coordsBuilder_ = coordsBuilder_.z(i).channel(ch).time(timePoint).stagePosition(0);
-            Coords coords = coordsBuilder_.build();
+            Coords coords = Coordinates.builder().z(i).channel(ch).t(timePoint).
+                                                   stagePosition(0).build();
             lastDisplayedCoords_ = coords;
 
             // Bypass Micro-Manager api to get access to the ByteBuffers
@@ -868,13 +870,10 @@ public class CVViewer implements DataViewer, ImageStatsPublisher {
          return;
       }
       Coords newImageCoords = newImage.getCoords();
-      if (timePointComplete(newImageCoords.getT())) {
+      if (timePointComplete(newImageCoords.getT(), dataProvider_, studio_.logs())) {
          if (clearVolumeRenderer_ == null) {
             initializeRenderer(newImageCoords.getT());
-         } else {
-            
-         // TODO - or should the scrollerpanel do this?
-         }
+         } 
       }
    }       
    
@@ -891,17 +890,20 @@ public class CVViewer implements DataViewer, ImageStatsPublisher {
     * Check if we have all z slices for all channels at the given time point
     * This code may be fooled by other axes in the data
     * @param timePointIndex - time point index
+    * @param dataProvider
+    * @param logger
     * @return true if complete
     */
-   private boolean timePointComplete (int timePointIndex) {
+   public static boolean timePointComplete (final int timePointIndex, 
+           final DataProvider dataProvider, final LogManager logger ) {
       Coords zStackCoords = Coordinates.builder().t(timePointIndex).build();
       try {
-         final int nrImages = dataProvider_.getImagesMatching(zStackCoords).size();
-         Coords intendedDimensions = dataProvider_.getSummaryMetadata().
+         final int nrImages = dataProvider.getImagesMatching(zStackCoords).size();
+         Coords intendedDimensions = dataProvider.getSummaryMetadata().
                  getIntendedDimensions();
          return nrImages >= intendedDimensions.getChannel() * intendedDimensions.getZ(); 
       } catch (IOException ioe) {
-         studio_.logs().showError(ioe, "Error getting number of images from dataset");
+         logger.showError(ioe, "Error getting number of images from dataset");
       }
       return false;
    }

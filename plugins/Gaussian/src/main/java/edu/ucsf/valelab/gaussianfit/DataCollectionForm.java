@@ -69,6 +69,7 @@ import edu.ucsf.valelab.gaussianfit.utils.ReportingUtils;
 import edu.ucsf.valelab.gaussianfit.utils.NumberUtils;
 import edu.ucsf.valelab.gaussianfit.utils.FileDialogs;
 import edu.ucsf.valelab.gaussianfit.utils.FileDialogs.FileType;
+import edu.ucsf.valelab.gaussianfit.utils.MapUtils;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
@@ -79,10 +80,15 @@ import ij.process.ImageProcessor;
 import ij.text.TextPanel;
 import ij.text.TextWindow;
 import java.awt.*;
+import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
+import java.awt.event.ActionEvent;
 import java.awt.event.KeyListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
@@ -93,6 +99,8 @@ import java.text.ParseException;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.swing.AbstractAction;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -100,8 +108,10 @@ import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JTable;
@@ -120,6 +130,7 @@ import org.micromanager.Studio;
 import org.micromanager.UserProfile;
 import org.micromanager.events.ShutdownCommencingEvent;
 import org.micromanager.internal.MMStudio;
+import org.micromanager.propertymap.MutablePropertyMapView;
 
 
 /**
@@ -127,7 +138,7 @@ import org.micromanager.internal.MMStudio;
  * @author Nico Stuurman
  */
 public class DataCollectionForm extends JFrame {
-   DataTableModel mainTableModel_;
+   private DataTableModel mainTableModel_;
    private final String[] renderModes_ = {"Points", "Gaussian", "Norm. Gaussian"};
    private final String[] renderSizes_  = 
                {"1x", "2x", "4x", "8x", "16x", "32x", "64x", "128x"};
@@ -137,6 +148,8 @@ public class DataCollectionForm extends JFrame {
    
    public final static String EXTENSION = ".tsf";
    
+   // Preference instance
+   private final MutablePropertyMapView settings_;
    // Pref-keys
    private static final String FRAMEXPOS = "DCXPos";
    private static final String FRAMEYPOS = "DCYPos";
@@ -209,8 +222,9 @@ public class DataCollectionForm extends JFrame {
     * @param jm 
     */
    public void setJitterMethod(int jm) {
-      if (jm == 0 || jm == 1)
+      if (jm == 0 || jm == 1) {
          jitterMethod_ = jm;
+      }
    }
    /**
     * Method to allow scripts to tune the jitter corrector
@@ -238,8 +252,9 @@ public class DataCollectionForm extends JFrame {
     * @return  Affine transform object calculated by the Coordinate Mapper
     */
    public AffineTransform getAffineTransform() {
-      if (c2t_ == null)
+      if (c2t_ == null) {
          return null;
+      }
       return c2t_.getAffineTransform();
    }
 
@@ -256,6 +271,10 @@ public class DataCollectionForm extends JFrame {
    
    public int getNumberOfSpotData() {
       return mainTableModel_.getRowCount();
+   }
+   
+   public void setSelectedRows(int start, int end) {
+      mainTable_.setRowSelectionInterval(start, end);
    }
    
 
@@ -286,31 +305,32 @@ public class DataCollectionForm extends JFrame {
       // Read UI values bakc form Profile
       UserProfile up = studio_.getUserProfile();
       Class oc = DataCollectionForm.class;
-      int x = up.getInt(oc, FRAMEXPOS, 50);
-      int y = up.getInt(oc, FRAMEYPOS, 100);
-      int width = up.getInt(oc, FRAMEWIDTH, 800);
-      int height = up.getInt(oc, FRAMEHEIGHT, 250);
-      super.setBounds(x, y, width, height);
-      filterSigmaCheckBox_.setSelected(up.getBoolean(oc, USESIGMA, false));
-      sigmaMin_.setText(up.getString(oc, SIGMAMIN, "0.0"));
-      sigmaMax_.setText(up.getString(oc, SIGMAMAX, "20.0"));
-      filterIntensityCheckBox_.setSelected(up.getBoolean(oc, USEINT, false));
-      intensityMin_.setText(up.getString(oc, INTMIN, "0.0"));
-      intensityMax_.setText(up.getString(oc, INTMAX, "20000"));
-      loadTSFDir_ = up.getString(oc, LOADTSFDIR, "");
+      settings_ = up.getSettings(oc);
+      super.setBounds(
+            settings_.getInteger(FRAMEXPOS, 50),
+            settings_.getInteger(FRAMEYPOS, 100),
+            settings_.getInteger(FRAMEWIDTH, 800),
+            settings_.getInteger(FRAMEHEIGHT, 250) );
+      filterSigmaCheckBox_.setSelected(settings_.getBoolean(USESIGMA, false));
+      sigmaMin_.setText(settings_.getString(SIGMAMIN, "0.0"));
+      sigmaMax_.setText(settings_.getString(SIGMAMAX, "20.0"));
+      filterIntensityCheckBox_.setSelected(settings_.getBoolean(USEINT, false));
+      intensityMin_.setText(settings_.getString(INTMIN, "0.0"));
+      intensityMax_.setText(settings_.getString(INTMAX, "20000"));
+      loadTSFDir_ = settings_.getString(LOADTSFDIR, "");
       visualizationMagnification_.setSelectedIndex(up.getInt(oc, RENDERMAG, 0));
-      pairsMaxDistanceField_.setText(up.getString(oc, PAIRSMAXDISTANCE, "500"));
-      method2CBox_.setSelectedItem(up.getString(oc, METHOD2C, "LWM"));
+      pairsMaxDistanceField_.setText(settings_.getString(PAIRSMAXDISTANCE, "500"));
+      method2CBox_.setSelectedItem(settings_.getString(METHOD2C, "LWM"));
       
       mainTable_.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
       TableColumnModel cm = mainTable_.getColumnModel();
-      cm.getColumn(0).setPreferredWidth(up.getInt(oc, COL0WIDTH, 25));
-      cm.getColumn(1).setPreferredWidth(up.getInt(oc, COL1WIDTH, 300));
-      cm.getColumn(2).setPreferredWidth(up.getInt(oc, COL2WIDTH, 150));
-      cm.getColumn(3).setPreferredWidth(up.getInt(oc, COL3WIDTH, 75));
-      cm.getColumn(4).setPreferredWidth(up.getInt(oc, COL4WIDTH, 75));
-      cm.getColumn(5).setPreferredWidth(up.getInt(oc, COL5WIDTH, 75));
-      cm.getColumn(6).setPreferredWidth(up.getInt(oc, COL6WIDTH, 75));
+      cm.getColumn(0).setPreferredWidth(settings_.getInteger(COL0WIDTH, 25));
+      cm.getColumn(1).setPreferredWidth(settings_.getInteger(COL1WIDTH, 300));
+      cm.getColumn(2).setPreferredWidth(settings_.getInteger(COL2WIDTH, 150));
+      cm.getColumn(3).setPreferredWidth(settings_.getInteger(COL3WIDTH, 75));
+      cm.getColumn(4).setPreferredWidth(settings_.getInteger(COL4WIDTH, 75));
+      cm.getColumn(5).setPreferredWidth(settings_.getInteger(COL5WIDTH, 75));
+      cm.getColumn(6).setPreferredWidth(settings_.getInteger(COL6WIDTH, 75));
       
       DataTableRowSorter sorter = 
               new DataTableRowSorter(mainTableModel_);
@@ -530,11 +550,22 @@ public class DataCollectionForm extends JFrame {
       combineButton.addActionListener(new java.awt.event.ActionListener() {
          @Override
          public void actionPerformed(java.awt.event.ActionEvent evt) {
-            combineButton_ActionPerformed(evt);
+            combine(true);
          }
       });
       combineButton.setMaximumSize(buttonSize);
       generalPanel.add(combineButton, "wrap");
+      
+      JButton combineTracksButton = new JButton("Combine Tracks");
+      combineTracksButton.setFont(gFont); 
+      combineTracksButton.addActionListener(new java.awt.event.ActionListener() {
+         @Override
+         public void actionPerformed(java.awt.event.ActionEvent evt) {
+            combine(false);
+         }
+      });
+      combineTracksButton.setMaximumSize(buttonSize);
+      generalPanel.add(combineTracksButton);
 
       
 /**********************  2-Color tab    ***************************************/
@@ -852,6 +883,7 @@ public class DataCollectionForm extends JFrame {
       mainTable_.setModel(mainTableModel_);
       mainTable_.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
       mainTable_.setPreferredScrollableViewportSize(new Dimension(10000, 10000));
+      mainTable_.addMouseListener(new PopClickListener());
       tableScrollPane.setViewportView(mainTable_);
 
       getContentPane().add(tableScrollPane, "span 9, wrap");
@@ -860,6 +892,102 @@ public class DataCollectionForm extends JFrame {
       pack();
    }
    
+   /**
+    * Class to create a popupmenu for shortcuts to esoteric functions
+    */
+   
+   private class PopupMenu extends JPopupMenu {
+
+      public PopupMenu() {
+         JMenuItem copyTracksItem = new JMenuItem(new AbstractAction("Copy Tracks") {
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+               String txt1 = getSelectedTracks(true);
+               String txt2 = getSelectedTracks(false);
+               Clipboard clpbrd = Toolkit.getDefaultToolkit().getSystemClipboard();
+               clpbrd.setContents(new StringSelection(txt1 + txt2), null);
+            }
+         });
+         super.add(copyTracksItem);
+         
+         JMenuItem copySummaryItem = new JMenuItem(new AbstractAction("Copy Summary") {
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+               String txt1 = getSummaryOfSelectedTracks(false);
+               String txt2 = getSummarizedTrackData(false);
+               Clipboard clpbrd = Toolkit.getDefaultToolkit().getSystemClipboard();
+               clpbrd.setContents(new StringSelection(txt1 + "\t" + txt2), null);
+            }
+         });
+         super.add(copySummaryItem);
+         
+         JMenuItem copyHeadersItem = new JMenuItem(new AbstractAction("Copy Headers") {
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+               String txt1 = getSummaryOfSelectedTracks(true);
+               String txt2 = getSummarizedTrackData(true);
+               Clipboard clpbrd = Toolkit.getDefaultToolkit().getSystemClipboard();
+               clpbrd.setContents(new StringSelection(txt1 + "\t" + txt2), null);
+            }
+         });
+         super.add(copyHeadersItem);
+         
+         JMenuItem getInterTrackDistancesItem = new JMenuItem(new AbstractAction("Inter Track Distances") {
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+               IJ.showStatus("Calculating Inter Track distances...");
+               
+               // Distance calculations take a long time so need their own thread
+               Runnable calculateDistances = new Runnable() {
+                  @Override
+                  public void run() {
+                     String header = getInterTrackDistances(true);
+                     String interTrackDistances = getInterTrackDistances(false);
+                     Clipboard clpbrd = Toolkit.getDefaultToolkit().getSystemClipboard();
+                     clpbrd.setContents(new StringSelection(header + "\n" + interTrackDistances), null);
+                  }
+               };
+
+               (new Thread(calculateDistances, "Calculate distances")).start();
+               
+            }
+         });
+         super.add(getInterTrackDistancesItem);
+         
+         JMenuItem selectAllRowsItem = new JMenuItem(new AbstractAction("Select all") {
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+               mainTable_.selectAll();
+            }
+         });
+         super.add(selectAllRowsItem);
+      }
+      
+   }
+   
+   private class PopClickListener extends MouseAdapter {
+
+      @Override
+      public void mousePressed(MouseEvent e) {
+         if (e.isPopupTrigger()) {
+            doPop(e);
+         }
+      }
+
+      @Override
+      public void mouseReleased(MouseEvent e) {
+         if (e.isPopupTrigger()) {
+            doPop(e);
+         }
+      }
+
+      private void doPop(MouseEvent e) {
+         PopupMenu menu = new PopupMenu();
+         menu.show(e.getComponent(), e.getX(), e.getY());
+      }
+   }
+
+
    /**
     * Helper function to facilitate the UI
     * @param minSize minimumSize of the Separator
@@ -887,7 +1015,7 @@ public class DataCollectionForm extends JFrame {
        final File[] selectedFiles;
        if ((modifiers & java.awt.event.InputEvent.META_MASK) > 0) {
           // The Swing fileopener looks ugly but allows for selection of multiple files
-          final JFileChooser jfc = new JFileChooser(loadTSFDir_);
+          final JFileChooser jfc = new JFileChooser(settings_.getString(LOADTSFDIR, ""));
           jfc.setMultiSelectionEnabled(true);
           jfc.setDialogTitle("Load Spot Data");
           int ret = jfc.showOpenDialog(this);
@@ -923,7 +1051,7 @@ public class DataCollectionForm extends JFrame {
     */
    private void loadFiles(File[] selectedFiles) {
       for (File selectedFile : selectedFiles) {
-         loadTSFDir_ = selectedFile.getParent();
+         settings_.putString(LOADTSFDIR, selectedFile.getParent());
          if (selectedFile.getName().endsWith(".txt")) {
             LoadAndSave.loadText(selectedFile, this);
          } else if (selectedFile.getName().endsWith(".tsf")) {
@@ -931,7 +1059,7 @@ public class DataCollectionForm extends JFrame {
          } else if (selectedFile.getName().endsWith(".bin")) {
             LoadAndSave.loadBin(selectedFile, this);
          } else {
-            JOptionPane.showMessageDialog(getInstance(), "Unrecognized file extension");
+            JOptionPane.showMessageDialog(this, "Unrecognized file extension");
          }
       }
    }
@@ -940,20 +1068,18 @@ public class DataCollectionForm extends JFrame {
     private void saveButtonActionPerformed(java.awt.event.ActionEvent evt) {
        int rows[] = mainTable_.getSelectedRowsSorted();
        if (rows.length > 0) {
+          RowData[] rowData = new RowData[rows.length];
           for (int i = 0; i < rows.length; i++) {
-             if (saveFormatBox_.getSelectedIndex() == 0) {
-                if (i == 0)
-                   dir_ = LoadAndSave.saveData(mainTableModel_.getRow(rows[i]), false, 
-                           dir_, this);
-                else
-                   dir_ = LoadAndSave.saveData(mainTableModel_.getRow(rows[i]), true, 
-                           dir_, this);
-             } else {
-                LoadAndSave.saveDataAsText(mainTableModel_.getRow(rows[i]), this);
-             }
+             rowData[i] = mainTableModel_.getRow(rows[i]);
           }
+             if (saveFormatBox_.getSelectedIndex() == 0) {
+                dir_ = LoadAndSave.saveData(rowData, false, dir_, this);
+             } else {
+                dir_ = LoadAndSave.saveDataAsText(rowData, dir_, this);
+             }
+          
        } else {
-          JOptionPane.showMessageDialog(getInstance(), "Please select a dataset to save");
+          JOptionPane.showMessageDialog(this, "Please select a dataset to save");
        }
     }
 
@@ -964,7 +1090,7 @@ public class DataCollectionForm extends JFrame {
              mainTableModel_.removeRow(rows[row]);
           }
        } else {
-          JOptionPane.showMessageDialog(getInstance(), "No dataset selected");
+          JOptionPane.showMessageDialog(this, "No dataset selected");
        }
     }
 
@@ -974,10 +1100,10 @@ public class DataCollectionForm extends JFrame {
           try {
             showResults(mainTableModel_.getRow(row));
           } catch (OutOfMemoryError ome) {
-             JOptionPane.showMessageDialog(getInstance(), "Not enough memory to show data");
+             JOptionPane.showMessageDialog(this, "Not enough memory to show data");
           }
        } else {
-          JOptionPane.showMessageDialog(getInstance(), "Please select a dataset to show");
+          JOptionPane.showMessageDialog(this, "Please select a dataset to show");
        }
     }
 
@@ -988,7 +1114,7 @@ public class DataCollectionForm extends JFrame {
          ExtractTracksDialog extractTracksDialog = 
                  new ExtractTracksDialog(studio_, mainTableModel_.getRow(row), s);
       } else {
-         JOptionPane.showMessageDialog(getInstance(), "No Data Rows selected");
+         JOptionPane.showMessageDialog(this, "No Data Rows selected");
       }
    }
     
@@ -1004,7 +1130,7 @@ public class DataCollectionForm extends JFrame {
    private void c2StandardButtonActionPerformed(java.awt.event.ActionEvent evt) {
       int rows[] = mainTable_.getSelectedRowsSorted();
       if (rows.length < 1) {
-         JOptionPane.showMessageDialog(getInstance(), "Please select one or more datasets as color reference");
+         JOptionPane.showMessageDialog(this, "Please select one or more datasets as color reference");
       } else {
          
          CoordinateMapper.PointMap points = new CoordinateMapper.PointMap();
@@ -1025,7 +1151,7 @@ public class DataCollectionForm extends JFrame {
             }
 
             if (xyPointsCh2.isEmpty()) {
-               JOptionPane.showMessageDialog(getInstance(), 
+               JOptionPane.showMessageDialog(this, 
                        "No points found in second channel.  Is this a dual channel dataset?");
                return;
             }
@@ -1071,7 +1197,7 @@ public class DataCollectionForm extends JFrame {
             }
             reference2CName_.setText(name);
          } catch (Exception ex) {
-            JOptionPane.showMessageDialog(getInstance(), 
+            JOptionPane.showMessageDialog(this, 
                "Error setting color reference.  Did you have enough input points?");
          }
          
@@ -1082,7 +1208,7 @@ public class DataCollectionForm extends JFrame {
    public void listPairTracks(ParticlePairLister.Builder builder) {
       final int[] rows = mainTable_.getSelectedRowsSorted();
       if (rows.length < 1) {
-         JOptionPane.showMessageDialog(getInstance(), 
+         JOptionPane.showMessageDialog(this, 
                  "Please select a dataset");
          return;
       }
@@ -1100,8 +1226,10 @@ public class DataCollectionForm extends JFrame {
          } catch (InterruptedException ex) {
             ReportingUtils.showError(ex);
          }
-      } else
-         JOptionPane.showMessageDialog(getInstance(), "Please select a dataset to color correct");
+      } else {
+         JOptionPane.showMessageDialog(getInstance(), 
+                 "Please select a dataset to color correct");
+      }
    }
 
    private void unjitterButton_ActionPerformed(java.awt.event.ActionEvent evt) {
@@ -1110,46 +1238,46 @@ public class DataCollectionForm extends JFrame {
          Runnable doWorkRunnable = new Runnable() {
             @Override
             public void run() {
-               if (jitterMethod_ == 0)
+               if (jitterMethod_ == 0) {
                   DriftCorrector.unJitter(mainTableModel_.getRow(row));
-               else
-                  new DriftCorrector().unJitter2(mainTableModel_.getRow(row), 
+               } else {
+                  new DriftCorrector().unJitter2(mainTableModel_.getRow(row),
                           jitterMaxFrames_, jitterMaxSpots_);
+               }
             }
          };
          (new Thread(doWorkRunnable)).start();
       } else {
-         JOptionPane.showMessageDialog(getInstance(), "Please select a dataset to unjitter");
+         JOptionPane.showMessageDialog(this, "Please select a dataset to unjitter");
       }
    }
 
 
    private void formWindowClosing(java.awt.event.WindowEvent evt) {
-      UserProfile up = studio_.profile();
-      Class oc = DataCollectionForm.class;
-      up.setInt(oc, FRAMEXPOS, getX());
-      up.setInt(oc, FRAMEYPOS, getY());
-      up.setInt(oc, FRAMEWIDTH, getWidth());
-      up.setInt(oc, FRAMEHEIGHT, getHeight());
+      settings_.putInteger(FRAMEXPOS, getX());
+      settings_.putInteger(FRAMEYPOS, getY());
+      settings_.putInteger(FRAMEWIDTH, getWidth());
+      settings_.putInteger(FRAMEHEIGHT, getHeight());
        
-      up.setBoolean(oc, USESIGMA, filterSigmaCheckBox_.isSelected());
-      up.setString(oc, SIGMAMIN, sigmaMin_.getText());
-      up.setString(oc, SIGMAMAX, sigmaMax_.getText());
-      up.setBoolean(oc, USEINT, filterIntensityCheckBox_.isSelected());
-      up.setString(oc, INTMIN, intensityMin_.getText());
-      up.setString(oc, INTMAX, intensityMax_.getText());
-      up.setString(oc, LOADTSFDIR, loadTSFDir_);
-      up.setInt(oc, RENDERMAG, visualizationMagnification_.getSelectedIndex());
-      up.setString(oc, PAIRSMAXDISTANCE, pairsMaxDistanceField_.getText());
+      settings_.putBoolean(USESIGMA, filterSigmaCheckBox_.isSelected());
+      settings_.putString(SIGMAMIN, sigmaMin_.getText());
+      settings_.putString(SIGMAMAX, sigmaMax_.getText());
+      settings_.putBoolean(USEINT, filterIntensityCheckBox_.isSelected());
+      settings_.putString(INTMIN, intensityMin_.getText());
+      settings_.putString(INTMAX, intensityMax_.getText());
+      settings_.putString(LOADTSFDIR, loadTSFDir_);
+      settings_.putInteger(RENDERMAG, 
+              visualizationMagnification_.getSelectedIndex());
+      settings_.putString(PAIRSMAXDISTANCE, pairsMaxDistanceField_.getText());
        
       TableColumnModel cm = mainTable_.getColumnModel();
-      up.setInt(oc, COL0WIDTH, cm.getColumn(0).getWidth());
-      up.setInt(oc, COL1WIDTH, cm.getColumn(1).getWidth());
-      up.setInt(oc, COL2WIDTH, cm.getColumn(2).getWidth());
-      up.setInt(oc, COL3WIDTH, cm.getColumn(3).getWidth());
-      up.setInt(oc, COL4WIDTH, cm.getColumn(4).getWidth());
-      up.setInt(oc, COL5WIDTH, cm.getColumn(5).getWidth());
-      up.setInt(oc, COL6WIDTH, cm.getColumn(6).getWidth());
+      settings_.putInteger(COL0WIDTH, cm.getColumn(0).getWidth());
+      settings_.putInteger(COL1WIDTH, cm.getColumn(1).getWidth());
+      settings_.putInteger(COL2WIDTH, cm.getColumn(2).getWidth());
+      settings_.putInteger(COL3WIDTH, cm.getColumn(3).getWidth());
+      settings_.putInteger(COL4WIDTH, cm.getColumn(4).getWidth());
+      settings_.putInteger(COL5WIDTH, cm.getColumn(5).getWidth());
+      settings_.putInteger(COL6WIDTH, cm.getColumn(6).getWidth());
 
       studio_.events().unregisterForEvents(this);
       this.dispose();
@@ -1180,8 +1308,9 @@ public class DataCollectionForm extends JFrame {
                  "Nr. of Slices: " + rowData.nrSlices_ + "\n" +
                  "Nr. of Positions: " + rowData.nrPositions_ + "\n" +
                  "Is a Track: " + rowData.isTrack_;
-         if (!rowData.isTrack_)
+         if (!rowData.isTrack_) {
             data += "\nHas Z info: " + rowData.hasZ_;
+         }
          if (rowData.hasZ_) {
             data += "\nMinZ: " + String.format("%.2f",rowData.minZ_) + "\n";
             data += "MaxZ: " + String.format("%.2f",rowData.maxZ_);
@@ -1203,8 +1332,10 @@ public class DataCollectionForm extends JFrame {
          TextWindow tw = new TextWindow("Info for " + rowData.getName(), data, 300, 300);
          tw.setVisible(true);
        }
-       else
-         JOptionPane.showMessageDialog(getInstance(), "Please select a dataset first");
+       else {
+         JOptionPane.showMessageDialog(getInstance(), 
+                 "Please select a dataset first");
+      }
    }
 
    /**
@@ -1215,7 +1346,7 @@ public class DataCollectionForm extends JFrame {
    private void renderButton_ActionPerformed(java.awt.event.ActionEvent evt) {
       final int row = mainTable_.getSelectedRowSorted();
       if (row < 0) {
-         JOptionPane.showMessageDialog(getInstance(), "Please select a dataset to render");
+         JOptionPane.showMessageDialog(this, "Please select a dataset to render");
       } else {
 
          Runnable doWorkRunnable = new Runnable() {
@@ -1278,12 +1409,13 @@ public class DataCollectionForm extends JFrame {
    private void plotButton_ActionPerformed(java.awt.event.ActionEvent evt) {
       int rows[] = mainTable_.getSelectedRowsSorted();
       if (rows.length < 1) {
-         JOptionPane.showMessageDialog(getInstance(), "Please select one or more datasets to plot");
+         JOptionPane.showMessageDialog(this, "Please select one or more datasets to plot");
       } else {
          RowData[] myRows = new RowData[rows.length];
          // TODO: check that these are tracks 
-         for (int i = 0; i < rows.length; i++)
+         for (int i = 0; i < rows.length; i++) {
             myRows[i] = mainTableModel_.getRow(rows[i]);
+         }
          TrackPlotter.plotData(myRows, 
                  plotComboBox_.getSelectedIndex(), 
                  logLogCheckBox_.isSelected(), 
@@ -1313,7 +1445,7 @@ public class DataCollectionForm extends JFrame {
    private void averageTrackButton_ActionPerformed(java.awt.event.ActionEvent evt) {
       int rows[] = mainTable_.getSelectedRowsSorted();
       if (rows.length < 1) {
-         JOptionPane.showMessageDialog(getInstance(), 
+         JOptionPane.showMessageDialog(this, 
                  "Please select one or more datasets to average");
       } else {
          RowData[] myRows = new RowData[rows.length];
@@ -1440,7 +1572,7 @@ public class DataCollectionForm extends JFrame {
          addSpotData(builder);
          
       } catch (IndexOutOfBoundsException iobe) {
-         JOptionPane.showMessageDialog(getInstance(), "Data sets differ in Size");
+         JOptionPane.showMessageDialog(this, "Data sets differ in Size");
       }
 
    }
@@ -1456,6 +1588,293 @@ public class DataCollectionForm extends JFrame {
       MathForm mf = new MathForm(studio_.getUserProfile(), rows, rows);
 
       mf.setVisible(true);
+   }
+   
+   public String getSummaryOfSelectedTracks(boolean header) {
+      if (header) {
+         return "name\tn\tNr of Spots\tCh.\tstd\tnrPhotons";
+      }
+      
+      class Data {
+         int n = 0;
+         long numberOfSpots = 0;;
+         Integer channelNr = 0;
+         Double nrPhotons = 0.0;
+         Double std = 0.0;
+      }
+      
+      final int rows[] = mainTable_.getSelectedRowsSorted();
+      Data data = new Data();
+      for (int row : rows) {
+         final RowData rowData = mainTableModel_.getRow(row);
+         if (rowData.isTrack_) {
+            data.n += 1;
+            data.numberOfSpots += rowData.maxNrSpots_;
+            data.channelNr += rowData.spotList_.get(0).getChannel();
+            data.std += rowData.std_;
+            data.nrPhotons += rowData.totalNrPhotons_;
+         } 
+      }
+      Data result = new Data();
+      result.n = data.n;
+      result.numberOfSpots = data.numberOfSpots / data.n;
+      result.channelNr = data.channelNr / data.n;
+      result.std = data.std / data.n;
+      result.nrPhotons = data.nrPhotons / data.n;
+      
+      String output = mainTableModel_.getRow(rows[0]).getName() + "\t" +
+              result.n + "\t" + result.numberOfSpots + "\t" + result.channelNr +
+              "\t" + result.std + "\t" +  result.nrPhotons;
+      
+      return output;
+
+   }
+   
+   public String getSelectedTracks(boolean header) {
+      if (header) {
+         return "name\tNr of Spots\tCh.\tstd\tNr of Photons\tAvg nr Photons\tStdDev Nr Photons\n";
+      }
+      
+      String output = "";
+      final int rows[] = mainTable_.getSelectedRowsSorted();
+      for (int row : rows) {
+         final RowData rowData = mainTableModel_.getRow(row);
+         if (rowData.isTrack_) {
+            List<Double> photonNrs = new ArrayList<Double>();
+            for (SpotData spot : rowData.spotList_) {
+               photonNrs.add(spot.getIntensity());
+            }
+            double avgNrPhotons = ListUtils.listAvg(photonNrs);
+            output += rowData.getName() + "\t" + 
+                    rowData.maxNrSpots_ + "\t" +
+                    rowData.spotList_.get(0).getChannel() + "\t" +
+                    rowData.std_ + "\t" + 
+                    rowData.totalNrPhotons_ + "\t" + 
+                    avgNrPhotons + "\t" +
+                    ListUtils.listStdDev(photonNrs, avgNrPhotons) + "\n";
+         } 
+      }
+      
+      return output;
+
+   }
+   
+   /**
+    * For the selected tracks, average the various stdDev estimates
+    * and place on the clipboard
+    * @param header when true only return the headers (explaining the data)
+    * @return Header or values
+    */
+   public String getSummarizedTrackData(boolean header) {
+      if (header) {
+         return "Avg.Sigma\tAvg.Mortenson Sigmas\tAvg.integral Sigma\tAvg.Intensity\t" +
+                 "Avg.AptIntensity\tAvg.Background\tAvg.AptBackground\tAvg.Width";
+      }
+      final int rows[] = mainTable_.getSelectedRowsSorted();
+      List<Double> sigmas = new ArrayList<Double>();
+      List<Double> mSigmas = new ArrayList<Double>();
+      List<Double> iSigmas = new ArrayList<Double>();
+      List<Double> intensities = new ArrayList<Double>();
+      List<Double> aptIntensities = new ArrayList<Double>();
+      List<Double> backgrounds = new ArrayList<Double>();
+      List<Double> aptBackgrounds = new ArrayList<Double>();
+      List<Double> widths = new ArrayList<Double>();
+      for (int row : rows) {
+         final RowData rowData = mainTableModel_.getRow(row);
+         for (SpotData spotData : rowData.spotList_) {
+            sigmas.add(spotData.getSigma());
+            if (spotData.getValue(SpotData.Keys.MSIGMA) != null && 
+                  !spotData.getValue(SpotData.Keys.MSIGMA).equals(Double.NaN) ) {
+               mSigmas.add(spotData.getValue(SpotData.Keys.MSIGMA));
+            }
+            if (spotData.getValue(SpotData.Keys.INTEGRALSIGMA) != null &&
+                  !spotData.getValue(SpotData.Keys.INTEGRALSIGMA).equals(Double.NaN) ) {
+               iSigmas.add(spotData.getValue(SpotData.Keys.INTEGRALSIGMA));
+            }
+            intensities.add(spotData.getIntensity());
+            if (spotData.getValue(SpotData.Keys.APERTUREINTENSITY) != null &&
+                    !spotData.getValue(SpotData.Keys.APERTUREINTENSITY).equals(Double.NaN) ) {
+               aptIntensities.add(spotData.getValue(SpotData.Keys.APERTUREINTENSITY));
+            }
+            backgrounds.add(spotData.getBackground());
+            Double tmp = spotData.getValue(SpotData.Keys.APERTUREBACKGROUND);
+            if (tmp != null && !tmp.equals(Double.NaN)) {
+               aptBackgrounds.add(tmp);
+            }
+            widths.add(spotData.getWidth());
+         }
+      }
+      
+      String output = ListUtils.listAvg(sigmas) + 
+              "\t" + ListUtils.listAvg(mSigmas) +
+              "\t" + ListUtils.listAvg(iSigmas) + 
+              "\t" + ListUtils.listAvg(intensities) + 
+              "\t" + ListUtils.listAvg(aptIntensities) +
+              "\t" + ListUtils.listAvg(backgrounds) +
+              "\t" + ListUtils.listAvg(aptBackgrounds) + 
+              "\t" + ListUtils.listAvg(widths);
+      
+      return output;
+   }
+   
+   /**
+    * Returns a data describing the distances between spots in input tracks
+    * This is used to determine the experimental sigma of the fitted positions
+    * The tracks should be of stationary spots, the function determines the 
+    * distance between a spot and the corresponding spots in all other tracks.
+    * 
+    * @param header
+    * @return 
+    */
+   public String getInterTrackDistances(boolean header) {
+      
+      if (header) {
+         return "Spot ID 1\tSpot ID 2\tMeasured Dist. Std. Dev\t" +
+                 "Predicted Dist. Std Dev. (Integral Aperture)\t" +
+                 "Measured Dist. Std. Dev. (direct)";
+      }
+      
+      final double cutoffPercentage = 0.75;
+      
+      final double firstHalfWaitInProgressBar = 0.5;
+         
+      final int rows[] = mainTable_.getSelectedRowsSorted();
+      if (rows.length < 2) {
+         ReportingUtils.showError("Need at least 2 tracks to calculate inter track distance statistics");
+         return "";
+      }
+      
+      // First go through all tracks and calculate the variance in the distances
+      // to all other spots.  Then throw out the top cutoffPercentage, since we have
+      // noticed that there are usually badly behaving spots.
+      // Go through the cleaned up list and report the average measured 
+      // and predicted sigmas
+      
+      Map<Integer, Double> variancesMap = new HashMap<Integer, Double>();
+      final AtomicInteger progressCounter = new AtomicInteger(1);
+      for (int row : rows) {
+         SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+               IJ.showProgress((double) progressCounter.getAndIncrement() / 
+                       (double) rows.length * firstHalfWaitInProgressBar);
+         }
+         });
+         final RowData rowData = mainTableModel_.getRow(row);
+         List<Double> variances = new ArrayList<Double>();
+         for (int sRow : rows) {
+            if (row != sRow) {
+               // calculate the distance averaged over all frames 
+               // between between our track and this particular one
+               final List<Double> distsSqr = new ArrayList<Double>();
+               final RowData sRowData = mainTableModel_.getRow(sRow);
+               Map<Integer, List<SpotData>> sSpotListByFrame = sRowData.getSpotListIndexedByFrame();
+               for (SpotData spotData : rowData.spotList_) {
+                  SpotData sSpotData = null;
+                  if (sSpotListByFrame.get(spotData.getFrame()) != null) {
+                     sSpotData = (SpotData) sSpotListByFrame.get(spotData.getFrame()).get(0);
+                  }
+                  if (sSpotData != null) {
+                     double xDistance = spotData.getXCenter() - sSpotData.getXCenter();
+                     double yDistance = spotData.getYCenter() - sSpotData.getYCenter();
+                     distsSqr.add(xDistance * xDistance + yDistance * yDistance);
+                  }
+               }
+               variances.add(ListUtils.listStdDev(distsSqr));
+            }
+         }
+         // Calculate the std. Dev. of all measured distances.
+         variancesMap.put(row, ListUtils.listAvg(variances) );
+      }
+      Map<Integer, Double> sortedStdDevMap = MapUtils.sortByValue(variancesMap);
+      final List<Integer> cleanedRows = new ArrayList<Integer>();
+      Set<Map.Entry<Integer, Double>> entrySet = sortedStdDevMap.entrySet();
+      Iterator<Map.Entry<Integer, Double>> eIterator = entrySet.iterator();
+      int cutOff = (int) (cutoffPercentage * (double) sortedStdDevMap.size());
+      while (eIterator.hasNext() && cleanedRows.size() < cutOff) {
+         Map.Entry<Integer, Double> next = eIterator.next();
+         cleanedRows.add(next.getKey());
+      }
+      
+      
+      StringBuilder  output = new StringBuilder(10000);
+      List<Double> measuredSigmas = new ArrayList<Double>();
+      List<Double> predictedSigmas = new ArrayList<Double>();
+      
+      progressCounter.set(1);
+      for (int row : cleanedRows) {
+         SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+               IJ.showProgress(firstHalfWaitInProgressBar + 
+                       (double) progressCounter.getAndIncrement() / 
+                               (double)cleanedRows.size() * ( 1 - firstHalfWaitInProgressBar) );
+         }
+         });
+         final RowData rowData = mainTableModel_.getRow(row);
+         for (int sRow : cleanedRows) {
+            if (row != sRow) {
+               List<Double> xDists = new ArrayList<Double>();
+               List<Double> yDists = new ArrayList<Double>();
+               List<Double> predictedDistStdDevs = new ArrayList<Double>();
+               final RowData sRowData = mainTableModel_.getRow(sRow);
+               Map<Integer, List<SpotData>> sSpotListByFrame = sRowData.getSpotListIndexedByFrame();
+               for (SpotData spotData : rowData.spotList_) {
+                  SpotData sSpotData = null;
+                  if (sSpotListByFrame.get(spotData.getFrame()) != null) {
+                     sSpotData = (SpotData) sSpotListByFrame.get(spotData.getFrame()).get(0);
+                  }
+                  if (sSpotData != null) {
+                     double xDist = spotData.getXCenter() - sSpotData.getXCenter();
+                     xDists.add(xDist);
+                     double yDist = spotData.getYCenter() - sSpotData.getYCenter();
+                     yDists.add(yDist);
+                     double pStdDevA = spotData.getValue(SpotData.Keys.INTEGRALAPERTURESIGMA);
+                     double pStdDevB = sSpotData.getValue(SpotData.Keys.INTEGRALAPERTURESIGMA);
+                     predictedDistStdDevs.add(Math.sqrt(pStdDevA * pStdDevA + pStdDevB * pStdDevB));
+                  }
+               }
+               // Propagate errors in x and y
+               double xAvg = ListUtils.listAvg(xDists);
+               double yAvg = ListUtils.listAvg(yDists);
+               double xStdDev = ListUtils.listStdDev(xDists, xAvg);
+               double yStdDev = ListUtils.listStdDev(yDists, yAvg);
+               double measuredSigma = 1 / Math.sqrt(xAvg * xAvg + yAvg * yAvg) *
+                       Math.sqrt(xStdDev * xStdDev * xAvg * xAvg + 
+                               yStdDev * yStdDev * yAvg * yAvg);
+               measuredSigmas.add(measuredSigma);
+               double predictedDistStdDev = ListUtils.listAvg(predictedDistStdDevs);
+               predictedSigmas.add(predictedDistStdDev);
+            
+               output.append(rowData.ID_).append("\t").append(sRowData.ID_).
+                       append("\t").append( measuredSigma ). 
+                       append("\t").append(predictedDistStdDev).
+                       append("\n");
+            }
+         }
+
+      }
+      
+      StringBuilder finalOutput = new StringBuilder(output.length() + 1000);
+      double measuredSigmaAverage = ListUtils.listAvg(measuredSigmas);
+      double predictedSigmaAverage = ListUtils.listAvg(predictedSigmas);
+      finalOutput.append("\tAverage:\t").append(measuredSigmaAverage).
+              append("\t").append(predictedSigmaAverage).append("\n");
+      finalOutput.append("\tStd. Dev.:\t").
+              append(ListUtils.listStdDev(measuredSigmas, measuredSigmaAverage)).
+              append("\t").
+              append(ListUtils.listStdDev(predictedSigmas, predictedSigmaAverage)).
+              append("\n");
+      finalOutput.append(output);
+      
+      SwingUtilities.invokeLater(new Runnable() {
+         @Override
+         public void run() {
+            IJ.showStatus("Copied Inter Track distance data");
+         }
+      });
+
+      return finalOutput.toString();
    }
 
    /**
@@ -1495,7 +1914,7 @@ public class DataCollectionForm extends JFrame {
    private void straightenTrackButton_ActionPerformed(java.awt.event.ActionEvent evt) {
       int rows[] = mainTable_.getSelectedRowsSorted();
       if (rows.length < 1) {
-         JOptionPane.showMessageDialog(getInstance(),
+         JOptionPane.showMessageDialog(this,
                  "Please select one or more datasets to straighten");
       } else {
          for (int row : rows) {
@@ -1508,12 +1927,15 @@ public class DataCollectionForm extends JFrame {
    private void centerTrackButton_ActionPerformed(java.awt.event.ActionEvent evt) {
       int rows[] = mainTable_.getSelectedRowsSorted();
       if (rows.length < 1) {
-         JOptionPane.showMessageDialog(getInstance(),
+         JOptionPane.showMessageDialog(this,
                  "Please select one or more datasets to center");
       } else {
+         int start = mainTable_.getRowCount();
          for (int row : rows) {
             TrackOperator.centerTrack(mainTableModel_.getRow(row));
          }
+         int end = mainTable_.getRowCount();
+         mainTable_.setRowSelectionInterval(start, end - 1);
       }
    }
 
@@ -1521,7 +1943,7 @@ public class DataCollectionForm extends JFrame {
    private void zCalibrateButton_ActionPerformed(java.awt.event.ActionEvent evt) {
       int rows[] = mainTable_.getSelectedRowsSorted();
       if (rows.length != 1) {
-         JOptionPane.showMessageDialog(getInstance(),
+         JOptionPane.showMessageDialog(this,
                  "Please select one datasets for Z Calibration");
       } else {
          int result = zCalibrate(rows[0]);
@@ -1545,7 +1967,7 @@ public class DataCollectionForm extends JFrame {
       final int[] rows = mainTable_.getSelectedRowsSorted();
 
       if (rows == null || rows.length < 1) {
-         JOptionPane.showMessageDialog(getInstance(),
+         JOptionPane.showMessageDialog(this,
                  "Please select one or more datasets for sub-ranging");
          return;
       }
@@ -1600,12 +2022,12 @@ public class DataCollectionForm extends JFrame {
 
    }
 
-   private void combineButton_ActionPerformed(java.awt.event.ActionEvent evt) {
+   private void combine(final boolean modifyPositions) {
       try {
          final int[] rows = mainTable_.getSelectedRowsSorted();
          
          if (rows == null || rows.length < 2) {
-            JOptionPane.showMessageDialog(getInstance(), 
+            JOptionPane.showMessageDialog(this, 
                     "Please select two or more datasets to combine");
             return;
          }               
@@ -1617,11 +2039,20 @@ public class DataCollectionForm extends JFrame {
 
                List<SpotData> newData =
                        Collections.synchronizedList(new ArrayList<SpotData>());
+               int positionOffset = 0;
                for (int i = 0; i < rows.length; i++) {
                   RowData rowData = mainTableModel_.getRow(rows[i]);
                   for (SpotData gs : rowData.spotList_) {
-                     newData.add(gs);
+                     if (modifyPositions) {
+                        SpotData newGs = new SpotData(gs);
+                        newGs.setPosition(gs.getPosition() + positionOffset);
+                        newData.add(newGs);
+                     } else {
+                        newData.add(gs);
+                     }
+                     
                   }
+                  positionOffset += rowData.nrPositions_;
                }
 
                // Add transformed data to data overview window
@@ -1631,7 +2062,8 @@ public class DataCollectionForm extends JFrame {
                builder.setName(rowData.getName() + "-Combined").
                        setColColorRef(reference2CName_.getText()).
                        setSpotList(newData).setIsTrack(false).
-                       setHasZ(false).setMinZ(0.0).setMaxZ(0.0);
+                       setHasZ(false).setMinZ(0.0).setMaxZ(0.0).
+                       setNrPositions(positionOffset);
                addSpotData(builder);
 
                semaphore_.release();
@@ -1676,8 +2108,9 @@ public class DataCollectionForm extends JFrame {
             if (rowData.coordinate_ == Coordinates.NM) {
                rt.addValue(Terms.XNM, gd.getXCenter());
                rt.addValue(Terms.YNM, gd.getYCenter());
-               if (rowData.hasZ_)
+               if (rowData.hasZ_) {
                   rt.addValue(Terms.ZNM, gd.getZCenter());
+               }
             } else if (rowData.coordinate_ == Coordinates.PIXELS) {
                rt.addValue(Terms.XFITPIX, gd.getXCenter());
                rt.addValue(Terms.YFITPIX, gd.getYCenter());
@@ -1696,7 +2129,9 @@ public class DataCollectionForm extends JFrame {
             rt.addValue(Terms.SIGMA, ResultsTable.d2s(gd.getSigma(), 2));
 
             for (String key : gd.getKeys()) {
-               if (key.equals(SpotData.Keys.INTENSITYRATIO) || key.equals(SpotData.Keys.MSIGMA)) {
+               if (key.equals(SpotData.Keys.INTENSITYRATIO) || 
+                       key.equals(SpotData.Keys.MSIGMA) || 
+                       key.equals(SpotData.Keys.INTEGRALSIGMA) ) {
                   rt.addValue(key, ResultsTable.d2s(gd.getValue(key), 2));
                } else {
                   rt.addValue(key, gd.getValue(key));
@@ -1794,11 +2229,11 @@ public class DataCollectionForm extends JFrame {
     */
    private void correct2C(final RowData rowData) throws InterruptedException {
       if (rowData.spotList_.size() <= 1) {
-         JOptionPane.showMessageDialog(getInstance(), "Please select a dataset to Color correct");
+         JOptionPane.showMessageDialog(this, "Please select a dataset to Color correct");
          return;
       }
       if (c2t_ == null) {
-         JOptionPane.showMessageDialog(getInstance(), 
+         JOptionPane.showMessageDialog(this, 
                  "No calibration data available.  First Calibrate using 2C Reference");
          return;
       }
@@ -1892,7 +2327,7 @@ public class DataCollectionForm extends JFrame {
       
       RowData rd = mainTableModel_.getRow(rowNr);
       if (rd.shape_ < 2) {
-         JOptionPane.showMessageDialog(getInstance(), 
+         JOptionPane.showMessageDialog(this, 
                  "Use Fit Parameters Dimension 2 or 3 for Z-calibration");
          return FAILEDDONOTINFORM;
       }
@@ -1974,7 +2409,7 @@ public class DataCollectionForm extends JFrame {
       final int[] rows = mainTable_.getSelectedRowsSorted();
       
       if (rows == null || rows.length < 1) {
-         JOptionPane.showMessageDialog(getInstance(),
+         JOptionPane.showMessageDialog(this,
                  "Please select a dataset to filter");
          return;
       }
