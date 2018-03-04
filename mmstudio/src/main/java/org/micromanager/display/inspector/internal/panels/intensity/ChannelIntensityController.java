@@ -1,6 +1,7 @@
 package org.micromanager.display.inspector.internal.panels.intensity;
 
 import com.bulenkov.iconloader.IconLoader;
+import com.google.common.base.Preconditions;
 import com.google.common.eventbus.Subscribe;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -233,6 +234,7 @@ public final class ChannelIntensityController implements HistogramView.Listener 
    }
 
    private ChannelIntensityController(DataViewer viewer, int channelIndex) {
+      Preconditions.checkNotNull(viewer);
       viewer_ = viewer;
       channelIndex_ = channelIndex;
 
@@ -357,9 +359,7 @@ public final class ChannelIntensityController implements HistogramView.Listener 
 
       updateHistoRangeButtonStates();
       // Needed to pick up the current DisplaySettings, 
-      if (viewer != null) {
-         newDisplaySettings(viewer.getDisplaySettings());
-      }
+      newDisplaySettings(viewer.getDisplaySettings());
    }
 
    void detach() {
