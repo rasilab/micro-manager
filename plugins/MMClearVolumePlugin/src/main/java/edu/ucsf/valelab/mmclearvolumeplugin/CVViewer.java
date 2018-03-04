@@ -162,10 +162,7 @@ public class CVViewer implements DataViewer, ImageStatsPublisher {
          name_ = dataProvider_.getSummaryMetadata().getPrefix();
       }
 
-      if (timePointComplete(0)) {
-         initializeRenderer(0);
-      }
-
+      initializeRenderer(0);
 
    }
    
@@ -246,6 +243,7 @@ public class CVViewer implements DataViewer, ImageStatsPublisher {
          displaySettings_ = displaySettings_.copy().
                  channelColors(channelColors.toArray((new Color[0]))).
                  channelContrastSettings(contrastSettings).
+                 autostretch(displaySettings_.isAutostretchEnabled()).
                  build();
 
          Image randomImage = dataProvider_.getAnyImage();
