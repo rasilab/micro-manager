@@ -347,12 +347,6 @@ public interface DisplayManager extends EventPublisher {
    boolean promptToSave(Datastore store, DisplayWindow display) throws IOException;
 
    /**
-    * Provide an ImagceExporter for generating image sequences.
-    * @return an ImageExporter instance.
-    */
-   ImageExporter createExporter();
-
-   /**
     * Given a DataProvider, close any open DisplayWindows for that DataProvider.
     * If the DataProvider is managed, then the user may receive a prompt to
     * save their data, which they have the option to cancel.

@@ -37,12 +37,12 @@ public final class ExportImagesItem implements DisplayGearMenuPlugin, SciJavaPlu
 
    @Override
    public String getName() {
-      return "Export Images As Displayed";
+      return "Export Displayed Images...";
    }
 
    @Override
    public String getHelpText() {
-      return "Generate a sequence of images showing the display as rendered, including histogram scaling and overlays";
+      return "Generate a sequence of images capturing how they are currently displayed, including histogram scaling and overlays";
    }
 
    @Override

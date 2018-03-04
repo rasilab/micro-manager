@@ -20,7 +20,6 @@
 
 package org.micromanager.display.internal;
 
-import org.micromanager.display.internal.gearmenu.DefaultImageExporter;
 import org.micromanager.display.internal.displaywindow.DisplayController;
 import org.micromanager.display.internal.event.DataViewerWillCloseEvent;
 import org.micromanager.display.internal.event.DataViewerDidBecomeActiveEvent;
@@ -40,7 +39,6 @@ import org.micromanager.PropertyMaps;
 import org.micromanager.data.DataProvider;
 import org.micromanager.data.Datastore;
 import org.micromanager.data.Image;
-import org.micromanager.data.internal.PropertyKey;
 import org.micromanager.display.ChannelDisplaySettings;
 import org.micromanager.display.ComponentDisplaySettings;
 import org.micromanager.display.DataViewer;
@@ -399,11 +397,6 @@ public final class DefaultDisplayManager implements DisplayManager, DataViewerDe
          }
       }
       return true;
-   }
-
-   @Override
-   public ImageExporter createExporter() {
-      return new DefaultImageExporter();
    }
 
    @Override

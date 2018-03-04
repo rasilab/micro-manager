@@ -20,6 +20,8 @@ import com.bulenkov.iconloader.IconLoader;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.eventbus.Subscribe;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListenableFutureTask;
 import ij.ImagePlus;
 import java.awt.Color;
 import java.awt.Component;
@@ -99,7 +101,6 @@ import org.micromanager.internal.utils.ThreadFactoryFactory;
 import org.micromanager.internal.utils.performance.PerformanceMonitor;
 import org.micromanager.internal.utils.performance.TimeIntervalRunningQuantile;
 import org.micromanager.display.DisplayWindowControlsFactory;
-import org.micromanager.display.internal.displaywindow.imagej.MMImageCanvas;
 import org.micromanager.display.internal.event.DisplayMouseEvent;
 import org.micromanager.display.internal.event.DisplayMouseWheelEvent;
 import org.micromanager.display.internal.gearmenu.GearButton;
@@ -208,6 +209,9 @@ public final class DisplayUIController implements Closeable, WindowListener,
    private final ScheduledExecutorService scheduledExecutor_ =
          Executors.newSingleThreadScheduledExecutor(ThreadFactoryFactory.
                createThreadFactory("DisplayUIController"));
+
+   private java.awt.Image offScreenImage_;
+   private ListenableFutureTask<java.awt.Image> offScreenImageFutureTask_;
 
    // Display rate estimation
    private static final int DISPLAY_INTERVAL_SMOOTH_N_SAMPLES = 50;
@@ -333,16 +337,6 @@ public final class DisplayUIController implements Closeable, WindowListener,
    @MustCallOnEDT
    public ImagePlus getIJImagePlus() {
       return ijBridge_.getIJImagePlus();
-   }
-   
-   /**
-    * Not ideal, but the Image Exporter needs access to the canvas to 
-    * grab images
-    * 
-    * @return 
-    */
-   public MMImageCanvas getIJImageCanvas() {
-      return ijBridge_.getIJImageCanvas();
    }
 
    @MustCallOnEDT
@@ -851,6 +845,15 @@ public final class DisplayUIController implements Closeable, WindowListener,
       coordsLabel_.setText(getCoordsString(displayedImages_));
 
       repaintScheduledForNewImages_.set(true);
+
+      if (offScreenImage_ != null) {
+         ijBridge_.getIJImageCanvas().paint(offScreenImage_.getGraphics());
+         if (offScreenImageFutureTask_ != null) {
+            offScreenImageFutureTask_.run();
+            offScreenImageFutureTask_ = null;
+         }
+         offScreenImage_ = null;
+      }
    }
 
    @MustCallOnEDT
@@ -1839,5 +1842,17 @@ public final class DisplayUIController implements Closeable, WindowListener,
          pixelInfoLabel_.setMinimumSize(new Dimension(
                  pixelInfoLabel_.getSize().width, 10));
       }
+   }
+
+   @MustCallOnEDT
+   public ListenableFuture<java.awt.Image> scheduleOffScreenImage(
+         java.awt.Image image)
+   {
+      if (offScreenImageFutureTask_ != null) {
+         offScreenImageFutureTask_.cancel(false);
+      }
+      offScreenImage_ = image;
+      offScreenImageFutureTask_ = ListenableFutureTask.create(() -> {}, image);
+      return offScreenImageFutureTask_;
    }
 }

@@ -20,6 +20,11 @@ public final class Coordinates {
       return new DefaultCoords.Builder();
    }
 
+   private static final Coords EMPTY = builder().build();
+   public static Coords emptyCoords() {
+      return EMPTY;
+   }
+
    public static Coords fromPropertyMap(PropertyMap pmap) throws IOException {
       Coords.Builder b = builder();
       for (String axis : pmap.keySet()) {

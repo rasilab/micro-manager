@@ -41,12 +41,14 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import net.miginfocom.layout.CC;
 import net.miginfocom.swing.MigLayout;
 import org.micromanager.data.Coords;
 import org.micromanager.data.DataProvider;
@@ -56,6 +58,7 @@ import org.micromanager.display.ImageExporter;
 import org.micromanager.internal.utils.UserProfileStaticInterface;
 import org.micromanager.internal.utils.MMDialog;
 import org.micromanager.internal.utils.ReportingUtils;
+import org.micromanager.internal.utils.WaitDialog;
 
 
 /**
@@ -72,9 +75,11 @@ public final class ExportMovieDlg extends MMDialog {
 
    private static final String FORMAT_PNG = "PNG";
    private static final String FORMAT_JPEG = "JPEG";
-   private static final String FORMAT_IMAGEJ = "ImageJ stack window";
+   private static final String FORMAT_IMAGEJ = "ImageJ RGB Stack";
    private static final String[] OUTPUT_FORMATS = {
-      FORMAT_PNG, FORMAT_JPEG, FORMAT_IMAGEJ
+      FORMAT_IMAGEJ,
+      FORMAT_PNG,
+      FORMAT_JPEG,
    };
 
    /**
@@ -120,7 +125,7 @@ public final class ExportMovieDlg extends MMDialog {
             public void stateChanged(ChangeEvent e) {
                // Ensure that the end point can't go below the start point.
                int newMin = (Integer) minSpinner_.getValue();
-               maxModel_.setMinimum(newMin + 1);
+               maxModel_.setMinimum(newMin);
             }
          });
          maxSpinner_ = new JSpinner();
@@ -129,20 +134,22 @@ public final class ExportMovieDlg extends MMDialog {
             public void stateChanged(ChangeEvent e) {
                // Ensure that the start point can't come after the end point.
                int newMax = (Integer) maxSpinner_.getValue();
-               minModel_.setMaximum(newMax - 1);
+               minModel_.setMaximum(newMax);
             }
          });
 
          final AxisPanel localThis = this;
-         addButton_ = new JButton("And at each of these...", ADD_ICON);
+         final String ADD_BUTTON_NAME = "Add Inner Series";
+         final String REMOVE_BUTTON_NAME = "Remove Inner Series";
+         addButton_ = new JButton(ADD_BUTTON_NAME, ADD_ICON);
          addButton_.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-               if (addButton_.getText().equals("And at each of these...")) {
+               if (addButton_.getText().equals(ADD_BUTTON_NAME)) {
                   // Add a panel "under" us.
                   child_ = parent.createAxisPanel();
                   add(child_, "newline, span");
-                  addButton_.setText("Delete inner loop");
+                  addButton_.setText(REMOVE_BUTTON_NAME);
                   addButton_.setIcon(DELETE_ICON);
                   parent.pack();
                }
@@ -150,18 +157,21 @@ public final class ExportMovieDlg extends MMDialog {
                   remove(child_);
                   parent.deleteFollowing(localThis);
                   child_ = null;
-                  addButton_.setText("And at each of these...");
+                  addButton_.setText(ADD_BUTTON_NAME);
                   addButton_.setIcon(ADD_ICON);
                }
             }
          });
 
-         super.add(new JLabel("Export along "));
+         int spinnerWidth = 10 * minSpinner_.getFontMetrics(
+               minSpinner_.getFont()).charWidth('0');
+
+         super.add(new JLabel("Export Series Along: "));
          super.add(axisSelector_);
-         super.add(new JLabel(" from "));
-         super.add(minSpinner_);
-         super.add(new JLabel(" to "));
-         super.add(maxSpinner_);
+         super.add(new JLabel(" From: "));
+         super.add(minSpinner_, new CC().minWidth(Integer.toString(spinnerWidth)));
+         super.add(new JLabel(" To: "));
+         super.add(maxSpinner_, new CC().minWidth(Integer.toString(spinnerWidth)));
          // Only show the add button if there's an unused axis we can add.
          // HACK: the 1 remaining is us, because we're still in our
          // constructor.
@@ -205,15 +215,15 @@ public final class ExportMovieDlg extends MMDialog {
       /**
        * Apply our configuration to the provided ImageExporter, and recurse
        * if appropriate to any contained AxisPanel.
-       * @param exporter
+       * @param builder
        */
-      public void configureExporter(ImageExporter exporter) {
+      public void configureExporter(ImageExporter.Builder builder) {
          // Correct for the 1-indexed GUI values, since coords are 0-indexed.
          int minVal = (Integer) (minSpinner_.getValue()) - 1;
          int maxVal = (Integer) (maxSpinner_.getValue()) - 1;
-         exporter.loop(getAxis(), minVal, maxVal);
+         builder.loop(getAxis(), minVal, maxVal + 1);
          if (child_ != null) {
-            child_.configureExporter(exporter);
+            child_.configureExporter(builder);
          }
       }
 
@@ -250,7 +260,7 @@ public final class ExportMovieDlg extends MMDialog {
 
       File file = new File(display.getName());
       String shortName = file.getName();
-      super.setTitle("Export Image Series: " + shortName);
+      super.setTitle("Export Displayed Images: " + shortName);
 
       contentsPanel_ = new JPanel(new MigLayout("flowy"));
 
@@ -262,7 +272,10 @@ public final class ExportMovieDlg extends MMDialog {
                "align center");
       }
 
-      contentsPanel_.add(new JLabel("Output format: "),
+      final String LABEL_PREFIX = "Filename Prefix: ";
+      final String LABEL_TITLE = "Image Title: ";
+
+      contentsPanel_.add(new JLabel("Output: "),
             "split 4, flowx");
       outputFormatSelector_ = new JComboBox(OUTPUT_FORMATS);
       outputFormatSelector_.addActionListener(new ActionListener() {
@@ -271,20 +284,19 @@ public final class ExportMovieDlg extends MMDialog {
             // Show/hide the JPEG quality controls.
             String selection = (String) outputFormatSelector_.getSelectedItem();
             if (selection.equals(FORMAT_JPEG)) {
-               jpegPanel_.add(new JLabel("JPEG quality: "));
+               jpegPanel_.add(new JLabel("JPEG Quality: "));
                jpegPanel_.add(jpegQualitySpinner_);
             }
             else {
                jpegPanel_.removeAll();
             }
-            prefixLabel_.setEnabled(!selection.equals(FORMAT_IMAGEJ));
-            prefixText_.setEnabled(!selection.equals(FORMAT_IMAGEJ));
+            prefixLabel_.setText(selection.equals(FORMAT_IMAGEJ) ?
+                  LABEL_TITLE : LABEL_PREFIX);
             pack();
          }
       });
       contentsPanel_.add(outputFormatSelector_);
-
-      prefixLabel_ = new JLabel("Filename prefix: ");
+      prefixLabel_ = new JLabel(LABEL_PREFIX);
       contentsPanel_.add(prefixLabel_);
 
       prefixText_ = new JTextField(getDefaultPrefix(), 20);
@@ -294,7 +306,7 @@ public final class ExportMovieDlg extends MMDialog {
       jpegPanel_ = new JPanel(new MigLayout("flowx, gap 0", "0[]0[]0",
                "0[]0[]0"));
       jpegQualitySpinner_ = new JSpinner();
-      jpegQualitySpinner_.setModel(new SpinnerNumberModel(10, 0, 10, 1));
+      jpegQualitySpinner_.setModel(new SpinnerNumberModel(10, 3, 10, 1));
 
       contentsPanel_.add(jpegPanel_);
 
@@ -323,10 +335,12 @@ public final class ExportMovieDlg extends MMDialog {
          }
       });
       JButton exportButton = new JButton("Export");
-      exportButton.addActionListener(new ActionListener() {
-         @Override
-         public void actionPerformed(ActionEvent e) {
+      exportButton.addActionListener((ActionEvent event) -> {
+         try {
             export();
+         }
+         catch (IOException e) {
+            ReportingUtils.showError(e, "Cannot export image(s)", display_.getWindow());
          }
       });
       contentsPanel_.add(cancelButton, "split 2, flowx, align right");
@@ -340,89 +354,117 @@ public final class ExportMovieDlg extends MMDialog {
       super.setVisible(true);
    }
 
-   private void export() {
-      ImageExporter exporter = new DefaultImageExporter();
+   private void export() throws IOException {
+      ImageExporter.Builder builder = display_.imageExporterBuilder();
 
       // Set output format.
       String mode = (String) outputFormatSelector_.getSelectedItem();
-      ImageExporter.OutputFormat format = ImageExporter.OutputFormat.OUTPUT_PNG;
-      if (mode.contentEquals(FORMAT_JPEG)) {
-         format = ImageExporter.OutputFormat.OUTPUT_JPG;
+      switch (mode) {
+         case FORMAT_PNG:
+            builder.output(ImageExporter.Destination.PNG_FILES);
+            chooseDirectory(builder);
+            break;
+         case FORMAT_JPEG:
+            builder.output(ImageExporter.Destination.JPEG_FILES);
+            builder.jpegQuality((Integer) jpegQualitySpinner_.getValue() / 10.0f);
+            chooseDirectory(builder);
+            break;
+         case FORMAT_IMAGEJ:
+            builder.output(ImageExporter.Destination.IMAGEJ_RGB_STACK);
+            break;
       }
-      else if (mode.contentEquals(FORMAT_IMAGEJ)) {
-         format = ImageExporter.OutputFormat.OUTPUT_IMAGEJ;
-      }
-      exporter.setOutputFormat(format);
+      builder.filenamePrefix(prefixText_.getText());
 
-      // Get save path if relevant.
-      File outputDir;
-      if (!mode.equals(FORMAT_IMAGEJ)) {
-         // Prompt the user for a directory to save to.
-         JFileChooser chooser = new JFileChooser();
-         chooser.setDialogTitle("Please choose a directory to export to.");
-         chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-         chooser.setAcceptAllFileFilterUsed(false);
-         if (provider_ instanceof Datastore) {
-            Datastore store = (Datastore) provider_;
-            if (store.getSavePath() != null) {
-               // Default them to where their data was originally saved.
-               File path = new File(store.getSavePath());
-               chooser.setCurrentDirectory(path);
-               chooser.setSelectedFile(path);
-               // HACK: on OSX if we don't do this, the "Choose" button will be
-               // disabled until the user interacts with the dialog.
-               // This may be related to a bug in the OSX JRE; see
-               // http://stackoverflow.com/questions/31148021/jfilechooser-cant-set-default-selection/31148287
-               // and in particular Madhan's reply.
-               chooser.updateUI();
-            }
-         }
-         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
-            // User cancelled.
-            return;
-         }
-         outputDir = chooser.getSelectedFile();
-         // HACK: for unknown reasons, on OSX at least we can get a
-         // repetition of the final directory if the user clicks the "Choose"
-         // button when inside the directory they want to use, resulting in
-         // e.g. /foo/bar/baz/baz when only /foo/bar/baz exists.
-         if (!outputDir.exists()) {
-            outputDir = new File(outputDir.getParent());
-            if (!outputDir.exists()) {
-               ReportingUtils.showError("Unable to find directory at " + outputDir);
-            }
-         }
-         try {
-            exporter.setSaveInfo(outputDir.getAbsolutePath(),
-                  prefixText_.getText());
-         }
-         catch (IOException e) {
-            // This should be impossible -- it indicates the directory does not
-            // exist.
-            ReportingUtils.showError(e, "Unable to save to that directory");
-            return;
-         }
-      }
-
-      exporter.setOutputQuality((Integer) jpegQualitySpinner_.getValue());
       if (axisPanels_.size() > 0) {
-         axisPanels_.get(0).configureExporter(exporter);
-      } else {
-         exporter.loop(provider_.getAxes().get(0), 0, 0);
+         axisPanels_.get(0).configureExporter(builder);
       }
-      exporter.setDisplay(display_);
+      // If there are no axes, we don't loop (obviously)
+
+      ImageExporter exporter = builder.build();
+
+      if (exporter.willPotentiallyOverwriteFiles()) {
+         JOptionPane alert = new JOptionPane(
+               "<html>The exported files will overwrite existing files or create files with similar filename patterns.<br />Are you sure you want to continue?</html>",
+               JOptionPane.WARNING_MESSAGE, JOptionPane.DEFAULT_OPTION, null,
+               new String[] {"Cancel", "Continue"}, "Cancel");
+         alert.createDialog(this, "Overwrite Existing Files").show();
+         if (!"Continue".equals(alert.getValue())) {
+            exporter.close();
+            return;
+         }
+      }
 
       setDefaultExportFormat(mode);
       setDefaultPrefix(prefixText_.getText());
 
+      WaitDialog dialog = new WaitDialog("Exporting...");
+      dialog.setAlwaysOnTop(true);
+      dialog.showDialog();
+
+      exporter.run(() -> exportFinished(exporter, dialog, null),
+            (exception) -> exportFinished(exporter, dialog, exception));
+
+      dispose();
+   }
+
+   private void exportFinished(ImageExporter exporter, WaitDialog dialog, Exception exception) {
+      dialog.closeDialog();
+      if (exception != null) {
+         ReportingUtils.showError(exception, "Could not export images.", display_.getWindow());
+      }
       try {
-         exporter.export();
+         exporter.close();
       }
       catch (IOException e) {
-         ReportingUtils.showError("Can't export to the selected directory as it would overwrite an existing file. Please choose a different directory.");
+         if (exception == null) { // Don't show second error dialog
+            ReportingUtils.showError(e, "Could not finish export correctly", display_.getWindow());
+         }
+         else {
+            ReportingUtils.logError(e, "Could not finish export correctly");
+         }
+      }
+   }
+
+   private void chooseDirectory(ImageExporter.Builder builder) {
+      // Get save path if relevant.
+      File outputDir;
+      // Prompt the user for a directory to save to.
+      JFileChooser chooser = new JFileChooser();
+      chooser.setDialogTitle("Please choose a directory to export to.");
+      chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+      chooser.setAcceptAllFileFilterUsed(false);
+      if (provider_ instanceof Datastore) {
+         Datastore store = (Datastore) provider_;
+         if (store.getSavePath() != null) {
+            // Default them to where their data was originally saved.
+            File path = new File(store.getSavePath());
+            chooser.setCurrentDirectory(path);
+            chooser.setSelectedFile(path);
+            // HACK: on OSX if we don't do this, the "Choose" button will be
+            // disabled until the user interacts with the dialog.
+            // This may be related to a bug in the OSX JRE; see
+            // http://stackoverflow.com/questions/31148021/jfilechooser-cant-set-default-selection/31148287
+            // and in particular Madhan's reply.
+            chooser.updateUI();
+         }
+      }
+      if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+         // User cancelled.
          return;
       }
-      dispose();
+      outputDir = chooser.getSelectedFile();
+      // HACK: for unknown reasons, on OSX at least we can get a
+      // repetition of the final directory if the user clicks the "Choose"
+      // button when inside the directory they want to use, resulting in
+      // e.g. /foo/bar/baz/baz when only /foo/bar/baz exists.
+      if (!outputDir.exists()) {
+         outputDir = new File(outputDir.getParent());
+         if (!outputDir.exists()) {
+            ReportingUtils.
+                  showError("Unable to find directory at " + outputDir);
+         }
+      }
+      builder.outputPath(outputDir);
    }
 
    /**
@@ -546,7 +588,7 @@ public final class ExportMovieDlg extends MMDialog {
    private static String getDefaultPrefix() {
       return UserProfileStaticInterface.getInstance().
               getSettings(ExportMovieDlg.class).
-              getString(DEFAULT_FILENAME_PREFIX, "exported");
+              getString(DEFAULT_FILENAME_PREFIX, "Exported");
    }
 
    /**

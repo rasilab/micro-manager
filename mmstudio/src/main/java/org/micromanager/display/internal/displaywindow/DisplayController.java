@@ -17,8 +17,12 @@ package org.micromanager.display.internal.displaywindow;
 
 import com.google.common.base.Preconditions;
 import com.google.common.eventbus.Subscribe;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListenableFutureTask;
+import com.google.common.util.concurrent.MoreExecutors;
 import ij.ImagePlus;
 import java.awt.Window;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -72,6 +76,7 @@ import org.micromanager.data.Datastore;
 import org.micromanager.display.ChannelDisplaySettings;
 import org.micromanager.display.DataViewerDelegate;
 import org.micromanager.display.internal.ChannelDisplayDefaults;
+import org.micromanager.display.internal.export.AbstractImageExporter;
 import org.micromanager.display.internal.link.internal.DefaultLinkManager;
 import org.micromanager.internal.utils.UserProfileStaticInterface;
 
@@ -532,13 +537,36 @@ public final class DisplayController extends DisplayWindowAPIAdapter
    protected Coords handleDisplayPosition(Coords position) {
       perfMon_.sampleTimeInterval("Handle display position");
 
+      // This viewer does not support displaying more than one Coords at a
+      // time (with the exception of channels in composite mode, but even
+      // then the notional "display position" is a unique Coords).
+
+      // The given coords may match more images than can be displayed. In
+      // which case, we take the unsupplied coordinates to be equal to the
+      // current position, or zero if that is not available.
+
+      Coords current = getDisplayPosition();
+      Coords.Builder cb = Coordinates.builder();
+      dataProvider_.getAxes().forEach((axis) -> {
+         if (position.hasAxis(axis)) {
+            cb.index(axis, position.getIndex(axis));
+         }
+         else if (current.hasAxis(axis)) {
+            cb.index(axis, current.getIndex(axis));
+         }
+         else {
+            cb.index(axis, 0);
+         }
+      });
+      Coords newPosition = cb.build();
+
       runnablePool_.invokeLaterWithCoalescence(
-            new ExpandDisplayRangeCoalescentRunnable(position));
+            new ExpandDisplayRangeCoalescentRunnable(newPosition));
 
       // Always compute stats for all channels
-      Coords channellessPos = position.hasAxis(Coords.CHANNEL) ?
-            position.copy().removeAxis(Coords.CHANNEL).build() :
-            position;
+      Coords channellessPos = newPosition.hasAxis(Coords.CHANNEL) ?
+            newPosition.copy().removeAxis(Coords.CHANNEL).build() :
+            newPosition;
       List<Image> images;
       try {
          images = dataProvider_.getImagesMatching(channellessPos);
@@ -585,10 +613,10 @@ public final class DisplayController extends DisplayWindowAPIAdapter
       }
 
       perfMon_.sampleTimeInterval("Submitting compute request");
-      computeQueue_.submitRequest(ImageStatsRequest.create(position, images,
+      computeQueue_.submitRequest(ImageStatsRequest.create(newPosition, images,
             selection));
 
-      return position;
+      return newPosition;
    }
 
 
@@ -1178,5 +1206,41 @@ public final class DisplayController extends DisplayWindowAPIAdapter
    public void setCustomTitle(String title) {
       customTitle_ = title;
       uiController_.updateTitle();
+   }
+
+   @Override
+   public ImageExporter.Builder imageExporterBuilder() {
+      return new AbstractImageExporter.Builder() {
+         @Override
+         public ImageExporter build() throws IllegalArgumentException {
+            return new ImageExporter(this);
+         }
+      };
+   }
+
+   private class ImageExporter extends AbstractImageExporter {
+      private ImageExporter(AbstractImageExporter.Builder builder) {
+         super(builder);
+      }
+
+      @Override
+      protected ListenableFuture<BufferedImage> render(Coords coords) {
+         DisplayController self = DisplayController.this;
+         BufferedImage image = new BufferedImage(
+               self.uiController_.getImageWidth(),
+               self.uiController_.getImageHeight(),
+               BufferedImage.TYPE_INT_RGB);
+
+         ListenableFutureTask<BufferedImage> future =
+               ListenableFutureTask.create(() -> {}, image);
+
+         SwingUtilities.invokeLater(() -> {
+            self.uiController_.scheduleOffScreenImage(image).
+                  addListener(future::run, MoreExecutors.directExecutor());
+            self.setDisplayPosition(coords, true);
+         });
+
+         return future;
+      }
    }
 }

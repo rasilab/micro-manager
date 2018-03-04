@@ -317,4 +317,10 @@ public interface DisplayWindow extends DataViewer, Closeable {
     * default
     */
    public void setCustomTitle(String title);
+
+   /**
+    * Get a builder to construct an image exporter.
+    * @return a builder
+    */
+   ImageExporter.Builder imageExporterBuilder();
 }
