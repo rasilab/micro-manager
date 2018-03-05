@@ -81,3 +81,9 @@ test-reports/
 /MMCorePy_wrap/MMCorePy_wrap.h
 /DeviceAdapters/DirectElectron/src/DEMessaging/DEServer.pb.cc
 /DeviceAdapters/DirectElectron/src/DEMessaging/DEServer.pb.h
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache
