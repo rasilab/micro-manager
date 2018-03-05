@@ -12,7 +12,7 @@
 	<property name="mm.tmpdir" location="${mm.basedir}"/>
 
 	<!-- Swig output -->
-	<property name="mm.swig.javasrcdir" location="${mm.basedir}/MMCoreJ_wrap/gensrc"/>
+    <property name="mm.swig.javasrcdir" location="${mm.basedir}/MMCoreJ_wrap/mmcorej/src/main/java"/>
 
 	<!-- C++ artifacts used during build -->
 	<property name="mm.build.java.library.path" location="${mm.basedir}/MMCoreJ_wrap/.libs"/>

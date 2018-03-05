@@ -37,6 +37,7 @@ swig_sources = MMCoreJ.i \
 	../MMDevice/MMDevice.h \
 	../MMDevice/MMDeviceConstants.h
 
+swig_java_outdir = mmcorej/src/main/java
 
 # Use MMCoreJ.stamp to manage multiple outputs. A fully parallel-safe rule
 # would be complex (see Automake manual), but this implementation works most of
@@ -44,8 +45,8 @@ swig_sources = MMCoreJ.i \
 MMCoreJ.stamp: $(swig_sources)
 	@rm -f MMCoreJ.tmp
 	@touch MMCoreJ.tmp
-	$(MKDIR_P) gensrc/mmcorej
-	$(SWIG) -c++ -java -package mmcorej -outdir gensrc/mmcorej -module MMCoreJ \
+	$(MKDIR_P) $(swig_java_outdir)/mmcorej
+	$(SWIG) -c++ -java -package mmcorej -outdir $(swig_java_outdir)/mmcorej -module MMCoreJ \
 		"-DMMCOREJ_LIBRARY_PATH=\"$(MMCOREJ_LIBRARY_PATH)\"" \
 		-o MMCoreJ_wrap.cxx $(srcdir)/MMCoreJ.i
 	@mv -f MMCoreJ.tmp $@
@@ -92,8 +93,8 @@ endif # NONSTD_JNI_PREFIX
 CLEANFILES = MMCoreJ.stamp MMCoreJ_wrap.h MMCoreJ_wrap.cxx
 
 clean-local:
-	$(ANT) $(ANTFLAGS) -Dsrcdir=gensrc clean
-	-rm -rf gensrc
+	$(ANT) $(ANTFLAGS) clean
+	-rm -rf mmcorej/src
 
 
 EXTRA_DIST = license.txt
