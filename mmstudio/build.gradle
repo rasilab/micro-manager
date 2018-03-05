@@ -27,6 +27,8 @@ repositories {
 }
 
 dependencies {
+   annotationProcessor group: 'org.scijava', name: 'scijava-common', version:'2.69.0'
+
    compile group: 'org.micromanager', name: 'mmcorej', version:'1.0-SNAPSHOT', classifier:'all'
 
    compile group: 'bulenkov', name: 'iconloader', version:'1f4d8663f686a6195e4f694654d3f71405e6a04c'
