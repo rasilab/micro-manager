@@ -53,3 +53,7 @@ dependencies {
 
    runtime group: 'org.swinglabs', name: 'swingx', version:'0.9.5'
 }
+
+javadoc {
+   exclude '**/internal/**'
+}
