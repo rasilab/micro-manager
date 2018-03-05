@@ -59,6 +59,7 @@ __pycache__/
 *-Tests
 ant_test.sh
 build/
+target/
 test-reports/
 /doxygen/out/
 /dependencies/
