@@ -9,11 +9,10 @@ buildscript {
    }
 }
 
-apply plugin: 'maven-publish'
 apply plugin: 'com.github.johnrengelman.shadow'
 
 dependencies {
-   compile project(':taggedimage')
+   compile project(':MMCoreJ_wrap:taggedimage')
 }
 
 publishing {
@@ -21,8 +20,5 @@ publishing {
       shadow(MavenPublication) { publication ->
          project.shadow.component(publication)
       }
-   }
-   repositories {
-      mavenLocal() // For now.
    }
 }

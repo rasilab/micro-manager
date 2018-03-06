@@ -1,20 +1,12 @@
 allprojects  {
    apply plugin: 'maven'
 
-   group = 'org.micromanager'
    version = '1.0-SNAPSHOT'
 }
 
 subprojects {
    apply plugin: 'java'
+   // MMCoreJ remains Java 6 compatible, for use by MM 1.x
    sourceCompatibility = 1.6
    targetCompatibility = 1.6
-   tasks.withType(JavaCompile) {
-      options.encoding = 'UTF-8'
-   }
-
-   repositories {
-      mavenLocal()
-      // No need for Maven Central
-   }
 }

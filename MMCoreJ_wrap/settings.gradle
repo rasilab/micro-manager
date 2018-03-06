@@ -1,6 +1,0 @@
-rootProject.name = 'mmcorej-wrap'
-include ':taggedimage'
-include ':mmcorej'
-
-project(':taggedimage').projectDir = "$rootDir/taggedimage" as File
-project(':mmcorej').projectDir = "$rootDir/mmcorej" as File

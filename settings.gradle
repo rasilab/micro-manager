@@ -1,0 +1,6 @@
+rootProject.name = 'micro-manager'
+
+include 'MMCoreJ_wrap'
+include 'MMCoreJ_wrap:mmcorej'
+include 'MMCoreJ_wrap:taggedimage'
+include 'mmstudio'
