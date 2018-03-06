@@ -32,6 +32,10 @@ allprojects {
       ignoredGroups = ['org.micromanager', 'bulenkov']
    }
 
+   // Enabling will block build, since many of our dependencies don't declare a
+   // license in their pom.xml.
+   checkLicenses.enabled = false
+
    publishing {
       repositories {
          mavenLocal()
