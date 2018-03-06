@@ -1,6 +1,16 @@
+buildscript {
+   repositories {
+      jcenter()
+   }
+   dependencies {
+      classpath 'com.cookpad.android.licensetools:license-tools-plugin:1.2.0'
+   }
+}
+
 allprojects {
    apply plugin:'maven'
    apply plugin:'maven-publish'
+   apply plugin: 'com.cookpad.android.licensetools'
 
    group = 'org.micromanager'
 
@@ -16,6 +26,10 @@ allprojects {
             artifact '[organisation]/[module]/raw/[revision]/[module].[ext]'
          }
       }
+   }
+
+   licenseTools {
+      ignoredGroups = ['org.micromanager', 'bulenkov']
    }
 
    publishing {
