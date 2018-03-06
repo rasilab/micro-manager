@@ -1,26 +1,11 @@
 description = 'The Micro-Manager Application and Java API'
 
 apply plugin: 'java'
-apply plugin: 'maven'
 
 version = '2.0beta4-SNAPSHOT'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
-
-repositories {
-   mavenLocal()
-   maven { url 'https://maven.imagej.net/content/groups/public' }
-   mavenCentral()
-
-   // Jar committed to GitHub (for Bulenkov IconLoader)
-   ivy {
-      url 'https://github.com/'
-      layout 'pattern', {
-         artifact '[organisation]/[module]/raw/[revision]/[module].[ext]'
-      }
-   }
-}
 
 dependencies {
    annotationProcessor group: 'org.scijava', name: 'scijava-common', version:'2.69.0'

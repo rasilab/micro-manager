@@ -1,7 +1,21 @@
 allprojects {
+   apply plugin: 'maven'
    apply plugin: 'maven-publish'
 
    group = 'org.micromanager'
+
+   repositories {
+      maven { url 'https://maven.imagej.net/content/groups/public' }
+      mavenCentral()
+
+      // Jar committed to GitHub (for Bulenkov IconLoader)
+      ivy {
+         url 'https://github.com/'
+         layout 'pattern', {
+            artifact '[organisation]/[module]/raw/[revision]/[module].[ext]'
+         }
+      }
+   }
 
    publishing {
       repositories {
