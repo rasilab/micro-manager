@@ -1,0 +1,3 @@
+<project name="MMAutofocusDuo" default="jar">
+    <import file="../autofocusbuild.xml"/>
+</project>

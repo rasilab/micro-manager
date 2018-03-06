@@ -1,0 +1,8 @@
+<project name="mm.autofocusbuild">
+	<!-- This file is intended to be used via 'import' in each autofocus plugin
+		 project's buildfile -->
+
+	<include file="autofocusprops.xml"/>
+	<import file="../buildscripts/javabuild.xml"/>
+	<include file="autofocuspaths.xml"/>
+</project>

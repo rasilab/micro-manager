@@ -1,0 +1,31 @@
+<project name="mm.autofocusprops">
+	<include file="../buildscripts/buildprops.xml"/>
+
+	<property name="product" value="${ant.project.name}"/>
+
+	<!-- Relative path of autofocus directory -->
+	<!-- Should be set with the value attribute (not location), since this
+	     is a path relative to the root of the autofocus directory tree -->
+	<property name="autofocus.path" value=""/>
+
+	<if>
+		<isset property="mm.platform.is.windows"/>
+		<then>
+			<property name="intdir" location="${mm.java.autofocus.intdir}/${ant.project.name}"/>
+			<property name="autofocus.outdir" location="${mm.java.autofocus.outdir}"/>
+			<property name="autofocus.installdir" location="${mm.java.autofocus.installdir}"/>
+			<property name="outdir" location="${autofocus.outdir}/${autofocus.path}"/>
+			<property name="installdir" location="${autofocus.installdir}/${autofocus.path}"/>
+		</then>
+		<else>
+			<property name="autofocus.intdir" location="./build"/>
+			<property name="intdir" location="${autofocus.intdir}/${ant.project.name}"/>
+			<property name="autofocus.outdir" location="."/>
+			<property name="outdir" location="${autofocus.outdir}/${autofocus.path}"/>
+			<!-- install is not used on Unix -->
+		</else>
+	</if>
+
+	<!-- Additional classpath items for autofocus; empty by default -->
+	<path id="autofocus.classpath"/>
+</project>

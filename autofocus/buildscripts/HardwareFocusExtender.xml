@@ -1,4 +1,0 @@
-<project name="HardwareFocusExtender" default="jar">
-    <property name="sourcefile" value="src/main/java/org/micromanager/autofocus/HardwareFocusExtender.java"/>
-	<import file="autofocusbuild.xml"/>
-</project>

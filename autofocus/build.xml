@@ -1,10 +1,11 @@
 <project name="mm.autofocus.plugins" basedir="." default="jar">
+	<include file="../buildscripts/buildprops.xml"/>
 	<macrodef name="run-all">
 		<attribute name="target"/>
 		<attribute name="failonerror" default="true"/>
 		<sequential>
 			<subant target="@{target}" failonerror="@{failonerror}">
-				<fileset dir="buildscripts" includes="*.xml" excludes="autofocusbuild.xml"/>
+				<fileset dir="." includes="*/build.xml"/>
 			</subant>
 		</sequential>
 	</macrodef>

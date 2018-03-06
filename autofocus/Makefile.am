@@ -11,7 +11,8 @@ mmautofocus_DATA = \
 autofocus.stamp:
 	@rm -f autofocus.tmp
 	@touch autofocus.tmp
-	$(ANT) -Dmm.javacflags="$(JAVACFLAGS)" $(ANTFLAGS) jar
+	$(ANT) -Dmm.javacflags="$(JAVACFLAGS)" $(ANTFLAGS) \
+		-Dautofocus.intdir="`pwd`/build" -Dautofocus.outdir="`pwd`" jar
 	@mv -f autofocus.tmp $@
 
 $(mmautofocus_DATA): autofocus.stamp
@@ -23,4 +24,4 @@ $(mmautofocus_DATA): autofocus.stamp
 CLEANFILES = autofocus.stamp
 
 clean-local:
-	$(ANT) $(ANTFLAGS) clean
+	$(ANT) $(ANTFLAGS) -Dautofocus.intdir="`pwd`/build" -Dautofocus.outdir="`pwd`" clean
