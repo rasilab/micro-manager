@@ -1,6 +1,6 @@
 allprojects {
-   apply plugin: 'maven'
-   apply plugin: 'maven-publish'
+   apply plugin:'maven'
+   apply plugin:'maven-publish'
 
    group = 'org.micromanager'
 

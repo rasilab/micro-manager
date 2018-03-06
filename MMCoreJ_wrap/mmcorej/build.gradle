@@ -9,7 +9,7 @@ buildscript {
    }
 }
 
-apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin:'com.github.johnrengelman.shadow'
 
 dependencies {
    compile project(':MMCoreJ_wrap:taggedimage')
