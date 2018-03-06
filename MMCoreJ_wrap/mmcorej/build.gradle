@@ -1,15 +1,8 @@
-description = 'The SWIG-generated wrappers for MMCore'
-
-buildscript {
-   repositories {
-      jcenter()
-   }
-   dependencies {
-      classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.2'
-   }
+plugins {
+   id 'com.github.johnrengelman.shadow' version '2.0.2'
 }
 
-apply plugin:'com.github.johnrengelman.shadow'
+description = 'The SWIG-generated wrappers for MMCore'
 
 dependencies {
    compile project(':MMCoreJ_wrap:taggedimage')
