@@ -262,12 +262,21 @@ public final class CVInspectorPanelController extends AbstractInspectorPanelCont
     */
    @Override
    public void attachDataViewer(DataViewer viewer) {
-        // although this should always be a valid viewer, check anyways
-      if (! (viewer instanceof CVViewer) )
+      if (! (viewer instanceof CVViewer)) {
          return;
+      }
+      if (viewer == viewer_) {
+         return;
+      }
 
-      detachDataViewer();
-      
+      if (viewer_ != null) {
+         viewer_.unregisterForEvents(this);
+      }
+      if (sp_ != null) {
+         sp_.stopUpdateThread();
+         panel_.remove(sp_);
+      }
+
       viewer_ = (CVViewer) viewer;
       
       // update range sliders with clipped region of current viewer
@@ -294,21 +303,6 @@ public final class CVInspectorPanelController extends AbstractInspectorPanelCont
       viewer_.registerForEvents(this);
    }
 
-   /**
-    * Very strange, but Micro-Manager never calls detachDataViewer.  We have to
-    * do that ourselves in the attachDataViewer code.  This smells like a bug
-    */
-   @Override
-   public void detachDataViewer() {
-      if (viewer_ != null) {
-         viewer_.unregisterForEvents(this);
-      }
-      if (sp_ != null) {
-         sp_.stopUpdateThread();
-         panel_.remove(sp_);
-      }
-   }
-
    @Override
    public boolean isVerticallyResizableByUser() {
       return false;
@@ -318,10 +312,4 @@ public final class CVInspectorPanelController extends AbstractInspectorPanelCont
    public JPanel getPanel() {
       return panel_;
    }
-      
-   @Override
-   public boolean initiallyExpand() {
-      return true;
-   }
-
 }
