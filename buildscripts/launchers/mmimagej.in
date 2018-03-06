@@ -14,8 +14,12 @@
 # assumption it makes.
 cd "@imagejdir@"
 
-@JAVA@ -Xmx1024M \
-   -XX:MaxDirectMemorySize=1000G \
+@JAVA@ \
+   -Xmx1024M \
+   -XX:MaxDirectMemorySize=32G \
+   -XX:CICompilerCount=2 \
+   -XX:+UseConcMarkSweepGC -XX:MaxGCPauseMillis=66 \
+   -Dsun.java2d.dpiaware=false \
    -Dmmcorej.library.loading.stderr.log=yes \
    -Dorg.micromanager.corelog.dir=/tmp \
    -jar "@imagejjar@" \
