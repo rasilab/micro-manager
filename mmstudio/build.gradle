@@ -33,6 +33,14 @@ dependencies {
    runtime group:'org.swinglabs', name:'swingx', version:'0.9.5'
 }
 
+jar {
+   baseName = 'mmstudio_' // Underscore for ImageJ1 plugin
+
+   from('src/main/scripts') {
+      include '**/*.bsh'
+   }
+}
+
 javadoc {
    exclude '**/internal/**'
 }

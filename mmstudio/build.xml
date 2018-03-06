@@ -20,12 +20,12 @@
 			<fileset dir="${rscdir}">
 				<include name="**/*.png"/>
 				<include name="**/*.gif"/>
+				<include name="plugins.config"/>
 			</fileset>
-        </copy>
+		</copy>
 		<copy todir="${intdir}">
 			<fileset dir="${scriptdir}"/>
 		</copy>
-		<copy tofile="${intdir}/plugins.config" file="bin/plugins_mmstudio.config"/>
 	</target>
 
 	<!-- Override javabuild.xml's 'jar' target, to add manifest -->
