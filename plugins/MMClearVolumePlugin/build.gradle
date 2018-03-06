@@ -1,5 +1,5 @@
 repositories {
-   maven { url 'http://dl.bintray.com/clearvolume/ClearVolume' }
+   maven { url 'https://dl.bintray.com/clearvolume/ClearVolume' }
 }
 
 dependencies {
