@@ -4,4 +4,15 @@ repositories {
 
 dependencies {
    compile group:'net.clearvolume', name:'clearvolume', version:'1.4.1'
+
+   runtime group:'org.jogamp.gluegen', name:'gluegen-rt', version:'2.3.2', classifier:'natives-linux-amd64'
+   runtime group:'org.jogamp.gluegen', name:'gluegen-rt', version:'2.3.2', classifier:'natives-linux-i586'
+   runtime group:'org.jogamp.gluegen', name:'gluegen-rt', version:'2.3.2', classifier:'natives-macosx-universal'
+   runtime group:'org.jogamp.gluegen', name:'gluegen-rt', version:'2.3.2', classifier:'natives-windows-amd64'
+   runtime group:'org.jogamp.gluegen', name:'gluegen-rt', version:'2.3.2', classifier:'natives-windows-i586'
+   runtime group:'org.jogamp.jogl', name:'jogl-all', version:'2.3.2', classifier:'natives-linux-amd64'
+   runtime group:'org.jogamp.jogl', name:'jogl-all', version:'2.3.2', classifier:'natives-linux-i586'
+   runtime group:'org.jogamp.jogl', name:'jogl-all', version:'2.3.2', classifier:'natives-macosx-universal'
+   runtime group:'org.jogamp.jogl', name:'jogl-all', version:'2.3.2', classifier:'natives-windows-amd64'
+   runtime group:'org.jogamp.jogl', name:'jogl-all', version:'2.3.2', classifier:'natives-windows-i586'
 }
