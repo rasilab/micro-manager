@@ -1,0 +1,15 @@
+apply plugin:'java'
+
+dependencies {
+   testCompile project(path:':MMCoreJ_wrap:mmcorej', configuration:'shadow')
+   testCompile project(':mmstudio')
+   testCompile project(':acqEngine')
+   testCompile group:'junit', name:'junit', version:'4.12'
+   testCompile group:'org.msgpack', name:'msgpack', version:'0.6.12'
+}
+
+test {
+   // TODO Windows?
+   environment 'MMCOREJ_LIBRARY_PATH', '../../MMCoreJ_wrap/.libs'
+   environment 'MMTEST_ADAPTER_PATH', '../../DeviceAdapters/SequenceTester/.libs:../../DeviceAdapters/Utilities/.libs'
+}

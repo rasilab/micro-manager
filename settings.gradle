@@ -48,3 +48,6 @@ include 'plugins:pgFocus'
 
 include 'package'
 include 'package:java'
+
+include 'systemtest'
+include 'systemtest:SequenceTests'

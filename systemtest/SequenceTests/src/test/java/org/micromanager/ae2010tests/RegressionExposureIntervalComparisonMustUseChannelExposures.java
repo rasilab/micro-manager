@@ -8,12 +8,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.micromanager.AcquisitionEngine2010;
-import org.micromanager.api.IAcquisitionEngine2010;
-import org.micromanager.api.SequenceSettings;
+import org.micromanager.acquisition.ChannelSpec;
+import org.micromanager.acquisition.SequenceSettings;
+import org.micromanager.acquisition.internal.IAcquisitionEngine2010;
+import org.micromanager.internal.AcquisitionEngine2010;
 import org.micromanager.testing.AE2010ImageDecoder;
 import org.micromanager.testing.MMCoreWithTestHubResource;
-import org.micromanager.utils.ChannelSpec;
 import static org.junit.Assert.*;
 import static org.micromanager.testing.TestImageDecoder.InfoPacket;
 

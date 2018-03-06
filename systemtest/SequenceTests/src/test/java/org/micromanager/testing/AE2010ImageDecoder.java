@@ -5,9 +5,9 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import mmcorej.TaggedImage;
-import static org.micromanager.testing.TestImageDecoder.InfoPacket;
 import static org.junit.Assert.*;
-import static org.micromanager.acquisition.TaggedImageQueue.POISON;
+import static org.micromanager.acquisition.internal.TaggedImageQueue.POISON;
+import static org.micromanager.testing.TestImageDecoder.InfoPacket;
 
 
 @org.junit.Ignore
