@@ -1,0 +1,10 @@
+subprojects {
+   apply plugin:'java'
+
+   dependencies {
+      annotationProcessor project(':mmstudio')
+
+      compile project(':mmstudio')
+      compile project(path:':MMCoreJ_wrap:mmcorej', configuration:'shadow')
+   }
+}

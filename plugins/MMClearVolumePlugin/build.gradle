@@ -1,0 +1,7 @@
+repositories {
+   maven { url 'http://dl.bintray.com/clearvolume/ClearVolume' }
+}
+
+dependencies {
+   compile group:'net.clearvolume', name:'clearvolume', version:'1.4.1'
+}

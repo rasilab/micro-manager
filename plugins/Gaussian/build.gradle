@@ -1,0 +1,7 @@
+repositories {
+   maven { url 'http://valelab4.ucsf.edu/~nstuurman/maven' }
+}
+
+dependencies {
+   compile group:'edu.ucsf.valelab.tsf', name:'tsfproto', version:'1.0.0'
+}
