@@ -87,3 +87,4 @@ test-reports/
 gradle-app.setting
 !gradle-wrapper.jar
 .gradletasknamecache
+/.nb-gradle/
