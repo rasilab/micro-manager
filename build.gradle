@@ -5,8 +5,9 @@ allprojects {
    group = 'org.micromanager'
 
    repositories {
-      maven { url 'https://maven.imagej.net/content/groups/public' }
+      jcenter()
       mavenCentral()
+      maven { url 'https://maven.imagej.net/content/groups/public' }
 
       // Jar committed to GitHub (for Bulenkov IconLoader)
       ivy {
