@@ -45,3 +45,8 @@ publishing {
       }
    }
 }
+
+task collectJars(type:Copy) {
+   from configurations.runtime
+   into project.distJarDir
+}

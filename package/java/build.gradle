@@ -1,0 +1,16 @@
+apply plugin:'java'
+
+description = 'Collect top-level Java artifacts'
+
+dependencies {
+   runtime project(':mmstudio')
+
+   // Due to the inverted dependency of acqEngine on mmstudio, we need to list
+   // it here; otherwise nothing may depend on acqEngine
+   runtime project(':acqEngine')
+}
+
+task collectJars(type:Copy) {
+   from configurations.runtime
+   into project.distJarDir
+}

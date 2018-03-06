@@ -24,3 +24,8 @@ allprojects {
       }
    }
 }
+
+ext {
+   distJarDir = project.file('dist/jars')
+   distPluginDir = project.file('dist/mmplugins')
+}

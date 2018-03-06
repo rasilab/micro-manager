@@ -45,3 +45,6 @@ include 'plugins:WhiteBalance'
 include 'plugins:ZProjector'
 include 'plugins:autolase'
 include 'plugins:pgFocus'
+
+include 'package'
+include 'package:java'

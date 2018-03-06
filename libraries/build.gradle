@@ -1,3 +1,9 @@
 subprojects {
    apply plugin:'java'
+
+   task collectJars(type:Copy) {
+      from configurations.runtime
+      from libsDir
+      into project.distJarDir
+   }
 }

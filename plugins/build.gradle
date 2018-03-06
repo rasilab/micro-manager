@@ -9,4 +9,14 @@ subprojects {
 
       testCompile group:'junit', name:'junit', version:'4.12'
    }
+
+   task collectJars(type:Copy) {
+      from configurations.runtime
+      into project.distJarDir
+   }
+
+   task collectPlugins(type:Copy) {
+      from libsDir
+      into project.distPluginDir
+   }
 }
