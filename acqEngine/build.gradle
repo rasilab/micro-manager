@@ -1,0 +1,20 @@
+plugins {
+   id 'gradle-clojure.clojure' version '0.3.1'
+}
+
+version = '1.0-SNAPSHOT'
+
+repositories {
+   jcenter()
+   maven { url 'https://clojars.org/repo/' }
+}
+
+dependencies {
+   compile project(path:':MMCoreJ_wrap:mmcorej', configuration:'shadow')
+   compile project(':mmstudio')
+   compile group:'org.clojure', name:'clojure', version:'1.7.0'
+}
+
+compileClojure {
+   options.aotCompile = true
+}

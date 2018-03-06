@@ -6,6 +6,8 @@ include 'MMCoreJ_wrap:taggedimage'
 
 include 'mmstudio'
 
+include 'acqEngine'
+
 include 'libraries'
 include 'libraries:Big'
 include 'libraries:ProjectorLib'
