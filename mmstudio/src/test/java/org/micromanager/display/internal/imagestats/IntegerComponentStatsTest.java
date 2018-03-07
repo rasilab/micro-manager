@@ -30,7 +30,7 @@ public class IntegerComponentStatsTest {
             histogram(new long[] { 0, 1, 2, 0 }, 0).pixelCount(3).build();
       assertEquals(0.0, s.getQuantile(0.0), e);
       assertEquals(1.25, s.getQuantile(0.5), e);
-      assertEquals(2.0, s.getQuantile(1.0), e);
+      assertEquals(1.0, s.getQuantile(1.0), e); // since stats has maximum = 0
    }
 
    @Test
