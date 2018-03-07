@@ -65,3 +65,9 @@ applicationDefaultJvmArgs = [
    '-XX:MaxGCPauseMillis=67',
    '-Dsun.java.dpiaware=false',
 ]
+
+run {
+   workingDir rootProject.file('stage')
+   systemProperties('mmcorej.library.path':rootProject.file('MMCoreJ_wrap/.libs').getAbsolutePath())
+   args '-eval', 'run("Micro-Manager Studio");'
+}
