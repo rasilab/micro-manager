@@ -126,23 +126,18 @@ public final class DefaultCoords implements Coords {
    }
 
    @Override
-   public int getIndex(String axis) {
+   public int getIndex(String axis, int defaultIndex) {
       int i = axes_.indexOf(axis);
       if (i < 0) {
-         return -1;
+         return defaultIndex;
       }
       return indices_.get(i);
    }
 
-   @Override public int getTimePoint() { return getIndex(TIME_POINT); }
-   @Override public int getT() { return getTimePoint(); }
-   @Override public int getStagePosition() { return getIndex(STAGE_POSITION); }
-   @Override public int getP() { return getStagePosition(); }
-   @Override public int getZSlice() { return getIndex(Z_SLICE); }
-   @Override public int getZ() { return getZSlice(); }
-   @Override public int getChannel() { return getIndex(Coords.CHANNEL); }
-   @Override public int getC() { return getChannel(); }
-   @Override @Deprecated public int getTime() { return getTimePoint(); }
+   @Override public int getTimePoint(int d) { return getIndex(TIME_POINT, d); }
+   @Override public int getStagePosition(int d) { return getIndex(STAGE_POSITION, d); }
+   @Override public int getZSlice(int d) { return getIndex(Z_SLICE, d); }
+   @Override public int getChannel(int d) { return getIndex(Coords.CHANNEL, d); }
 
    @Override
    public List<String> getAxes() {
@@ -155,13 +150,9 @@ public final class DefaultCoords implements Coords {
    }
 
    @Override public boolean hasTimePointAxis() { return hasAxis(TIME_POINT); }
-   @Override public boolean hasT() { return hasTimePointAxis(); }
    @Override public boolean hasStagePositionAxis() { return hasAxis(STAGE_POSITION); }
-   @Override public boolean hasP() { return hasStagePositionAxis(); }
    @Override public boolean hasZSliceAxis() { return hasAxis(Z_SLICE); }
-   @Override public boolean hasZ() { return hasZSliceAxis(); }
    @Override public boolean hasChannelAxis() { return hasAxis(Coords.CHANNEL); }
-   @Override public boolean hasC() { return hasChannelAxis(); }
 
    @Override
    public boolean isSuperspaceCoordsOf(Coords other) {
@@ -188,12 +179,6 @@ public final class DefaultCoords implements Coords {
    @Override
    public Builder copyBuilder() {
       return new Builder(axes_, indices_);
-   }
-
-   @Override
-   @Deprecated
-   public Builder copy() {
-      return copyBuilder();
    }
 
    @Override
@@ -237,7 +222,7 @@ public final class DefaultCoords implements Coords {
       }
       return true;
    }
-   
+
    @Override
    public int hashCode() {
       // Axis order is not considered for equality

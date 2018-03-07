@@ -178,25 +178,35 @@ public interface Coords {
 
    /**
     * Get the index for the given axis.
-    * 
+    *
     * @param axis coordinate axis such as {@code Coords.CHANNEL}
     * @return index along {@code axis}, or {@code -1} if {@code axis} does not
     * exist
     */
-   public int getIndex(String axis);
+   default int getIndex(String axis) {
+      return getIndex(axis, -1);
+   }
+
+   int getIndex(String axis, int defaultIndex);
 
    /**
     * Get the channel index.
     *
     * Equivalent to {@code getIndex(Coords.CHANNEL)}.
-    * 
+    *
     * @return channel index, or {@code -1} if this {@code Coords} doesn't
     * contain a channel index.
     */
-   public int getChannel();
+   default int getChannel() {
+      return getChannel(-1);
+   }
+
+   int getChannel(int defaultChannelIndex);
 
    /** Shorthand for {@link getChannel}. */
-   public int getC();
+   default int getC() {
+      return getChannel();
+   }
 
    /**
     * Get the time point (frame) index.
@@ -206,41 +216,61 @@ public interface Coords {
     * @return time point index, or {@code -1} if this {@code Coords} doesn't
     * contain a time point index.
     */
-   public int getTimePoint();
+   default int getTimePoint() {
+      return getTimePoint(-1);
+   }
+
+   int getTimePoint(int defaultTimePointIndex);
 
    /** Same as {@link getTimePoint}.
     * @deprecated Due to looking like the physical time rather than an index.
     */
-   public int getTime();
+   default int getTime() {
+      return getTimePoint();
+   }
 
    /** Shorthand for {@link getTimePoint}. */
-   public int getT();
+   default int getT() {
+      return getTimePoint();
+   }
 
    /**
     * Get the Z slice index.
-    * 
+    *
     * Equivalent to {@code getIndex(Coords.Z_SLICE)}.
-    * 
+    *
     * @return Z slice index, or {@code -1} if this {@code Coords} doesn't
     * contain a Z slice index.
     */
-   public int getZSlice();
+   default int getZSlice() {
+      return getZSlice(-1);
+   }
+
+   int getZSlice(int defaultZSliceIndex);
 
    /** Shorthand for {@link getZSlice} */
-   public int getZ();
+   default int getZ() {
+      return getZSlice();
+   }
 
    /**
     * Get the stage position index.
     *
     * Equivalent to {@code getIndex(Coords.STAGE_POSITION)}.
-    * 
+    *
     * @return stage position index, or {@code -1} if this {@code Coords}
     * doesn't contain a stage position index.
     */
-   public int getStagePosition();
+   default int getStagePosition() {
+      return getStagePosition(-1);
+   }
+
+   int getStagePosition(int defaultStagePositionIndex);
 
    /** Shorthand for {@link getStagePosition}. */
-   public int getP();
+   default int getP() {
+      return getStagePosition();
+   }
 
    /**
     * Return all axes that this {@code Coords} has an index for.
@@ -256,14 +286,29 @@ public interface Coords {
     */
    public boolean hasAxis(String axis);
 
-   public boolean hasTimePointAxis();
-   public boolean hasT();
-   public boolean hasStagePositionAxis();
-   public boolean hasP();
-   public boolean hasZSliceAxis();
-   public boolean hasZ();
-   public boolean hasChannelAxis();
-   public boolean hasC();
+   boolean hasTimePointAxis();
+
+   default boolean hasT() {
+      return hasTimePointAxis();
+   }
+
+   boolean hasStagePositionAxis();
+
+   default boolean hasP() {
+      return hasStagePositionAxis();
+   }
+
+   boolean hasZSliceAxis();
+
+   default boolean hasZ() {
+      return hasZSliceAxis();
+   }
+
+   boolean hasChannelAxis();
+
+   default boolean hasC() {
+      return hasChannelAxis();
+   }
 
    /**
     * Return true if this instance contains equal indices for every axis in the
@@ -290,7 +335,9 @@ public interface Coords {
    public Builder copyBuilder();
 
    @Deprecated
-   public CoordsBuilder copy();
+   default CoordsBuilder copy() {
+      return copyBuilder();
+   }
 
    Coords copyRemovingAxes(String... axes);
    Coords copyRetainingAxes(String... axes);
