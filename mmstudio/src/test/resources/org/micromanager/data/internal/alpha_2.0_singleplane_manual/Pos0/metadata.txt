@@ -9,9 +9,9 @@
     "Romeo"
   ],
   "AxisOrder": [
-    "axis 5",
-    "axis 3",
-    "axis 97"
+    "axis5",
+    "axis3",
+    "axis97"
   ],
   "UserName": "John Doe",
   "UserData": {
@@ -89,9 +89,9 @@
   "z-step_um": 1.23456789012345E8,
   "StartTime": "The age of Aquarius",
   "IntendedDimensions": {
-    "axis 3": 9,
-    "axis 97": 8,
-    "axis 5": 2
+    "axis3": 9,
+    "axis97": 8,
+    "axis5": 2
   },
   "Positions": -1,
   "WaitInterval": -1234.5678,

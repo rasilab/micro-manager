@@ -78,8 +78,8 @@ public class ManualTiffTest {
          .channelNames(new String[] {"Alpha", "Beta", "Romeo"})
          .zStepUm(123456789.012345).waitInterval(-1234.5678)
          .customIntervalsMs(new Double[] {12.34, 56.78})
-         .axisOrder(new String[] {"axis 5", "axis 3", "axis 97"})
-         .intendedDimensions((new DefaultCoords.Builder()).index("axis 5", 2).index("axis 3", 9).index("axis 97", 8).build())
+         .axisOrder(new String[] {"axis5", "axis3", "axis97"})
+         .intendedDimensions((new DefaultCoords.Builder()).index("axis5", 2).index("axis3", 9).index("axis97", 8).build())
          .startDate("The age of Aquarius")
          .stagePositions(new MultiStagePosition[] {
             new MultiStagePosition("some xy stage", 24.3, 43.2, "some z stage", 1.01),
