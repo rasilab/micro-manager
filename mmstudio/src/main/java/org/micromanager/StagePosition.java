@@ -29,6 +29,10 @@ package org.micromanager;
 import org.micromanager.data.internal.PropertyKey;
 import org.micromanager.internal.utils.NumberUtils;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 
 public class StagePosition {
    /**
@@ -201,7 +205,8 @@ public class StagePosition {
    }
 
    public static StagePosition fromPropertyMap(PropertyMap pmap) {
-      int n = pmap.getInteger(PropertyKey.STAGE_POSITION__POSITION_UM.key(), 0);
+      int n = pmap.getDoubleList(PropertyKey.STAGE_POSITION__POSITION_UM.key(),
+             Collections.emptyList()).size();
       switch (n) {
          case 1:
             return StagePosition.create1D(pmap.getString(
