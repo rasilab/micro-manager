@@ -278,7 +278,7 @@ public final class DefaultCoords implements Coords {
    public static Coords fromPropertyMap(PropertyMap pmap) {
       Builder b = new Builder();
       for (String axis : pmap.keySet()) {
-         b.index(axis, pmap.getInteger(axis, -1));
+         b.index(axis, pmap.getAsNumber(axis, -1).intValue());
       }
       return b.build();
    }
