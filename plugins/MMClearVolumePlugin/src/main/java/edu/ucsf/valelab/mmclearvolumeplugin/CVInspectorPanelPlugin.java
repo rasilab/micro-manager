@@ -2,7 +2,7 @@
  * Binding to ClearVolume 3D viewer View Micro-Manager datasets in 3D
  *
  * AUTHOR: Nico Stuurman COPYRIGHT: Regents of the University of California,
- * 2015 
+ * 2015
  * LICENSE: This file is distributed under the BSD license. License text is
  * included with the source distribution.
  *
@@ -39,11 +39,12 @@ public final class CVInspectorPanelPlugin implements InspectorPanelPlugin {
    }
 
    @Override
+   public boolean isPanelExpandedByDefault() {
+      return true;
+   }
+
+   @Override
    public InspectorPanelController createPanelController() {
       return new CVInspectorPanelController();
    }
-   
-
-
-  
 }
