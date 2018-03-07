@@ -59,9 +59,8 @@ __pycache__/
 *-Tests
 ant_test.sh
 build/
-target/
+out/
 test-reports/
-/doxygen/out/
 /dependencies/
 /dist/
 /stage/
@@ -87,4 +86,10 @@ test-reports/
 gradle-app.setting
 !gradle-wrapper.jar
 .gradletasknamecache
+
+# NetBeans Gradle plugin
 /.nb-gradle/
+
+# IntelliJ IDEA
+/.idea/
+*.iml
