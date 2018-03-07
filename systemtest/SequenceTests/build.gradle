@@ -1,7 +1,7 @@
 apply plugin:'java'
 
 dependencies {
-   testCompile project(path:':MMCoreJ_wrap:mmcorej', configuration:'shadow')
+   testCompile project(':MMCoreJ_wrap:mmcorej')
    testCompile project(':mmstudio')
    testCompile project(':acqEngine')
    testCompile group:'junit', name:'junit', version:'4.12'

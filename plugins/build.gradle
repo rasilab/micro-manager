@@ -5,7 +5,7 @@ subprojects {
       annotationProcessor project(':mmstudio')
 
       compile project(':mmstudio')
-      compile project(path:':MMCoreJ_wrap:mmcorej', configuration:'shadow')
+      compile project(':MMCoreJ_wrap:mmcorej')
 
       testCompile group:'junit', name:'junit', version:'4.12'
    }
