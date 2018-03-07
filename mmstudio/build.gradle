@@ -1,6 +1,6 @@
 description = 'The Micro-Manager Application and Java API'
 
-apply plugin:'java'
+apply plugin:'application'
 
 version = '2.0beta4-SNAPSHOT'
 
@@ -54,3 +54,14 @@ task collectJars(type:Copy) {
    from configurations.runtime
    into project.distJarDir
 }
+
+mainClassName = 'ij.ImageJ'
+applicationDefaultJvmArgs = [
+   '-Xms512M',
+   '-Xmx2014M',
+   '-XX:MaxDirectMemorySize=4G',
+   '-XX:CICompilerCount=2',
+   '-XX:+UseConcMarkSweepGC',
+   '-XX:MaxGCPauseMillis=67',
+   '-Dsun.java.dpiaware=false',
+]
