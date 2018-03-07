@@ -9,11 +9,13 @@
   <key>CFBundleAllowMixedLocalizations</key>
   <true/>
   <key>CFBundleExecutable</key>
-  <string>ImageJ</string>
+  <string>MMImageJ</string>
+  <key>CFBundleGetInfoString</key>
+  <string>https://micro-manager.org/</string>
   <key>CFBundleIconFile</key>
   <string>ImageJ.icns</string>
   <key>CFBundleIdentifier</key>
-  <string>ImageJ</string>
+  <string>org.micro-manager.MMImageJ</string>
   <key>CFBundleDocumentTypes</key>
   <array>
     <dict>
@@ -32,46 +34,45 @@
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>ImageJ</string>
+  <string>Micro-Manager</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.51</string>
+  <string>2.0-beta</string>
   <key>CFBundleSignature</key>
   <string>????</string>
-  <!-- See http://developer.apple.com/library/mac/#releasenotes/General/SubmittingToMacAppStore/_index.html
-       for list of AppStore categories -->
   <key>LSApplicationCategoryType</key>
   <string>Unknown</string>
   <key>CFBundleVersion</key>
-  <string>100</string>
+  <string>2.0.0b</string>
   <key>NSHumanReadableCopyright</key>
-  <string>Copyright (C) 2015</string>
-  <key>JVMRuntime</key>
-  <string>$APPDIR/PlugIns/Java.runtime</string>
-  <key>JVMMainClassName</key>
-  <string>ij.ImageJ</string>
-  <key>JVMAppClasspath</key>
-  <string></string>
-  <key>JVMMainJarName</key>
-  <string>ij.jar</string>
-  <key>JVMPreferencesID</key>
-  <string>imagej</string>
-  <key>JVMDefaultOptions</key>
-  <string>-Xms256m -Xmx3000m</string>
-  <key>JVMOptions</key>
-  <array>
-
-  </array>
-  <key>JVMUserOptions</key>
-    <dict>
-
-    </dict>
-  <key>ArgOptions</key>
-  <array>
-
-  </array>
+  <string>Copyright (C) 2005-2018 Regents of the University of California; Open Imaging, Inc.; and Micro-Manager Contributors</string>
   <key>NSHighResolutionCapable</key>
   <string>true</string>
+  <key>JavaX</key>
+  <dict>
+    <key>WorkingDirectory</key>
+    <string>$APP_PACKAGE/..</string>
+    <key>JVMVersion</key>
+    <string>1.8</string>
+    <key>ClassPath</key>
+    <string>ij.jar</string>
+    <key>MainClass</key>
+    <string>ij.ImageJ</string>
+    <key>VMOptions</key>
+    <array>
+       <string>-Xms512M</string>
+       <string>-Xmx2048M</string>
+       <string>-XX:MaxDirectMemorySize=32G</string>
+       <string>-XX:CICompilerCount=2</string>
+       <string>-XX:+UseConcMarkSweepGC</string>
+       <string>-XX:MaxGCPauseMillis=67</string>
+    </array>
+    <key>Properties</key>
+    <dict>
+       <key>sun.java2d.dpiaware</key>
+       <string>false</string>
+    </dict>
+  </dict>
  </dict>
 </plist>
