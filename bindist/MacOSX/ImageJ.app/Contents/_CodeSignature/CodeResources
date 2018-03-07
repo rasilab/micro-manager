@@ -11,17 +11,6 @@
 	</dict>
 	<key>files2</key>
 	<dict>
-		<key>Java/ij.jar</key>
-		<dict>
-			<key>hash</key>
-			<data>
-			3eKhNxPr9yiMlQMZE6ke4GI91Ho=
-			</data>
-			<key>hash2</key>
-			<data>
-			W9f1UbHMS/hvtD1ydrl1vfLdw95dBzGSxWlygYFRweA=
-			</data>
-		</dict>
 		<key>Resources/ImageJ.icns</key>
 		<dict>
 			<key>hash</key>
@@ -51,11 +40,6 @@
 			<true/>
 			<key>weight</key>
 			<real>1100</real>
-		</dict>
-		<key>^Resources/Base\.lproj/</key>
-		<dict>
-			<key>weight</key>
-			<real>1010</real>
 		</dict>
 		<key>^version.plist$</key>
 		<true/>
@@ -115,11 +99,6 @@
 			<true/>
 			<key>weight</key>
 			<real>1100</real>
-		</dict>
-		<key>^Resources/Base\.lproj/</key>
-		<dict>
-			<key>weight</key>
-			<real>1010</real>
 		</dict>
 		<key>^[^/]+$</key>
 		<dict>
