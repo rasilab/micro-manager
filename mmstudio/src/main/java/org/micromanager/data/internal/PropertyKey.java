@@ -1162,9 +1162,7 @@ public enum PropertyKey {
    STAGE_POSITION__NUMAXES("NumberOfAxes", "AXES", "numAxes", StagePosition.class) {
       @Override
       protected void convertFromGson(JsonElement je, PropertyMap.Builder dest) {
-         // TODO: why does having 3 axes translate to multiplying the number of
-         // axes by 3?
-         dest.putInteger(key(), je.getAsInt() * 3); // old style stage positions always had 3 axes...
+         dest.putInteger(key(), je.getAsInt());
       }
    },
 
