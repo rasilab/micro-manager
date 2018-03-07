@@ -1338,9 +1338,13 @@ public final class MMStudio implements Studio, CompatibilityInterface, PositionL
 
    @Override
    public String getVersion() {
+      return getVersionStatic();
+   }
+
+   public static String getVersionStatic() {
       return MMVersion.VERSION_STRING;
    }
-   
+
    /**
     * Inserts version info for various components in the Corelog
     */

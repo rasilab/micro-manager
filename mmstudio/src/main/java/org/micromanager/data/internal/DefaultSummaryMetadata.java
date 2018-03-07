@@ -76,7 +76,7 @@ public final class DefaultSummaryMetadata implements SummaryMetadata {
 
       public Builder() {
          b_ = PropertyMaps.builder().
-               putString(MICRO_MANAGER_VERSION.key(), MMStudio.getInstance().compat().getVersion()).
+               putString(MICRO_MANAGER_VERSION.key(), MMStudio.getVersionStatic()).
                putString(METADATA_VERSION.key(), CURRENT_METADATA_VERSION);
       }
 
