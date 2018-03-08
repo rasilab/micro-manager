@@ -89,6 +89,7 @@ gradle-app.setting
 
 # NetBeans Gradle plugin
 /.nb-gradle/
+.nb-gradle-properties
 
 # IntelliJ IDEA
 /.idea/
