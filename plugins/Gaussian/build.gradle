@@ -1,3 +1,3 @@
 dependencies {
-   compile group:'edu.ucsf.valelab.tsf', name:'tsfproto', version:'1.0.0'
+   implementation group:'edu.ucsf.valelab.tsf', name:'tsfproto', version:'1.0.0'
 }
