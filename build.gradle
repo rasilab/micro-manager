@@ -10,7 +10,7 @@ buildscript {
 allprojects {
    apply plugin:'maven'
    apply plugin:'maven-publish'
-   apply plugin: 'com.cookpad.android.licensetools'
+   apply plugin:'com.cookpad.android.licensetools'
 
    group = 'org.micromanager'
 
