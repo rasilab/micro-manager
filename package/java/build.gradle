@@ -1,4 +1,4 @@
-apply plugin:'java'
+apply plugin:'application'
 
 description = 'Collect top-level Java artifacts'
 
@@ -8,4 +8,55 @@ dependencies {
    // Due to the inverted dependency of acqEngine on mmstudio, we need to list
    // it here; otherwise nothing may depend on acqEngine
    runtime project(':acqEngine')
+
+   runtime project(':autofocus:HardwareFocusExtender')
+   runtime project(':autofocus:MMAutofocus')
+   runtime project(':autofocus:MMAutofocusDuo')
+   runtime project(':autofocus:MMAutofocusTB')
+   runtime project(':autofocus:MMOughtaFocus')
+
+   runtime project(':plugins:ASIdiSPIM')
+   runtime project(':plugins:AcquireMultipleRegions')
+   runtime project(':plugins:CRISP')
+   runtime project(':plugins:CRISPv2')
+   runtime project(':plugins:Duplicator')
+   runtime project(':plugins:FrameCombiner')
+   runtime project(':plugins:Gaussian')
+   runtime project(':plugins:HCS')
+   runtime project(':plugins:ImageFlipper')
+   runtime project(':plugins:IntelligentAcquisition')
+   runtime project(':plugins:MMClearVolumePlugin')
+   runtime project(':plugins:MultiAndor')
+   runtime project(':plugins:MultiChannelShading')
+   runtime project(':plugins:PipelineSaver')
+   runtime project(':plugins:Projector')
+   runtime project(':plugins:Recall')
+   runtime project(':plugins:SequenceBufferMonitor')
+   runtime project(':plugins:SlideExplorer')
+   runtime project(':plugins:SnapOnMove')
+   runtime project(':plugins:SplitView')
+   runtime project(':plugins:Tracker')
+   runtime project(':plugins:WhiteBalance')
+   runtime project(':plugins:ZProjector')
+   runtime project(':plugins:autolase')
+   runtime project(':plugins:pgFocus')
+
+   runtime project(':libraries:Big')
+}
+
+mainClassName = 'ij.ImageJ'
+applicationDefaultJvmArgs = [
+   '-Xms512M',
+   '-Xmx2014M',
+   '-XX:MaxDirectMemorySize=4G',
+   '-XX:CICompilerCount=2',
+   '-XX:+UseConcMarkSweepGC',
+   '-XX:MaxGCPauseMillis=67',
+   '-Dsun.java.dpiaware=false',
+]
+
+run {
+   workingDir rootProject.file('stage')
+   systemProperties('mmcorej.library.path':rootProject.file('MMCoreJ_wrap/.libs').getAbsolutePath())
+   args '-eval', 'run("Micro-Manager Studio");'
 }

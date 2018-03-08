@@ -1,0 +1,4 @@
+dependencies {
+   implementation group:'bulenkov', name:'iconloader', version:'1f4d8663f686a6195e4f694654d3f71405e6a04c'
+   implementation group:'net.imagej', name:'ij', version:'1.51g'
+}

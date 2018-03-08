@@ -1,0 +1,4 @@
+dependencies {
+   implementation group:'net.imagej', name:'ij', version:'1.51g'
+   implementation group:'org.apache.commons', name:'commons-math3', version:'3.6.1'
+}

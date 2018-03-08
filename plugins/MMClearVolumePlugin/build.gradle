@@ -3,7 +3,10 @@ repositories {
 }
 
 dependencies {
+   implementation group:'bulenkov', name:'iconloader', version:'1f4d8663f686a6195e4f694654d3f71405e6a04c'
+   implementation group:'com.miglayout', name:'miglayout-swing', version:'4.2'
    implementation group:'net.clearvolume', name:'clearvolume', version:'1.4.1'
+   implementation group:'net.imagej', name:'ij', version:'1.51g'
 
    // TODO Select based on build platform
    runtime group:'org.jogamp.gluegen', name:'gluegen-rt', version:'2.3.2', classifier:'natives-linux-amd64'
