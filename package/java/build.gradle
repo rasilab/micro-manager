@@ -44,6 +44,13 @@ dependencies {
    runtime project(':libraries:Big')
 }
 
+task stage(type:Copy) {
+   dependsOn(installDist)
+
+   from project.file('build/install/java/lib')
+   into new File(rootProject.stageDir, 'plugins/Micro-Manager')
+}
+
 mainClassName = 'ij.ImageJ'
 applicationDefaultJvmArgs = [
    '-Xms512M',
@@ -56,6 +63,8 @@ applicationDefaultJvmArgs = [
 ]
 
 run {
+   dependsOn(stage)
+
    workingDir rootProject.file('stage')
    systemProperties('mmcorej.library.path':rootProject.file('MMCoreJ_wrap/.libs').getAbsolutePath())
    args '-eval', 'run("Micro-Manager Studio");'

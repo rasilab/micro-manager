@@ -42,3 +42,7 @@ allprojects {
       }
    }
 }
+
+ext {
+   stageDir = project.file('stage')
+}
