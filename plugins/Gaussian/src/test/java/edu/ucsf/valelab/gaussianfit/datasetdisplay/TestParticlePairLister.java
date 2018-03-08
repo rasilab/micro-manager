@@ -10,17 +10,15 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import org.junit.Assert;
 import org.junit.Test;
-import org.micromanager.internal.MMStudio;
 
 /**
  *
  * @author nico
  */
 public class TestParticlePairLister {
-   
+
    @Test
    public void testPairLister() throws InterruptedException {
-      MMStudio studio = new MMStudio(false);
       DataCollectionForm df = DataCollectionForm.getInstance();
       InputStream resource = TestParticlePairLister.class.getResourceAsStream(
               "/edu/ucsf/valelab/gaussianfit/testdata/does-not-list-pairs-if-start-not-at-1.txt");
