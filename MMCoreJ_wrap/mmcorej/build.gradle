@@ -1,5 +1,5 @@
 description = 'The SWIG-generated wrappers for MMCore'
 
 dependencies {
-   compile project(':MMCoreJ_wrap:taggedimage')
+   api project(':MMCoreJ_wrap:taggedimage')
 }
