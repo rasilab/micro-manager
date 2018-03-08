@@ -9,13 +9,3 @@ dependencies {
    // it here; otherwise nothing may depend on acqEngine
    runtime project(':acqEngine')
 }
-
-task collectJars(type:Copy) {
-   from configurations.runtime
-   into project.distJarDir
-}
-
-clean {
-   delete project.distJarDir
-   delete project.distPluginDir
-}

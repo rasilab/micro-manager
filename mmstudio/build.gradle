@@ -50,11 +50,6 @@ javadoc {
    exclude '**/internal/**'
 }
 
-task collectJars(type:Copy) {
-   from configurations.runtime
-   into project.distJarDir
-}
-
 mainClassName = 'ij.ImageJ'
 applicationDefaultJvmArgs = [
    '-Xms512M',

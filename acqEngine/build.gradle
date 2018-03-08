@@ -18,8 +18,3 @@ dependencies {
 compileClojure {
    options.aotCompile = true
 }
-
-task collectJars(type:Copy) {
-   from configurations.runtime
-   into project.distJarDir
-}

@@ -7,14 +7,4 @@ subprojects {
       compile project(':mmstudio')
       compile project(':MMCoreJ_wrap:mmcorej')
    }
-
-   task collectJars(type:Copy) {
-      from configurations.runtime
-      into project.distJarDir
-   }
-
-   task collectPlugins(type:Copy) {
-      from libsDir
-      into project.distPluginDir
-   }
 }
