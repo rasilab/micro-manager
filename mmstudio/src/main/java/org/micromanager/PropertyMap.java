@@ -14,7 +14,7 @@ import java.util.UUID;
 
 /**
  * An immutable typed key-value store for various settings.
- * <p>
+ *
  * A property map can store string-keyed values of various primitive types,
  * nested property maps, and uniformly typed (ordered) collections of values.
  * Because it is immutable, it can be passed around between objects without
@@ -29,29 +29,33 @@ import java.util.UUID;
  * stores typed values rather than just strings, and supports storage of nested
  * property maps.
  * <p>
- * <strong>Methods to access primitive types</strong><br>
+ * <strong>Methods to access primitive types</strong>
  * <pre><code>
  * PropertyMap pm = ...
- * pm.containsLong("key"); // - true if "key" exists and type is long
- * pm.getLong("key", 0L);  // - 0L if "key" is missing
- *                         // Throws ClassCastException if value is wrong type
- * pm.containsLongList("key2"); // - true if "key2" exists and type is
- *                           // collection of longs
- * pm.getLongList("key2")       // - long[] {} if "key2" is missing
- *                           // Throws ClassCastException if value is wrong type
- * pm.getLongList("key2", 0L, 1L, 2L) // - long[] { 0, 1, 2 } if "key2" is missing
- * pm.getLongList("key2", new ArrayList{@literal <}Long{@literal >}());
- *                           // Return List{@literal <}Long{@literal >}, or
- *                           // the empty arraylist
- * pm.getLongList("key2", null); // - (List{@literal <}Long{@literal >}) null if "key2" missing
+ *
+ * pm.containsLong("key"); // Returns true if "key" exists and type is long
+ *
+ * pm.getLong("key", 0L); // Returns 0L if "key" is missing;
+ *                        // Throws ClassCastException if value exists and is wrong type
+ *
+ * pm.containsLongList("key2"); // Returns true if "key2" exists and type is list of longs
+ *
+ * pm.getLongList("key2"); // Returns empty long[] if "key2" is missing
+ *                         // Throws ClassCastException if value exists and is wrong type
+ *
+ * pm.getLongList("key2", 0L, 1L, 2L); // If "key2" is missing, returns new long[] { 0, 1, 2 }
+ *
+ * pm.getLongList("key2", Collections.emptyList()); // If "key2" is missing, returns the empty list
+ *
+ * pm.getLongList("key2", null); // If "key2 is missing, returns null
  * </code></pre>
- * Note that, for the collections (plural) get methods, the returned value is
+ * Note that, for the get...List methods, the returned value is
  * an array ({@code long[]} if the default value was given as an array or varargs,
  * whereas it is a list ({@code List<long>}) if the
  * default value was given as any collection or iterable.
  * The same pattern applies to {@code boolean}, {@code byte}, {@code short},
  * {@code int}, {@code long}, {@code float}, and {@code double}. (No {@code
- * char} or {@code void}, this is intentional.)
+ * char} or {@code void}; this is intentional.)
  * <p>
  * <strong>Methods to access primitive types</strong><br>
  * <pre><code>
@@ -77,15 +81,6 @@ import java.util.UUID;
  * For how to insert values of the various types, see {@link PropertyMap.Builder}.
  */
 public interface PropertyMap {
-   /**
-    * A value that can be stored in a property map.
-    *
-    * This is only used for interchange purposes, for example when performing
-    * bulk operations on property maps.
-    */
-   public interface OpaqueValue {
-      Class<?> getValueType();
-   }
 
    /**
     * Builder for {@code PropertyMap}.
@@ -162,6 +157,17 @@ public interface PropertyMap {
       <E extends Enum<E>> Builder putEnumListAsStringList(String key, E... values);
       <E extends Enum<E>> Builder putEnumListAsStringList(String key, Iterable<E> values);
 
+      /**
+       * (Advanced) Add a value without knowing its type.
+       *
+       * Use of this method should be reserved for special-purpose code
+       * dealing with interconversion with other data formats. Do no use in
+       * everyday programming.
+       *
+       * @param key the key
+       * @param value the value
+       * @return this builder
+       */
       Builder putOpaqueValue(String key, OpaqueValue value);
 
       Builder putAll(PropertyMap map);
@@ -170,6 +176,10 @@ public interface PropertyMap {
       Builder removeAll(Collection<?> keys);
       Builder retainAll(Collection<?> keys);
 
+      /**
+       * Create the property map.
+       * @return the new property map
+       */
       @Override
       PropertyMap build();
 
@@ -202,11 +212,10 @@ public interface PropertyMap {
       PropertyMapBuilder putBooleanArray(String key, Boolean[] values);
    }
 
-   // Note: These methods from 2.0beta should be kept until 2018 and then
-   // deleted.
-   // putInt, putLong, etc. will then switch to potentially using autoboxing;
-   // that can throw NPEs but presumably such usage is rare in user code,
-   // where it is likely that autounboxing was rather taking place.
+   /**
+    * Legacy builder interface. This type will be deleted in the future.
+    * @deprecated Use {@link PropertyMap.Builder} instead.
+    */
    @Deprecated
    interface PropertyMapBuilder {
       @Deprecated
@@ -235,6 +244,10 @@ public interface PropertyMap {
       PropertyMapBuilder putPropertyMap(String key, PropertyMap values);
    }
 
+   /**
+    * Return a builder initialized with a copy of this property map.
+    * @return the copy builder
+    */
    Builder copyBuilder();
 
    // MAINTAINER NOTE: These methods should be kept in sync with those of
@@ -251,7 +264,7 @@ public interface PropertyMap {
    int size();
 
    /**
-    * Return a class indicating the type of the value for the given key.
+    * (Advanced) Return a class indicating the type of the value for the given key.
     * <p>
     * This method is intended for special code that handles serialization or
     * conversion of property maps. In most cases, code that uses PropertyMap
@@ -276,7 +289,18 @@ public interface PropertyMap {
     */
    Class<?> getValueTypeForKey(String key);
 
+   /**
+    * (Advanced) Get a value without indicating its type.
+    *
+    * Use of this method should be restricted to special-purpose code dealing
+    * with interconversion with other data formats. Do not use in everyday
+    * programming.
+    *
+    * @param key the key
+    * @return the value
+    */
    OpaqueValue getAsOpaqueValue(String key);
+
    String getValueAsString(String key, String aDefault);
 
    //
@@ -357,7 +381,7 @@ public interface PropertyMap {
    List<Number> getAsNumberList(String key, Iterable<Number> defaults);
 
    //
-   // Immutable
+   // Immutable object types
    //
 
    boolean containsString(String key);
@@ -391,7 +415,7 @@ public interface PropertyMap {
    List<PropertyMap> getPropertyMapList(String key, Iterable<PropertyMap> defaults);
 
    //
-   // Mutable
+   // Mutable object types (default is copied if used)
    //
 
    boolean containsRectangle(String key);
@@ -471,9 +495,6 @@ public interface PropertyMap {
 
    /**
     * Save to a file as JSON.
-    * <p>
-    * To create a property map back from the saved file, see {@link
-    * PropertyMaps#loadJSON}.
     *
     * @param file the file to write to
     * @param overwrite if false and file exists, don't write and return false
@@ -481,14 +502,40 @@ public interface PropertyMap {
     * file by appending "~" to its name
     * @return true if the file was successfully written
     * @throws IOException if there was an error writing to the file
+    * @deprecated A way to replace this functionality will be introduced.
     */
+   @Deprecated
    boolean saveJSON(File file, boolean overwrite, boolean createBackup) throws IOException;
+   // Reason for deprecation:
+   // - The boolean retval is ridiculous given the throws IOException.
+   // - "Write a file, perhaps overwriting, perhaps atomically, perhaps
+   // creating backup" is a common enough task that it should be its own,
+   // composable utility, not something built into PropertyMap.
+   // - Does e.g. commons-io already provide something like that?
+   // - OTOH, it might be worth providing a method that writes to a given
+   // stream, instead of converting the entire map to String.
+
+   /**
+    * (Advanced) A value that can be stored in a property map.
+    *
+    * This is only used for interchange purposes, for example when performing
+    * bulk operations on property map. It should not be used in everyday code,
+    * where it would defeat the whole point of having the property map data
+    * structure.
+    */
+   abstract class OpaqueValue {
+      public abstract Class<?> getValueType();
+   }
 
 
    //
    // Deprecated old methods (cumbersome to use correctly due to boxed types)
    //
 
+   /**
+    * @deprecated Use {@link #copyBuilder} instead.
+    * @return
+    */
    @Deprecated
    public PropertyMapBuilder copy();
 

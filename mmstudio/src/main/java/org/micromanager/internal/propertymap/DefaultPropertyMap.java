@@ -161,7 +161,7 @@ public final class DefaultPropertyMap implements PropertyMap {
       return cls;
    }
 
-   private static class OpaqueValue implements PropertyMap.OpaqueValue {
+   private static class OpaqueValue extends PropertyMap.OpaqueValue {
       private final Class<?> type_;
       private final Object value_;
       private OpaqueValue(Class<?> type, Object value) {
