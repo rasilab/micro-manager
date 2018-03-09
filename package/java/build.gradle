@@ -44,11 +44,41 @@ dependencies {
    runtime project(':libraries:Big')
 }
 
+// Extract the native libraries for Gluegen and Jogl.
+//
+// We do not rely on the automatic mechanism, because it can fail, e.g., if the
+// directory is not writable.
+// See https://jogamp.org/jogl/doc/userguide/#automatednativelibraryloading
+//
+// TODO We could completely disable the automated loading by setting
+// -Djogamp.gluegen.UseTempJarCache=false and just make sure the libraries are
+// on java.library.path. If we do so, we can also leave out the -native- jars
+// from the distribution. This method will make sense especially if we move
+// libMMCoreJ_wrap and device adapters to a subdirectory, something that should
+// be done when the build system is not otherwise in flux. (See also ImageJ2's
+// directory structure for native libraries.)
+task stageJogampNatives(type:Copy) {
+   from configurations.runtime.asFileTree.findAll {
+      it.name =~ ~"[-a-z]+-[.0-9]+-natives-[a-z]+-[0-9a-z]+\\.jar"
+   }.collect {
+      zipTree(it)
+   }
+
+   // Selection of platform/arch should be done when specifying dependencies,
+   // so no filtering here.
+   include 'natives/linux-*/*.so'
+   include 'natives/macosx-*/*.jnilib'
+   include 'natives/windows-*/*.dll'
+
+   into project.stageDir
+}
+
 task stage(type:Copy) {
    dependsOn(installDist)
+   dependsOn(stageJogampNatives)
 
-   from project.file('build/install/java/lib')
-   into new File(rootProject.stageDir, 'plugins/Micro-Manager')
+   from configurations.runtime
+   into new File(project.stageDir, 'plugins/Micro-Manager')
 }
 
 mainClassName = 'ij.ImageJ'

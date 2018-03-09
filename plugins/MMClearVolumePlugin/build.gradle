@@ -8,7 +8,8 @@ dependencies {
    implementation group:'net.clearvolume', name:'clearvolume', version:'1.4.1'
    implementation group:'net.imagej', name:'ij', version:'1.51g'
 
-   // TODO Select based on build platform
+   // TODO Select based on build platform, once we have the platform available
+   // in Gradle build files. For now it is harmless to include all.
    runtime group:'org.jogamp.gluegen', name:'gluegen-rt', version:'2.3.2', classifier:'natives-linux-amd64'
    runtime group:'org.jogamp.gluegen', name:'gluegen-rt', version:'2.3.2', classifier:'natives-linux-i586'
    runtime group:'org.jogamp.gluegen', name:'gluegen-rt', version:'2.3.2', classifier:'natives-macosx-universal'
