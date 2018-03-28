@@ -1,5 +1,29 @@
+plugins {
+   id "net.tribe-seven.swig" version "0.1.1"
+}
+
 description = 'The SWIG-generated wrappers for MMCore'
 
 dependencies {
    api project(':MMCoreJ_wrap:taggedimage')
 }
+
+task (runSwig, type:SwigTask) {
+   enableCpp = true
+   module = 'MMCoreJ'
+   packageName = 'mmcorej'
+   source = project.file('../MMCoreJ.i')
+   includePaths = [project.file('../../MMCore')]
+   javaSourcesPath = project.file('src/main/java/mmcorej')
+   wrapperTargetFile = project.file('../MMCoreJ_wrap.cxx')
+}
+
+clean {
+   doFirst {
+      delete runSwig.javaSourcesPath
+      delete project.file('../MMCoreJ_wrap.h')
+      delete project.file('../MMCoreJ_wrap.cxx')
+   }
+}
+
+compileJava.dependsOn runSwig
