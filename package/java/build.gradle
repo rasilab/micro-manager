@@ -73,9 +73,15 @@ task stageJogampNatives(type:Copy) {
    into project.stageDir
 }
 
+task stageBindist(type:Copy) {
+   from rootProject.file('bindist/any-platform')
+   into project.stageDir
+}
+
 task stage(type:Copy) {
    dependsOn(installDist)
    dependsOn(stageJogampNatives)
+   dependsOn(stageBindist)
 
    from configurations.runtime
    into new File(project.stageDir, 'plugins/Micro-Manager')
@@ -96,6 +102,15 @@ run {
    dependsOn(stage)
 
    workingDir rootProject.file('stage')
-   systemProperties('mmcorej.library.path':rootProject.file('MMCoreJ_wrap/.libs').getAbsolutePath())
-   args '-eval', 'run("Micro-Manager Studio");'
+
+   if (!System.getProperty('os.name').toLowerCase().startsWith('windows')) {
+      systemProperties('mmcorej.library.path':rootProject.file('MMCoreJ_wrap/.libs').getAbsolutePath())
+      args '-eval', 'run("Micro-Manager Studio");'
+   }
+   else {
+      def arch = System.getProperty('os.arch').equals('amd64') ? 'x64' : 'Win32'
+      systemProperties('mmcorej.library.path':rootProject.file('build/Release/' + arch).getAbsolutePath())
+      // '-eval' seems to fail on Windows due to a string quoting issue, so
+      // leave out for now
+   }
 }
