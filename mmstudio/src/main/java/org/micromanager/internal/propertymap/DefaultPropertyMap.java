@@ -270,9 +270,13 @@ public final class DefaultPropertyMap implements PropertyMap {
          ImmutableSet.of(byte.class, short.class, int.class, long.class,
                float.class, double.class);
 
+   private static final Set<? extends Class<?>> NUMERICAL_BOXED =
+         ImmutableSet.of(Byte.class, Short.class, Integer.class, Long.class,
+               Float.class, Double.class);
+
    @Override
    public boolean containsNumber(String key) {
-      return map_.containsKey(key) && NUMERICAL_PRIMITIVES.contains(
+      return map_.containsKey(key) && NUMERICAL_BOXED.contains(
             map_.get(key).getClass());
    }
 
