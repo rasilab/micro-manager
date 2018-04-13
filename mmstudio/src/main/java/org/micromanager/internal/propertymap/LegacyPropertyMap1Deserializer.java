@@ -10,6 +10,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,14 +19,31 @@ import org.micromanager.PropertyMap;
 import org.micromanager.PropertyMaps;
 
 /**
- * Deserialize MM2-beta style property maps (version "1.0").
+ * Deserialize early MM2-beta (PropType-PropVal) style property maps.
  * @author Mark A. Tsuchida
  */
 class LegacyPropertyMap1Deserializer {
    // Note: This does not include support for the first-line version ("1.0\n")
-   public static PropertyMap fromJSON(String json) {
+
+   /**
+    * Deserialize a property map stored in early MM 2beta style JSON.
+    * @param json the JSON-encoded property map
+    * @return the deserialized property map
+    * @throws IOException if the given json is not proper JSON or does not conform to the expected schema
+    */
+   public static PropertyMap fromJSON(String json) throws IOException {
       JsonParser parser = new JsonParser();
-      return parsePM1JSON(parser.parse(json));
+      JsonElement je;
+      try {
+         je = parser.parse(json);
+         if (je == null) {
+            throw new IOException("Empty JSON");
+         }
+         return parsePM1JSON(je);
+      }
+      catch (JsonParseException | IllegalStateException e) {
+         throw new IOException("Invalid JSON format", e);
+      }
    }
 
    private static PropertyMap parsePM1JSON(JsonElement element) {
@@ -40,13 +59,13 @@ class LegacyPropertyMap1Deserializer {
          }
          String typeName = typeElement.getAsString();
 
-         constructPropertyMap1Property(builder, key, typeName, valueElement);
+         deserializeProperty(builder, key, typeName, valueElement);
       }
       return builder.build();
    }
 
-   static void constructPropertyMap1Property(PropertyMap.Builder builder,
-         String key, String typeName, JsonElement valueElement)
+   static void deserializeProperty(PropertyMap.Builder builder,
+                                   String key, String typeName, JsonElement valueElement)
    {
       if ("String".equals(typeName)) {
          builder.putString(key, valueElement.getAsString());
