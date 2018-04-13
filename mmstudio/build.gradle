@@ -1,6 +1,16 @@
 description = 'The Micro-Manager Application and Java API'
 
+buildscript {
+   repositories {
+      mavenCentral()
+   }
+   dependencies {
+      classpath 'org.junit.platform:junit-platform-gradle-plugin:1.1.1'
+   }
+}
+
 apply plugin:'java-library'
+apply plugin: 'org.junit.platform.gradle.plugin'
 
 version = '2.0beta4-SNAPSHOT'
 
@@ -29,9 +39,20 @@ dependencies {
    implementation group:'org.jfree', name:'jfreechart', version:'1.0.19'
    implementation group:'org.openmicroscopy', name:'ome-xml', version:'5.6.2'
 
-   testImplementation group:'junit', name:'junit', version:'4.12'
+   // JUnit 5
+   testCompile group:'org.junit.jupiter', name:'junit-jupiter-api', version:'5.1.1'
+   testRuntime group:'org.junit.jupiter', name:'junit-jupiter-engine', version:'5.1.1'
 
+   // JUnit 4 support
+   testCompile group:'junit', name:'junit', version:'4.12'
+   testRuntime group:'org.junit.vintage', name: 'junit-vintage-engine', version:'5.1.1'
+
+   // Used by BeanShell inspect()
    runtime group:'org.swinglabs', name:'swingx', version:'0.9.5'
+}
+
+junitPlatform {
+
 }
 
 jar {

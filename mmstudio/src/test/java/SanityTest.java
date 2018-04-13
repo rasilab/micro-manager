@@ -1,5 +1,5 @@
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Confirm that the unit testing setup is working.
@@ -7,6 +7,6 @@ import org.junit.Test;
 public class SanityTest {
    @Test
    public void testSetupIsSane() {
-      Assert.assertTrue("must be true", true);
+      assertTrue(true);
    }
 }
