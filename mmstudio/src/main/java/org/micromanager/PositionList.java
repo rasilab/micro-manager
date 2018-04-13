@@ -35,7 +35,8 @@ import java.util.List;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import org.micromanager.data.internal.PropertyKey;
-import org.micromanager.internal.propertymap.NonPropertyMapJSONFormats;
+import org.micromanager.data.internal.schema.LegacyJSONSchemaSerializer;
+import org.micromanager.data.internal.schema.LegacyPositionListSchema;
 
 /**
  * Navigation list of positions for the XYStage.
@@ -80,10 +81,10 @@ public class PositionList implements Iterable<MultiStagePosition> {
    public MultiStagePosition getPosition(int idx) {
       if (idx < 0 || idx >= positions_.size())
          return null;
-      
+
       return positions_.get(idx);
    }
-   
+
    /**
     * Returns a copy of the multi-stage position associated with the position index.
     * @param idx - position index
@@ -92,10 +93,10 @@ public class PositionList implements Iterable<MultiStagePosition> {
    public MultiStagePosition getPositionCopy(int idx) {
       if (idx < 0 || idx >= positions_.size())
          return null;
-      
+
       return MultiStagePosition.newInstance(positions_.get(idx));
    }
-   
+
    /**
     * Returns position index associated with the position name.
     * @param posLabel - label (name) of the position
@@ -108,7 +109,7 @@ public class PositionList implements Iterable<MultiStagePosition> {
       }
       return -1;
    }
-   
+
    /**
     * Adds a new position to the list.
     * @param pos - multi-stage position
@@ -135,7 +136,7 @@ public class PositionList implements Iterable<MultiStagePosition> {
       positions_.add(in0, pos);
       notifyChangeListeners();
    }
-   
+
    /**
     * Replaces position in the list with the new position
     * @param index index of the position to be replaced
@@ -147,7 +148,7 @@ public class PositionList implements Iterable<MultiStagePosition> {
          notifyChangeListeners();
       }
    }
-   
+
    /**
     * Returns the number of positions contained within the list
     * @return number of positions contained in the position list
@@ -155,7 +156,7 @@ public class PositionList implements Iterable<MultiStagePosition> {
    public int getNumberOfPositions() {
       return positions_.size();
    }
-   
+
    /**
     * Empties the list.
     */
@@ -163,7 +164,7 @@ public class PositionList implements Iterable<MultiStagePosition> {
       positions_.clear();
       notifyChangeListeners();
    }
-   
+
    /**
     * Removes a specific position based on the index
     * @param idx - position index
@@ -174,7 +175,7 @@ public class PositionList implements Iterable<MultiStagePosition> {
       }
       notifyChangeListeners();
    }
-   
+
    /**
     * Initialize the entire array by passing an array of multi-stage positions
     * @param posArray - array of multi-stage positions
@@ -194,10 +195,10 @@ public class PositionList implements Iterable<MultiStagePosition> {
       for (int i=0; i<positions_.size(); i++) {
          list[i] = positions_.get(i);
       }
-      
+
       return list;
    }
-   
+
    /**
     * Assigns a label to the position index
     * @param idx - position index
@@ -206,7 +207,7 @@ public class PositionList implements Iterable<MultiStagePosition> {
    public void setLabel(int idx, String label) {
       if (idx < 0 || idx >= positions_.size())
          return;
-      
+
       positions_.get(idx).setLabel(label);
       notifyChangeListeners();
    }
@@ -242,21 +243,21 @@ public class PositionList implements Iterable<MultiStagePosition> {
    public String generateLabel() {
       return generateLabel("Pos");
    }
-   
+
    public String generateLabel(String proposal) {
       String label = proposal + positions_.size();
-      
+
       // verify the uniqueness
       int i = 1;
       while (!isLabelUnique(label)) {
          label = proposal + (positions_.size() + i++);
       }
-      
+
       return label;
    }
-           
-   
-   
+
+
+
    /**
     * Verify that the new label is unique
     * @param label - proposed label
@@ -301,7 +302,8 @@ public class PositionList implements Iterable<MultiStagePosition> {
          pmap = PropertyMaps.fromJSON(text);
       }
       catch (IOException e) {
-         pmap = NonPropertyMapJSONFormats.positionList().fromJSON(text);
+         pmap = LegacyJSONSchemaSerializer.fromJSON(text,
+            LegacyPositionListSchema.getInstance());
       }
       replaceWithPropertyMap(pmap);
 

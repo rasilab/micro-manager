@@ -48,7 +48,8 @@ import org.micromanager.data.internal.DefaultCoords;
 import org.micromanager.data.internal.DefaultDatastore;
 import org.micromanager.data.internal.DefaultImage;
 import org.micromanager.data.internal.DefaultSummaryMetadata;
-import org.micromanager.internal.propertymap.NonPropertyMapJSONFormats;
+import org.micromanager.data.internal.schema.LegacyJSONSchemaSerializer;
+import org.micromanager.data.internal.schema.LegacySummaryMetadataSchema;
 import org.micromanager.internal.utils.UserProfileStaticInterface;
 import org.micromanager.internal.utils.MMException;
 import org.micromanager.internal.utils.ProgressBar;
@@ -63,9 +64,9 @@ import org.micromanager.data.DataProviderHasNewSummaryMetadataEvent;
  * TODO: extricate DisplaySettings from this code.
  */
 public final class StorageMultipageTiff implements Storage {
-   private static final String SHOULD_GENERATE_METADATA_FILE = 
+   private static final String SHOULD_GENERATE_METADATA_FILE =
            "generate a metadata file when saving datasets as multipage TIFF files";
-   private static final String SHOULD_USE_SEPARATE_FILES_FOR_POSITIONS = 
+   private static final String SHOULD_USE_SEPARATE_FILES_FOR_POSITIONS =
            "generate a separate multipage TIFF file for each stage position";
    private static final HashSet<String> ALLOWED_AXES = new HashSet<String>(
          Arrays.asList(Coords.CHANNEL, Coords.T, Coords.Z,
@@ -73,8 +74,9 @@ public final class StorageMultipageTiff implements Storage {
 
    private DefaultDatastore store_;
    private DefaultSummaryMetadata summaryMetadata_ = (new DefaultSummaryMetadata.Builder()).build();
-   private String summaryMetadataString_ = NonPropertyMapJSONFormats.
-         summaryMetadata().toJSON(summaryMetadata_.toPropertyMap());
+   private String summaryMetadataString_ = LegacyJSONSchemaSerializer.toJSON(
+      summaryMetadata_.toPropertyMap(),
+      LegacySummaryMetadataSchema.getInstance());
    private boolean amInWriteMode_;
    private int lastFrameOpenedDataSet_ = -1;
    private String directory_;
@@ -96,18 +98,18 @@ public final class StorageMultipageTiff implements Storage {
 
    //map of position indices to objects associated with each
    private HashMap<Integer, FileSet> positionToFileSet_;
-   
-   //Map of image labels to file 
+
+   //Map of image labels to file
    private Map<Coords, MultipageTiffReader> coordsToReader_;
    // Keeps track of our maximum extent along each axis.
    private Coords maxIndices_;
-  
+
    public StorageMultipageTiff(Datastore store, String dir, Boolean amInWriteMode)
          throws IOException {
       this(store, dir, amInWriteMode, getShouldGenerateMetadataFile(),
             getShouldSplitPositions());
    }
-   
+
    /*
     * Constructor that doesn't make reference to MMStudio so it can be used
     * independently of MM GUI
@@ -157,7 +159,7 @@ public final class StorageMultipageTiff implements Storage {
          ReportingUtils.logError(e, "Error setting new summary metadata");
       }
    }
-   
+
    public ThreadPoolExecutor getWritingExecutor() {
       return writingExecutor_;
    }
@@ -452,7 +454,7 @@ public final class StorageMultipageTiff implements Storage {
             ReportingUtils.logError("Couldn't fill in missing frames in OME");
          }
 
-         //figure out where the full string of OME metadata can be stored 
+         //figure out where the full string of OME metadata can be stored
          String fullOMEXMLMetadata = omeMetadata_.toString();
          int length = fullOMEXMLMetadata.length();
          String uuid = null, filename = null;
@@ -536,8 +538,8 @@ public final class StorageMultipageTiff implements Storage {
    private void setSummaryMetadata(DefaultSummaryMetadata summary,
          boolean showProgress) {
       summaryMetadata_ = summary;
-      summaryMetadataString_ = NonPropertyMapJSONFormats.summaryMetadata().
-            toJSON(summary.toPropertyMap());
+      summaryMetadataString_ = LegacyJSONSchemaSerializer.toJSON(summary.toPropertyMap(),
+         LegacySummaryMetadataSchema.getInstance());
 
       // TODO What does the following have to do with summary metadata?
       Map<Coords, MultipageTiffReader> oldImageMap = coordsToReader_;
@@ -638,7 +640,7 @@ public final class StorageMultipageTiff implements Storage {
       return maxIndices_;
    }
 
-   
+
    // TODO: Check that summaryMetadata is a reliable source for this information
    // TODO: This is suspicious. We should get ordered axes, yes, but we should
    // make sure to return the axes actually contained in the Datastore.

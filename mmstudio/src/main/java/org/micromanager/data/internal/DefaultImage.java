@@ -38,7 +38,10 @@ import org.micromanager.data.Coordinates;
 import org.micromanager.data.Coords;
 import org.micromanager.data.Image;
 import org.micromanager.data.Metadata;
-import org.micromanager.internal.propertymap.NonPropertyMapJSONFormats;
+import org.micromanager.data.internal.schema.LegacyCoordsSchema;
+import org.micromanager.data.internal.schema.LegacyImageFormatSchema;
+import org.micromanager.data.internal.schema.LegacyJSONSchemaSerializer;
+import org.micromanager.data.internal.schema.LegacyMetadataSchema;
 import org.micromanager.internal.utils.DirectBuffers;
 import org.micromanager.internal.utils.ImageUtils;
 import org.micromanager.internal.utils.ReportingUtils;
@@ -98,7 +101,9 @@ public final class DefaultImage implements Image {
 
       if (metadata == null) {
          try {
-            metadata = DefaultMetadata.fromPropertyMap(NonPropertyMapJSONFormats.metadata().fromGson(je));
+            metadata = DefaultMetadata.fromPropertyMap(
+               LegacyJSONSchemaSerializer.fromGson(je,
+                  LegacyMetadataSchema.getInstance()));
          }
          catch (Exception e) {
             throw new IllegalArgumentException("Failed to convert TaggedImage tags to metadata", e);
@@ -107,8 +112,9 @@ public final class DefaultImage implements Image {
 
       if (coords == null) {
          try {
-            PropertyMap pmap = NonPropertyMapJSONFormats.coords().fromGson(je);
-            coords = Coordinates.fromPropertyMap(pmap);
+            coords = Coordinates.fromPropertyMap(
+               LegacyJSONSchemaSerializer.fromGson(je,
+                  LegacyCoordsSchema.getInstance()));
          }
          catch (Exception e) {
             throw new IllegalArgumentException("Failed to convert TaggedImage tags to coords", e);
@@ -117,7 +123,8 @@ public final class DefaultImage implements Image {
 
       PropertyMap formatPmap;
       try {
-         formatPmap = NonPropertyMapJSONFormats.imageFormat().fromGson(je);
+         formatPmap = LegacyJSONSchemaSerializer.fromGson(je,
+            LegacyImageFormatSchema.getInstance());
       }
       catch (Exception e) {
          throw new IllegalArgumentException("Failed to convert TaggedImage tags to image size and pixel format");
@@ -181,7 +188,7 @@ public final class DefaultImage implements Image {
     * @param pixels Assumed to be a Java array of either bytes or shorts.
     */
    public DefaultImage(Object pixels, int width, int height, int bytesPerPixel,
-         int numComponents, Coords coords, Metadata metadata) 
+         int numComponents, Coords coords, Metadata metadata)
          throws IllegalArgumentException {
       metadata_ = (DefaultMetadata) metadata;
       if (metadata_ == null) {
@@ -390,12 +397,14 @@ public final class DefaultImage implements Image {
    @Deprecated
    public TaggedImage legacyToTaggedImage() {
       JsonObject jo = new JsonObject();
-      NonPropertyMapJSONFormats.imageFormat().addToGson(jo,
-            formatToPropertyMap());
-      NonPropertyMapJSONFormats.coords().addToGson(jo,
-            ((DefaultCoords) coords_).toPropertyMap());
-      NonPropertyMapJSONFormats.metadata().addToGson(jo,
-            metadata_.toPropertyMap());
+      LegacyJSONSchemaSerializer.addToGson(jo, formatToPropertyMap(),
+         LegacyImageFormatSchema.getInstance());
+      LegacyJSONSchemaSerializer.addToGson(jo,
+         ((DefaultCoords) coords_).toPropertyMap(),
+         LegacyCoordsSchema.getInstance());
+      LegacyJSONSchemaSerializer.addToGson(jo,
+         metadata_.toPropertyMap(),
+         LegacyMetadataSchema.getInstance());
       Gson gson = new GsonBuilder().disableHtmlEscaping().create();
       String json = gson.toJson(jo);
 

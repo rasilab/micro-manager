@@ -54,6 +54,8 @@ import org.micromanager.data.internal.DefaultSummaryMetadata;
 import org.micromanager.data.internal.StorageRAM;
 import org.micromanager.data.internal.StorageSinglePlaneTiffSeries;
 import org.micromanager.data.internal.multipagetiff.StorageMultipageTiff;
+import org.micromanager.data.internal.schema.LegacyJSONSchemaSerializer;
+import org.micromanager.data.internal.schema.LegacySummaryMetadataSchema;
 import org.micromanager.display.ChannelDisplaySettings;
 import org.micromanager.display.DataViewer;
 import org.micromanager.display.DataViewerDelegate;
@@ -65,7 +67,6 @@ import org.micromanager.internal.utils.JavaUtils;
 import org.micromanager.internal.utils.MDUtils;
 import org.micromanager.internal.utils.ReportingUtils;
 import org.micromanager.display.DisplayWindowControlsFactory;
-import org.micromanager.internal.propertymap.NonPropertyMapJSONFormats;
 import org.micromanager.data.DataProviderHasNewImageEvent;
 import org.micromanager.display.internal.DefaultDisplaySettings;
 
@@ -74,8 +75,8 @@ import org.micromanager.display.internal.DefaultDisplaySettings;
  * functionality in the ScriptInterface
  */
 public final class MMAcquisition implements DataViewerDelegate {
-   
-   /** 
+
+   /**
     * Final queue of images immediately prior to insertion into the ImageCache.
     * Only used when running in asynchronous mode.
     */
@@ -83,7 +84,7 @@ public final class MMAcquisition implements DataViewerDelegate {
    protected int width_ = 0;
    protected int height_ = 0;
    protected int byteDepth_ = 1;
-   protected int bitDepth_ = 8;    
+   protected int bitDepth_ = 8;
    protected int multiCamNumCh_ = 1;
    private Studio studio_;
    private DefaultDatastore store_;
@@ -143,8 +144,8 @@ public final class MMAcquisition implements DataViewerDelegate {
       try {
          // Compatibility hack: serialize to JSON, then parse as summary metadata JSON format
          SummaryMetadata summary = DefaultSummaryMetadata.fromPropertyMap(
-                 NonPropertyMapJSONFormats.summaryMetadata().fromJSON(
-                         summaryMetadata.toString()));
+            LegacyJSONSchemaSerializer.fromJSON(summaryMetadata.toString(),
+               LegacySummaryMetadataSchema.getInstance()));
          pipeline_.insertSummaryMetadata(summary);
       }
       catch (DatastoreFrozenException e) {
@@ -174,11 +175,11 @@ public final class MMAcquisition implements DataViewerDelegate {
          display_.setDelegate(this);
          display_.registerForEvents(this);
 
-         // Color handling is a problem. They are no longer part of the summary 
-         // metadata.  However, they clearly need to be stored 
-         // with the dataset itself.  I guess that it makes sense to store them in 
-         // the display setting.  However, it then becomes essential that 
-         // display settings are stored with the (meta-)data.  
+         // Color handling is a problem. They are no longer part of the summary
+         // metadata.  However, they clearly need to be stored
+         // with the dataset itself.  I guess that it makes sense to store them in
+         // the display setting.  However, it then becomes essential that
+         // display settings are stored with the (meta-)data.
          // Handling the conversion from colors in the summary metadata to display
          // settings here seems clumsy, but I am not sure where else this belongs
 
@@ -234,7 +235,7 @@ public final class MMAcquisition implements DataViewerDelegate {
             // relatively harmless, but look here when display settings are unexpected
          }
 
-         
+
          alert_ = studio_.alerts().postUpdatableAlert("Acquisition Progress", "");
          setProgressText();
       }

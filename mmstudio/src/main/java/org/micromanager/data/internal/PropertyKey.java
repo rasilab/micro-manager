@@ -24,17 +24,17 @@ import org.micromanager.MultiStagePosition;
 import org.micromanager.PositionList;
 import org.micromanager.PropertyMap;
 import org.micromanager.PropertyMaps;
-import org.micromanager.SnapLiveManager;
 import org.micromanager.StagePosition;
-import org.micromanager.acquisition.AcquisitionManager;
 import org.micromanager.data.Coords;
 import org.micromanager.data.Image;
 import org.micromanager.data.Metadata;
 import org.micromanager.data.SummaryMetadata;
+import org.micromanager.data.internal.schema.LegacyJSONSchemaSerializer;
+import org.micromanager.data.internal.schema.LegacyMultiStagePositionSchema;
+import org.micromanager.data.internal.schema.LegacyStagePositionSchema;
 import org.micromanager.display.ChannelDisplaySettings;
 import org.micromanager.display.ComponentDisplaySettings;
 import org.micromanager.display.DisplaySettings;
-import org.micromanager.internal.propertymap.NonPropertyMapJSONFormats;
 import org.micromanager.internal.propertymap.MM1JSONSerializer;
 import org.micromanager.internal.propertymap.PropertyMapJSONSerializer;
 
@@ -47,8 +47,6 @@ import org.micromanager.internal.propertymap.PropertyMapJSONSerializer;
  * <p>
  * This is the Single Source of Truth for all JSON metadata keys. All knowledge
  * about what (structure of data) is stored under each key should live here.
- * The affiliation of each key to data structures is defined by the subclasses
- * of {@link NonPropertyMapJSONFormats}.
  * <p>
  * To each key is associated knowledge of how to read and (if still used) write
  * the key to the non-PropertyMap JSON formats. The canonical key strings are
@@ -709,12 +707,12 @@ public enum PropertyKey {
          if (je.isJsonArray()) {
             for (JsonElement e : je.getAsJsonArray()) {
                JsonObject jo = e.getAsJsonObject();
-               PropertyMap msp =
-                     NonPropertyMapJSONFormats.multiStagePosition().
-                     fromGson(jo);
+               PropertyMap msp = LegacyJSONSchemaSerializer.fromGson(jo,
+                  LegacyMultiStagePositionSchema.getInstance());
 
                if (msp.size() == 0) { // this may be an old format stage position
-                  msp = NonPropertyMapJSONFormats.oldStagePosition().fromGson(jo);
+                  msp = LegacyJSONSchemaSerializer.fromGson(jo,
+                     LegacyStagePositionSchema.getInstance());
                }
 
                int n = msp.getInteger(STAGE_POSITION__NUMAXES.key(), 0);
@@ -1184,7 +1182,8 @@ public enum PropertyKey {
       protected void convertFromGson(JsonElement je, PropertyMap.Builder dest) {
          List<PropertyMap> positions = Lists.newArrayList();
          for (JsonElement e : je.getAsJsonArray()) {
-            positions.add(NonPropertyMapJSONFormats.multiStagePosition().fromGson(e));
+            positions.add(LegacyJSONSchemaSerializer.fromGson(e,
+               LegacyMultiStagePositionSchema.getInstance()));
          }
          dest.putPropertyMapList(key(), positions);
       }
@@ -1196,7 +1195,8 @@ public enum PropertyKey {
          }
          JsonArray ja = new JsonArray();
          for (PropertyMap msp : source.getPropertyMapList(key())) {
-            ja.add(NonPropertyMapJSONFormats.multiStagePosition().toGson(msp));
+            ja.add(LegacyJSONSchemaSerializer.toGson(msp,
+               LegacyMultiStagePositionSchema.getInstance()));
          }
          return ja;
       }

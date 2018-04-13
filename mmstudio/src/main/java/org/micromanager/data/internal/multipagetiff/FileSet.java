@@ -35,7 +35,9 @@ import org.micromanager.data.Metadata;
 import org.micromanager.data.internal.DefaultCoords;
 import org.micromanager.data.internal.DefaultMetadata;
 import org.micromanager.data.internal.DefaultSummaryMetadata;
-import org.micromanager.internal.propertymap.NonPropertyMapJSONFormats;
+import org.micromanager.data.internal.schema.LegacyJSONSchemaSerializer;
+import org.micromanager.data.internal.schema.LegacyMetadataSchema;
+import org.micromanager.data.internal.schema.LegacySummaryMetadataSchema;
 import org.micromanager.internal.utils.ReportingUtils;
 
 
@@ -62,12 +64,12 @@ class FileSet {
    int nextExpectedChannel_ = 0, nextExpectedSlice_ = 0, nextExpectedFrame_ = 0;
    int currentFrame_ = 0;
 
-   
+
    public FileSet(Image firstImage, StorageMultipageTiff masterStorage,
          OMEMetadata omeMetadata,
          boolean splitByXYPosition, boolean separateMetadataFile)
       throws IOException {
-      tiffWriters_ = new LinkedList<MultipageTiffWriter>();  
+      tiffWriters_ = new LinkedList<MultipageTiffWriter>();
       masterStorage_ = masterStorage;
       omeMetadata_ = omeMetadata;
       splitByXYPosition_ = splitByXYPosition;
@@ -89,15 +91,15 @@ class FileSet {
    public String getCurrentUUID() {
       return currentTiffUUID_;
    }
-   
+
    public String getCurrentFilename() {
       return currentTiffFilename_;
    }
-   
+
    public boolean hasSpaceForFullOMEXML(int mdLength) {
       return tiffWriters_.getLast().hasSpaceForFullOMEMetadata(mdLength);
    }
-   
+
    public void finished(String omeXML) throws IOException {
       if (finished_) {
          return;
@@ -143,7 +145,7 @@ class FileSet {
       //check if current writer is out of space, if so, make a new one
       if (!tiffWriters_.getLast().hasSpaceToWrite(img, SPACE_FOR_PARTIAL_OME_MD)) {
          //write index map here but still need to call close() at end of acq
-         tiffWriters_.getLast().finish();          
+         tiffWriters_.getLast().finish();
 
          currentTiffFilename_ = baseFilename_ + "_" + tiffWriters_.size() + ".ome.tif";
          currentTiffUUID_ = "urn:uuid:" + UUID.randomUUID().toString();
@@ -202,7 +204,8 @@ class FileSet {
          mdWriter_.write(",\n\"FrameKey-" + coords.getTimePoint() +
                "-" + coords.getChannel() + "-" + coords.getZSlice() + "\": ");
          PropertyMap pmap = ((DefaultMetadata) md).toPropertyMap();
-         mdWriter_.write(NonPropertyMapJSONFormats.metadata().toJSON(pmap));
+         mdWriter_.write(LegacyJSONSchemaSerializer.toJSON(pmap,
+            LegacyMetadataSchema.getInstance()));
       } catch (IOException ex) {
          ReportingUtils.logError("Problem writing to metadata.txt file");
       }
@@ -213,8 +216,8 @@ class FileSet {
             baseFilename_ + "_metadata.txt";
       PropertyMap summaryPmap = ((DefaultSummaryMetadata) masterStorage_.
             getSummaryMetadata()).toPropertyMap();
-      String summaryJSON = NonPropertyMapJSONFormats.summaryMetadata().toJSON(
-            summaryPmap);
+      String summaryJSON = LegacyJSONSchemaSerializer.toJSON(summaryPmap,
+         LegacySummaryMetadataSchema.getInstance());
       try {
          mdWriter_ = new FileWriter(metadataFileFullPath_);
          mdWriter_.write("{" + "\n");
@@ -322,7 +325,7 @@ class FileSet {
          }
       }
    }
-   
+
    void checkForExpectedImageOrder(Coords coords) {
       //Determine next expected indices
       int channel = coords.getChannel();
