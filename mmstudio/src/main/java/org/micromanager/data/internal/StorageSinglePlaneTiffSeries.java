@@ -177,17 +177,14 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
          }
 
          JsonObject jo = new JsonObject();
-         LegacyJSONSchemaSerializer.addToGson(jo,
-            ((DefaultImage) image).formatToPropertyMap(),
-            LegacyImageFormatSchema.getInstance());
-         LegacyJSONSchemaSerializer.addToGson(jo,
-            ((DefaultCoords) image.getCoords()).toPropertyMap(),
-            LegacyCoordsSchema.getInstance());
+         LegacyImageFormatSchema.getInstance().addToGson(jo,
+            ((DefaultImage) image).formatToPropertyMap());
+         LegacyCoordsSchema.getInstance().addToGson(jo,
+            ((DefaultCoords) image.getCoords()).toPropertyMap());
          Metadata imgMetadata = image.getMetadata().copyBuilderPreservingUUID().
                  fileName(fileName).build();
-         LegacyJSONSchemaSerializer.addToGson(jo,
-            ((DefaultMetadata) imgMetadata).toPropertyMap(),
-            LegacyMetadataSchema.getInstance());
+         LegacyMetadataSchema.getInstance().addToGson(jo,
+            ((DefaultMetadata) imgMetadata).toPropertyMap());
 
          Gson gson = new GsonBuilder().disableHtmlEscaping().
                setPrettyPrinting().create();
@@ -240,8 +237,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
             try {
                String metadataJSON = (String) imp.getProperty("Info");
                metadata = DefaultMetadata.fromPropertyMap(
-                  LegacyJSONSchemaSerializer.fromJSON(metadataJSON,
-                     LegacyMetadataSchema.getInstance()));
+                  LegacyMetadataSchema.getInstance().fromJSON(metadataJSON));
             }
             catch (IOException e) {
                ReportingUtils.logError(e, "Unable to extract image dimensions from JSON metadata");
@@ -411,9 +407,8 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
          // Use 0 for situations where there's no index information.
          int pos = Math.max(0, image.getCoords().getStagePosition());
          JsonObject jo = new JsonObject();
-         LegacyJSONSchemaSerializer.addToGson(jo,
-            ((DefaultCoords) image.getCoords()).toPropertyMap(),
-            LegacyCoordsSchema.getInstance());
+         LegacyCoordsSchema.getInstance().addToGson(jo,
+            ((DefaultCoords) image.getCoords()).toPropertyMap());
          Gson gson = new GsonBuilder().disableHtmlEscaping().
                setPrettyPrinting().create();
          writeJSONMetadata(pos, gson.toJson(jo), coordsKey);
@@ -554,9 +549,8 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
       }
 
       JsonObject jo = new JsonObject();
-      LegacyJSONSchemaSerializer.addToGson(jo,
-         ((DefaultSummaryMetadata) summary).toPropertyMap(),
-         LegacySummaryMetadataSchema.getInstance());
+      LegacySummaryMetadataSchema.getInstance().addToGson(jo,
+         ((DefaultSummaryMetadata) summary).toPropertyMap());
       // Augment the JSON with pixel type information, for backwards
       // compatibility.
       PropertyMap formatPmap = ((DefaultImage) image).formatToPropertyMap();
@@ -618,9 +612,8 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
          try {
             if (data.has(PropertyKey.SUMMARY.key())) {
                summaryMetadata_ = DefaultSummaryMetadata.fromPropertyMap(
-                  LegacyJSONSchemaSerializer.fromGson(
-                     data.get(PropertyKey.SUMMARY.key()),
-                     LegacySummaryMetadataSchema.getInstance()));
+                  LegacySummaryMetadataSchema.getInstance().fromGson(
+                     data.get(PropertyKey.SUMMARY.key())));
             }
 
             // We have two methods to recover the image coordinates from the
@@ -643,8 +636,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
                if (key.startsWith("Coords-")) {
                   // 2.0 method. SummaryMetadata is already valid.
                   coords = DefaultCoords.fromPropertyMap(
-                     LegacyJSONSchemaSerializer.fromGson(entry.getValue(),
-                        LegacyCoordsSchema.getInstance()));
+                     LegacyCoordsSchema.getInstance().fromGson(entry.getValue()));
 
                   // TODO Filename should be read from JSON key instead of
                   // using fixed rule!
@@ -655,15 +647,14 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
                   JsonObject jo = entry.getValue().getAsJsonObject();
                   if (jo.has(PropertyKey.SUMMARY.key())) {
                      summaryMetadata_ = DefaultSummaryMetadata.fromPropertyMap(
-                        LegacyJSONSchemaSerializer.fromGson(jo.get(PropertyKey.SUMMARY.key()),
-                           LegacySummaryMetadataSchema.getInstance()));
+                        LegacySummaryMetadataSchema.getInstance().fromGson(
+                           jo.get(PropertyKey.SUMMARY.key())));
                   }
 
                   // Extract what coords are available in the metadata, which
                   // should include the stage position if available.
                   Coords c = DefaultCoords.fromPropertyMap(
-                     LegacyJSONSchemaSerializer.fromGson(jo,
-                        LegacyCoordsSchema.getInstance()));
+                     LegacyCoordsSchema.getInstance().fromGson(jo));
 
                   List<String> items = Splitter.on("-").splitToList(key);
                   coords = Coordinates.builder().

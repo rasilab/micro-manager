@@ -250,11 +250,9 @@ public final class MultipageTiffReader {
       reader.setLenient(true);
       JsonElement summaryGson = parser.parse(reader);
 
-      imageFormatReadFromSummary_ = LegacyJSONSchemaSerializer.fromGson(summaryGson,
-         LegacyImageFormatSchema.getInstance());
+      imageFormatReadFromSummary_ = LegacyImageFormatSchema.getInstance().fromGson(summaryGson);
       summaryMetadata_ = DefaultSummaryMetadata.fromPropertyMap(
-         LegacyJSONSchemaSerializer.fromGson(summaryGson,
-            LegacySummaryMetadataSchema.getInstance()));
+         LegacySummaryMetadataSchema.getInstance().fromGson(summaryGson));
    }
 
    /**
@@ -410,14 +408,11 @@ public final class MultipageTiffReader {
       reader.setLenient(true);
       JsonElement mdGson = parser.parse(reader);
 
-      PropertyMap formatPmap = LegacyJSONSchemaSerializer.fromGson(mdGson,
-         LegacyImageFormatSchema.getInstance());
+      PropertyMap formatPmap = LegacyImageFormatSchema.getInstance().fromGson(mdGson);
       Coords coords = DefaultCoords.fromPropertyMap(
-         LegacyJSONSchemaSerializer.fromGson(mdGson,
-            LegacyCoordsSchema.getInstance()));
+         LegacyCoordsSchema.getInstance().fromGson(mdGson));
       Metadata metadata = DefaultMetadata.fromPropertyMap(
-         LegacyJSONSchemaSerializer.fromGson(mdGson,
-            LegacyMetadataSchema.getInstance()));
+         LegacyMetadataSchema.getInstance().fromGson(mdGson));
 
       // Usually we get the width, height, and pixel type from the image (plane)
       // metadata. If it's not there, we use the values found in the summary

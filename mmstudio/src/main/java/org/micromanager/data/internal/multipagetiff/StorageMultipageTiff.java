@@ -48,7 +48,6 @@ import org.micromanager.data.internal.DefaultCoords;
 import org.micromanager.data.internal.DefaultDatastore;
 import org.micromanager.data.internal.DefaultImage;
 import org.micromanager.data.internal.DefaultSummaryMetadata;
-import org.micromanager.data.internal.schema.LegacyJSONSchemaSerializer;
 import org.micromanager.data.internal.schema.LegacySummaryMetadataSchema;
 import org.micromanager.internal.utils.UserProfileStaticInterface;
 import org.micromanager.internal.utils.MMException;
@@ -74,9 +73,8 @@ public final class StorageMultipageTiff implements Storage {
 
    private DefaultDatastore store_;
    private DefaultSummaryMetadata summaryMetadata_ = (new DefaultSummaryMetadata.Builder()).build();
-   private String summaryMetadataString_ = LegacyJSONSchemaSerializer.toJSON(
-      summaryMetadata_.toPropertyMap(),
-      LegacySummaryMetadataSchema.getInstance());
+   private String summaryMetadataString_ = LegacySummaryMetadataSchema.getInstance().
+      toJSON(summaryMetadata_.toPropertyMap());
    private boolean amInWriteMode_;
    private int lastFrameOpenedDataSet_ = -1;
    private String directory_;
@@ -538,8 +536,8 @@ public final class StorageMultipageTiff implements Storage {
    private void setSummaryMetadata(DefaultSummaryMetadata summary,
          boolean showProgress) {
       summaryMetadata_ = summary;
-      summaryMetadataString_ = LegacyJSONSchemaSerializer.toJSON(summary.toPropertyMap(),
-         LegacySummaryMetadataSchema.getInstance());
+      summaryMetadataString_ = LegacySummaryMetadataSchema.getInstance().
+         toJSON(summary.toPropertyMap());
 
       // TODO What does the following have to do with summary metadata?
       Map<Coords, MultipageTiffReader> oldImageMap = coordsToReader_;

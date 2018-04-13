@@ -54,7 +54,6 @@ import org.micromanager.data.internal.DefaultSummaryMetadata;
 import org.micromanager.data.internal.StorageRAM;
 import org.micromanager.data.internal.StorageSinglePlaneTiffSeries;
 import org.micromanager.data.internal.multipagetiff.StorageMultipageTiff;
-import org.micromanager.data.internal.schema.LegacyJSONSchemaSerializer;
 import org.micromanager.data.internal.schema.LegacySummaryMetadataSchema;
 import org.micromanager.display.ChannelDisplaySettings;
 import org.micromanager.display.DataViewer;
@@ -144,8 +143,7 @@ public final class MMAcquisition implements DataViewerDelegate {
       try {
          // Compatibility hack: serialize to JSON, then parse as summary metadata JSON format
          SummaryMetadata summary = DefaultSummaryMetadata.fromPropertyMap(
-            LegacyJSONSchemaSerializer.fromJSON(summaryMetadata.toString(),
-               LegacySummaryMetadataSchema.getInstance()));
+            LegacySummaryMetadataSchema.getInstance().fromJSON(summaryMetadata.toString()));
          pipeline_.insertSummaryMetadata(summary);
       }
       catch (DatastoreFrozenException e) {

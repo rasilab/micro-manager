@@ -157,8 +157,7 @@ public final class MultipageTiffWriter {
 
       //This is an overestimate of file size because file gets truncated at end
       long fileSize = Math.min(MAX_FILE_SIZE,
-         LegacyJSONSchemaSerializer.toJSON(summaryPmap,
-            LegacySummaryMetadataSchema.getInstance()).length() +
+         LegacySummaryMetadataSchema.getInstance().toJSON(summaryPmap).length() +
             2000000 +
             numFrames_ * numChannels_ * numSlices_ * ((long) bytesPerImagePixels_ + 2000));
 
@@ -291,8 +290,7 @@ public final class MultipageTiffWriter {
    }
 
    private void writeMMHeaderAndSummaryMD(PropertyMap summaryMD) throws IOException {
-      String summaryJSON = LegacyJSONSchemaSerializer.toJSON(summaryMD,
-         LegacySummaryMetadataSchema.getInstance());
+      String summaryJSON = LegacySummaryMetadataSchema.getInstance().toJSON(summaryMD);
       byte[] summaryMDBytes = getBytesFromString(summaryJSON);
       int mdLength = summaryMDBytes.length;
       //20 bytes plus 8 header for index map
@@ -407,8 +405,7 @@ public final class MultipageTiffWriter {
 
    public boolean hasSpaceToWrite(Image img, int omeMDLength) {
       PropertyMap mdPmap = ((DefaultMetadata) img.getMetadata()).toPropertyMap();
-      int mdLength = LegacyJSONSchemaSerializer.toJSON(mdPmap,
-         LegacyMetadataSchema.getInstance()).length();
+      int mdLength = LegacyMetadataSchema.getInstance().toJSON(mdPmap).length();
       int IFDSize = ENTRIES_PER_IFD*12 + 4 + 16;
       //5 MB extra padding...just to be safe...
       int extraPadding = 5000000;
@@ -494,14 +491,12 @@ public final class MultipageTiffWriter {
       char numEntries = ((firstIFD_  ? ENTRIES_PER_IFD + 4 : ENTRIES_PER_IFD));
 
       JsonObject jo = new JsonObject();
-      LegacyJSONSchemaSerializer.addToGson(jo, ((DefaultImage) img).formatToPropertyMap(),
-         LegacyImageFormatSchema.getInstance());
-      LegacyJSONSchemaSerializer.addToGson(jo,
-         ((DefaultCoords) img.getCoords()).toPropertyMap(),
-         LegacyCoordsSchema.getInstance());
-      LegacyJSONSchemaSerializer.addToGson(jo,
-         ((DefaultMetadata) img.getMetadata()).toPropertyMap(),
-         LegacyMetadataSchema.getInstance());
+      LegacyImageFormatSchema.getInstance().addToGson(jo,
+         ((DefaultImage) img).formatToPropertyMap());
+      LegacyCoordsSchema.getInstance().addToGson(jo,
+         ((DefaultCoords) img.getCoords()).toPropertyMap());
+      LegacyMetadataSchema.getInstance().addToGson(jo,
+         ((DefaultMetadata) img.getMetadata()).toPropertyMap());
       Gson gson = new GsonBuilder().disableHtmlEscaping().create();
       String mdJSON = gson.toJson(jo);
 

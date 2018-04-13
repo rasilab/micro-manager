@@ -35,7 +35,6 @@ import java.util.List;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import org.micromanager.data.internal.PropertyKey;
-import org.micromanager.data.internal.schema.LegacyJSONSchemaSerializer;
 import org.micromanager.data.internal.schema.LegacyPositionListSchema;
 
 /**
@@ -302,8 +301,7 @@ public class PositionList implements Iterable<MultiStagePosition> {
          pmap = PropertyMaps.fromJSON(text);
       }
       catch (IOException e) {
-         pmap = LegacyJSONSchemaSerializer.fromJSON(text,
-            LegacyPositionListSchema.getInstance());
+         pmap = LegacyPositionListSchema.getInstance().fromJSON(text);
       }
       replaceWithPropertyMap(pmap);
 

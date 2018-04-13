@@ -35,7 +35,6 @@ import org.micromanager.data.Metadata;
 import org.micromanager.data.internal.DefaultCoords;
 import org.micromanager.data.internal.DefaultMetadata;
 import org.micromanager.data.internal.DefaultSummaryMetadata;
-import org.micromanager.data.internal.schema.LegacyJSONSchemaSerializer;
 import org.micromanager.data.internal.schema.LegacyMetadataSchema;
 import org.micromanager.data.internal.schema.LegacySummaryMetadataSchema;
 import org.micromanager.internal.utils.ReportingUtils;
@@ -204,8 +203,7 @@ class FileSet {
          mdWriter_.write(",\n\"FrameKey-" + coords.getTimePoint() +
                "-" + coords.getChannel() + "-" + coords.getZSlice() + "\": ");
          PropertyMap pmap = ((DefaultMetadata) md).toPropertyMap();
-         mdWriter_.write(LegacyJSONSchemaSerializer.toJSON(pmap,
-            LegacyMetadataSchema.getInstance()));
+         mdWriter_.write(LegacyMetadataSchema.getInstance().toJSON(pmap));
       } catch (IOException ex) {
          ReportingUtils.logError("Problem writing to metadata.txt file");
       }
@@ -216,8 +214,7 @@ class FileSet {
             baseFilename_ + "_metadata.txt";
       PropertyMap summaryPmap = ((DefaultSummaryMetadata) masterStorage_.
             getSummaryMetadata()).toPropertyMap();
-      String summaryJSON = LegacyJSONSchemaSerializer.toJSON(summaryPmap,
-         LegacySummaryMetadataSchema.getInstance());
+      String summaryJSON = LegacySummaryMetadataSchema.getInstance().toJSON(summaryPmap);
       try {
          mdWriter_ = new FileWriter(metadataFileFullPath_);
          mdWriter_.write("{" + "\n");

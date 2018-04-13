@@ -29,7 +29,6 @@ import org.micromanager.data.Coords;
 import org.micromanager.data.Image;
 import org.micromanager.data.Metadata;
 import org.micromanager.data.SummaryMetadata;
-import org.micromanager.data.internal.schema.LegacyJSONSchemaSerializer;
 import org.micromanager.data.internal.schema.LegacyMultiStagePositionSchema;
 import org.micromanager.data.internal.schema.LegacyStagePositionSchema;
 import org.micromanager.display.ChannelDisplaySettings;
@@ -707,12 +706,10 @@ public enum PropertyKey {
          if (je.isJsonArray()) {
             for (JsonElement e : je.getAsJsonArray()) {
                JsonObject jo = e.getAsJsonObject();
-               PropertyMap msp = LegacyJSONSchemaSerializer.fromGson(jo,
-                  LegacyMultiStagePositionSchema.getInstance());
+               PropertyMap msp = LegacyMultiStagePositionSchema.getInstance().fromGson(jo);
 
                if (msp.size() == 0) { // this may be an old format stage position
-                  msp = LegacyJSONSchemaSerializer.fromGson(jo,
-                     LegacyStagePositionSchema.getInstance());
+                  msp = LegacyStagePositionSchema.getInstance().fromGson(jo);
                }
 
                int n = msp.getInteger(STAGE_POSITION__NUMAXES.key(), 0);
@@ -1182,8 +1179,7 @@ public enum PropertyKey {
       protected void convertFromGson(JsonElement je, PropertyMap.Builder dest) {
          List<PropertyMap> positions = Lists.newArrayList();
          for (JsonElement e : je.getAsJsonArray()) {
-            positions.add(LegacyJSONSchemaSerializer.fromGson(e,
-               LegacyMultiStagePositionSchema.getInstance()));
+            positions.add(LegacyMultiStagePositionSchema.getInstance().fromGson(e));
          }
          dest.putPropertyMapList(key(), positions);
       }
@@ -1195,8 +1191,7 @@ public enum PropertyKey {
          }
          JsonArray ja = new JsonArray();
          for (PropertyMap msp : source.getPropertyMapList(key())) {
-            ja.add(LegacyJSONSchemaSerializer.toGson(msp,
-               LegacyMultiStagePositionSchema.getInstance()));
+            ja.add(LegacyMultiStagePositionSchema.getInstance().toGson(msp));
          }
          return ja;
       }

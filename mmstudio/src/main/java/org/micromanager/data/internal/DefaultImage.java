@@ -40,7 +40,6 @@ import org.micromanager.data.Image;
 import org.micromanager.data.Metadata;
 import org.micromanager.data.internal.schema.LegacyCoordsSchema;
 import org.micromanager.data.internal.schema.LegacyImageFormatSchema;
-import org.micromanager.data.internal.schema.LegacyJSONSchemaSerializer;
 import org.micromanager.data.internal.schema.LegacyMetadataSchema;
 import org.micromanager.internal.utils.DirectBuffers;
 import org.micromanager.internal.utils.ImageUtils;
@@ -102,8 +101,7 @@ public final class DefaultImage implements Image {
       if (metadata == null) {
          try {
             metadata = DefaultMetadata.fromPropertyMap(
-               LegacyJSONSchemaSerializer.fromGson(je,
-                  LegacyMetadataSchema.getInstance()));
+               LegacyMetadataSchema.getInstance().fromGson(je));
          }
          catch (Exception e) {
             throw new IllegalArgumentException("Failed to convert TaggedImage tags to metadata", e);
@@ -113,8 +111,7 @@ public final class DefaultImage implements Image {
       if (coords == null) {
          try {
             coords = Coordinates.fromPropertyMap(
-               LegacyJSONSchemaSerializer.fromGson(je,
-                  LegacyCoordsSchema.getInstance()));
+               LegacyCoordsSchema.getInstance().fromGson(je));
          }
          catch (Exception e) {
             throw new IllegalArgumentException("Failed to convert TaggedImage tags to coords", e);
@@ -123,8 +120,7 @@ public final class DefaultImage implements Image {
 
       PropertyMap formatPmap;
       try {
-         formatPmap = LegacyJSONSchemaSerializer.fromGson(je,
-            LegacyImageFormatSchema.getInstance());
+         formatPmap = LegacyImageFormatSchema.getInstance().fromGson(je);
       }
       catch (Exception e) {
          throw new IllegalArgumentException("Failed to convert TaggedImage tags to image size and pixel format");
@@ -397,14 +393,11 @@ public final class DefaultImage implements Image {
    @Deprecated
    public TaggedImage legacyToTaggedImage() {
       JsonObject jo = new JsonObject();
-      LegacyJSONSchemaSerializer.addToGson(jo, formatToPropertyMap(),
-         LegacyImageFormatSchema.getInstance());
-      LegacyJSONSchemaSerializer.addToGson(jo,
-         ((DefaultCoords) coords_).toPropertyMap(),
-         LegacyCoordsSchema.getInstance());
-      LegacyJSONSchemaSerializer.addToGson(jo,
-         metadata_.toPropertyMap(),
-         LegacyMetadataSchema.getInstance());
+      LegacyImageFormatSchema.getInstance().addToGson(jo, formatToPropertyMap());
+      LegacyCoordsSchema.getInstance().addToGson(jo,
+         ((DefaultCoords) coords_).toPropertyMap());
+      LegacyMetadataSchema.getInstance().addToGson(jo,
+         metadata_.toPropertyMap());
       Gson gson = new GsonBuilder().disableHtmlEscaping().create();
       String json = gson.toJson(jo);
 
