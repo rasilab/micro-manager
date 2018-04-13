@@ -297,13 +297,19 @@ public final class DefaultPropertyMap implements PropertyMap {
 
    @Override
    public List<Number> getAsNumberList(String key, Number... defaults) {
-      return getAsNumberList(key, Arrays.asList(defaults));
+      return getAsNumberList(key,
+         defaults == null ? Collections.emptyList() : Arrays.asList(defaults));
    }
 
    @Override
    public List<Number> getAsNumberList(String key, Iterable<Number> defaults) {
       if (!containsNumberList(key)) {
-         return Lists.newArrayList(defaults);
+         if (defaults == null) {
+            return Collections.emptyList();
+         }
+         else {
+            return Lists.newArrayList(defaults);
+         }
       }
       return (List) Lists.newArrayList(Primitive.
             valueOf(map_.get(key).getClass().getComponentType()).
@@ -437,7 +443,8 @@ public final class DefaultPropertyMap implements PropertyMap {
 
    @Override
    public <E extends Enum<E>> List<E> getStringListAsEnumList(String key, Class<E> enumType, E... defaultValues) {
-      return getStringListAsEnumList(key, enumType, Lists.newArrayList(defaultValues));
+      return getStringListAsEnumList(key, enumType,
+         defaultValues == null ? Collections.emptyList() : Lists.newArrayList(defaultValues));
    }
 
    @Override
@@ -449,11 +456,8 @@ public final class DefaultPropertyMap implements PropertyMap {
          }
          return ret;
       }
-      catch (NullPointerException keyMissing) {
-         return Lists.newArrayList(defaultValues);
-      }
-      catch (IllegalArgumentException notAValidEnumValue) {
-         return Lists.newArrayList(defaultValues);
+      catch (NullPointerException | IllegalArgumentException e) {
+         return defaultValues == null ? Collections.emptyList() : Lists.newArrayList(defaultValues);
       }
    }
 
@@ -558,13 +562,16 @@ public final class DefaultPropertyMap implements PropertyMap {
    private <PA> PA getPrimitiveArray(String key, Primitive p, PA defaults) {
       Preconditions.checkNotNull(key);
       Class<PA> arrayClass = (Class<PA>) p.getPrimitiveArrayClass();
+      if (defaults == null) {
+         defaults = (PA) Array.newInstance(p.getPrimitiveClass(), 0);
+      }
       return (PA) p.clonePrimitiveArray(getRaw(key, arrayClass, defaults));
    }
 
    private <B> List<B> getBoxedList(String key, Primitive p, Iterable<B> defaults) {
       Preconditions.checkNotNull(key);
       if (missingOrWrongType(key, p.getPrimitiveArrayClass())) {
-         return defaults == null ? null : Lists.newArrayList(defaults);
+         return defaults == null ? Collections.emptyList() : Lists.newArrayList(defaults);
       }
       Object primitiveArray = getRaw(key, p.getPrimitiveArrayClass(), null);
       B[] boxedArray = (B[]) p.primitiveToBoxedArray(primitiveArray);
@@ -595,7 +602,7 @@ public final class DefaultPropertyMap implements PropertyMap {
    private <T> List<T> getNonPrimitiveArray(String key, Class<T> elementClass, T... defaults) {
       Preconditions.checkNotNull(key);
       return getNonPrimitiveArray(key, elementClass,
-            defaults == null ? null : Lists.newArrayList(defaults));
+            defaults == null ? Collections.emptyList() : Lists.newArrayList(defaults));
    }
 
    private <T> List<T> getClonedNonPrimitiveArray(String key, Class<T> elementClass, Cloner<T> cloner, T... defaults) {
@@ -611,7 +618,7 @@ public final class DefaultPropertyMap implements PropertyMap {
       Preconditions.checkNotNull(key);
       Class<T[]> arrayClass = arrayClassForElementClass(elementClass);
       if (missingOrWrongType(key, arrayClass)) {
-         return defaults == null ? null : Lists.newArrayList(defaults);
+         return defaults == null ? Collections.emptyList() : Lists.newArrayList(defaults);
       }
       return Lists.newArrayList((T[]) map_.get(key));
    }

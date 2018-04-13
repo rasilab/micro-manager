@@ -4,9 +4,10 @@ import org.junit.Test;
 import org.micromanager.PropertyMap;
 import org.micromanager.PropertyMaps;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import java.util.Collections;
+import java.util.List;
+
+import static org.junit.Assert.*;
 
 public class DefaultPropertyMapTest {
    @Test
@@ -65,5 +66,50 @@ public class DefaultPropertyMapTest {
       assertEquals(45, pmap.getAsNumber("aLong", 99).intValue());
       assertEquals(46, pmap.getAsNumber("aFloat", 99).intValue());
       assertEquals(47, pmap.getAsNumber("aDouble", 99).intValue());
+   }
+
+   private enum Foo {
+      BAR,
+   }
+
+   @Test
+   public void testNullDefaultValues() {
+      // Make sure 'null' works as a valid default value in scalar getters
+
+      PropertyMap pmap = PropertyMaps.emptyPropertyMap();
+
+      // Immutable base type
+      assertNull(pmap.getString("foo", null));
+
+      // Mutable base type
+      assertNull(pmap.getRectangle("foo", null));
+
+      // StringAsEnum
+      assertNull(pmap.getStringAsEnum("foo", Foo.class, null));
+   }
+
+   @Test
+   public void testNullListDefaultValues() {
+      PropertyMap pmap = PropertyMaps.emptyPropertyMap();
+
+      // Primitive array
+      assertEquals(0, pmap.getBooleanList("foo", (boolean[]) null).length);
+
+      // Boxed list
+      assertEquals(0, pmap.getBooleanList("foo", (List<Boolean>) null).size());
+
+      // Number list
+      assertEquals(0, pmap.getAsNumberList("foo", (Number[]) null).size());
+      assertEquals(0, pmap.getAsNumberList("foo", (List<Number>) null).size());
+
+      // Generic list
+      assertEquals(0, pmap.getStringList("foo", (String[]) null).size());
+      assertEquals(0, pmap.getStringList("foo", (List<String>) null).size());
+
+      // StringAsEnum
+      assertEquals(0, pmap.getStringListAsEnumList("foo", Foo.class,
+         (Foo[]) null).size());
+      assertEquals(0, pmap.getStringListAsEnumList("foo", Foo.class,
+         (List<Foo>) null).size());
    }
 }
