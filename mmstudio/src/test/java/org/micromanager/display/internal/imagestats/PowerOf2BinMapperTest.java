@@ -6,12 +6,11 @@
 package org.micromanager.display.internal.imagestats;
 
 import net.imglib2.type.numeric.integer.UnsignedShortType;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import org.junit.jupiter.api.*;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  *
@@ -21,19 +20,19 @@ public class PowerOf2BinMapperTest {
    public PowerOf2BinMapperTest() {
    }
 
-   @BeforeClass
+   @BeforeAll
    public static void setUpClass() {
    }
 
-   @AfterClass
+   @AfterAll
    public static void tearDownClass() {
    }
 
-   @Before
+   @BeforeEach
    public void setUp() {
    }
 
-   @After
+   @AfterEach
    public void tearDown() {
    }
 

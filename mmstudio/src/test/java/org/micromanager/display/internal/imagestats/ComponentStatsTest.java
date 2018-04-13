@@ -13,38 +13,18 @@
 
 package org.micromanager.display.internal.imagestats;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import static org.junit.Assert.*;
+
+import org.junit.jupiter.api.*;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  *
  * @author Mark A. Tsuchida
  */
 public class ComponentStatsTest {
-
-   public ComponentStatsTest() {
-   }
-
-   @BeforeClass
-   public static void setUpClass() {
-   }
-
-   @AfterClass
-   public static void tearDownClass() {
-   }
-
-   @Before
-   public void setUp() {
-   }
-
-   @After
-   public void tearDown() {
-   }
-
    @Test
    public void testEmpty() {
       IntegerComponentStats cs = IntegerComponentStats.builder().build();

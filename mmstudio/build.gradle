@@ -43,10 +43,6 @@ dependencies {
    testCompile group:'org.junit.jupiter', name:'junit-jupiter-api', version:'5.1.1'
    testRuntime group:'org.junit.jupiter', name:'junit-jupiter-engine', version:'5.1.1'
 
-   // JUnit 4 support
-   testCompile group:'junit', name:'junit', version:'4.12'
-   testRuntime group:'org.junit.vintage', name: 'junit-vintage-engine', version:'5.1.1'
-
    // Used by BeanShell inspect()
    runtime group:'org.swinglabs', name:'swingx', version:'0.9.5'
 }

@@ -16,11 +16,13 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import static org.junit.Assert.*;
-import org.junit.Before;
-import org.junit.Test;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.micromanager.PropertyMap;
 import org.micromanager.PropertyMaps;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  *
@@ -29,7 +31,7 @@ import org.micromanager.PropertyMaps;
 public class PropertyMapJSONSerializerTest {
    private static Gson gson;
 
-   @Before
+   @BeforeEach
    public void setUp() {
       gson = new Gson();
    }

@@ -1,7 +1,10 @@
 package org.micromanager.internal.utils;
 
-import org.junit.Assert;
-import org.junit.Test;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class VersionUtilsTest {
    @Test
@@ -10,8 +13,8 @@ public class VersionUtilsTest {
       String[] news = new String[] {"11.0.0", "10", "10.0.0", "18.1.2",
          "1.2.3", "1.2.4"};
       for (int i = 0; i < olds.length; ++i) {
-         Assert.assertTrue(VersionUtils.isOlderVersion(olds[i], news[i]));
-         Assert.assertFalse(VersionUtils.isOlderVersion(news[i], olds[i]));
+         assertTrue(VersionUtils.isOlderVersion(olds[i], news[i]));
+         assertFalse(VersionUtils.isOlderVersion(news[i], olds[i]));
       }
    }
 }

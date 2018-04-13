@@ -1,17 +1,20 @@
 package org.micromanager.internal.utils;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
 
 public class NumberUtilsTest {
-   @Before
+   @BeforeEach
    public void beforeMethod() {
-      // For now, the tests in this calss are written with the assumption that
+      // For now, the tests in this class are written under the assumption that
       // the decimal point is '.'. Skip if this is not true.
       java.util.Locale loc = java.util.Locale.getDefault();
-      org.junit.Assume.assumeTrue(new java.text.DecimalFormatSymbols(loc).
+      assumeTrue(new java.text.DecimalFormatSymbols(loc).
             getDecimalSeparator() == '.');
    }
 
@@ -19,9 +22,9 @@ public class NumberUtilsTest {
    public void doubleToStringIsCorrect() {
       // Whether we should be displaying "-0" is questionable. For now, test
       // for the existing behavior.
-      assertThat(NumberUtils.doubleToDisplayString(0.0), anyOf(is("0"), is("-0")));
-      assertThat(NumberUtils.doubleToDisplayString(0.00004), anyOf(is("0"), is("-0")));
-      assertThat(NumberUtils.doubleToDisplayString(-0.00004), anyOf(is("0"), is("-0")));
+      assertTrue(NumberUtils.doubleToDisplayString(0.0).matches("-?0"));
+      assertTrue(NumberUtils.doubleToDisplayString(0.00004).matches("-?0"));
+      assertTrue(NumberUtils.doubleToDisplayString(-0.00004).matches("-?0"));
 
       assertEquals("0.0001", NumberUtils.doubleToDisplayString(0.00005));
       assertEquals("-0.0001", NumberUtils.doubleToDisplayString(-0.00005));
@@ -41,9 +44,9 @@ public class NumberUtilsTest {
 
    @Test
    public void doubleToCoreStringIsCorrect() {
-      assertThat(NumberUtils.doubleToCoreString(0.0), anyOf(is("0.0000"), is("-0.0000")));
-      assertThat(NumberUtils.doubleToCoreString(0.00004), anyOf(is("0.0000"), is("-0.0000")));
-      assertThat(NumberUtils.doubleToCoreString(-0.00004), anyOf(is("0.0000"), is("-0.0000")));
+      assertTrue(NumberUtils.doubleToCoreString(0.0).matches("-?0\\.0000"));
+      assertTrue(NumberUtils.doubleToCoreString(0.00004).matches("-?0\\.0000"));
+      assertTrue(NumberUtils.doubleToCoreString(-0.00004).matches("-?0\\.0000"));
 
       assertEquals("0.0001", NumberUtils.doubleToCoreString(0.00005));
       assertEquals("-0.0001", NumberUtils.doubleToCoreString(-0.00005));

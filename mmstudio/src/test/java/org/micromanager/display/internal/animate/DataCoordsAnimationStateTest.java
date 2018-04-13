@@ -22,14 +22,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import static org.junit.Assert.*;
+import org.junit.jupiter.api.*;
 import org.micromanager.data.Coords;
 import org.micromanager.data.internal.DefaultCoords;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  *
@@ -45,15 +43,15 @@ public class DataCoordsAnimationStateTest {
    public DataCoordsAnimationStateTest() {
    }
 
-   @BeforeClass
+   @BeforeAll
    public static void setUpClass() {
    }
 
-   @AfterClass
+   @AfterAll
    public static void tearDownClass() {
    }
 
-   @Before
+   @BeforeEach
    public void setUp() {
       mockAxes_ = new ArrayList<String>();
       mockAnimatedAxes_ = new HashSet<String>();
@@ -92,7 +90,7 @@ public class DataCoordsAnimationStateTest {
       };
    }
 
-   @After
+   @AfterEach
    public void tearDown() {
    }
 

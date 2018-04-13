@@ -2,12 +2,14 @@
 
 package org.micromanager.internal.utils;
 
+import org.junit.jupiter.api.Test;
+
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.util.HashMap;
 import java.util.Map;
-import static org.junit.Assert.*;
-import org.junit.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class MathFunctionsTest {
 
@@ -15,7 +17,7 @@ public class MathFunctionsTest {
    public void runAffineTest() {
 
       final double delta = 0.0000000001;
-      Map<Point2D.Double, Point2D.Double> pointPairs = 
+      Map<Point2D.Double, Point2D.Double> pointPairs =
          new HashMap<Point2D.Double, Point2D.Double>();
 
       // Create sample src and dest points:
