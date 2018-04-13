@@ -73,8 +73,8 @@ public final class MM1JSONSerializer {
     * returned map as longs (if representable as such) or doubles. As a special
     * case, empty arrays are treated as absent.
     *
-    * @param json
-    * @return
+    * @param json the JSON input in MM1 format
+    * @return the deserialized property map
     * @throws IOException if there was a syntax or format error
     */
    @SuppressWarnings("UseSpecificCatch")
@@ -106,12 +106,12 @@ public final class MM1JSONSerializer {
             if (jo.has("PropType") && jo.has("PropVal")) {
                if (jo.get("PropVal").isJsonObject()) {
                LegacyPropertyMap1Deserializer.
-                     constructPropertyMap1Property(builder, key,
+                  deserializeProperty(builder, key,
                            jo.get("PropType").getAsString(),
                            jo.get("PropVal").getAsJsonObject());
                } else if (jo.get("PropVal").isJsonPrimitive() ){
                   LegacyPropertyMap1Deserializer.
-                          constructPropertyMap1Property(builder, key,
+                     deserializeProperty(builder, key,
                            jo.get("PropType").getAsString(),
                            jo.get("PropVal").getAsJsonPrimitive());
                }
@@ -226,7 +226,7 @@ public final class MM1JSONSerializer {
          Class<?> valueClass = map.getValueTypeForKey(key);
          if (valueClass.isArray()) {
             Class<?> elementClass = valueClass.getComponentType();
-            jo.add(key, scalarToGson(map, key, elementClass));
+            jo.add(key, arrayToGson(map, key, elementClass));
          }
          else {
             jo.add(key, scalarToGson(map, key, valueClass));

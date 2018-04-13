@@ -43,6 +43,11 @@ dependencies {
    testCompile group:'org.junit.jupiter', name:'junit-jupiter-api', version:'5.1.1'
    testRuntime group:'org.junit.jupiter', name:'junit-jupiter-engine', version:'5.1.1'
 
+   // For testing JSON serialization
+   // Note: If you are tempted to use JsonPath for non-testing purposes, think twice.
+   // (It's wonderful for testing but we need better control when reading data files.)
+   testImplementation group:'com.jayway.jsonpath', name:'json-path', version:'2.3.0'
+
    // Used by BeanShell inspect()
    runtime group:'org.swinglabs', name:'swingx', version:'0.9.5'
 }
