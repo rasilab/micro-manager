@@ -59,7 +59,10 @@ import org.micromanager.data.Image;
 import org.micromanager.data.Metadata;
 import org.micromanager.data.Storage;
 import org.micromanager.data.SummaryMetadata;
-import org.micromanager.data.internal.schema.*;
+import org.micromanager.data.internal.schema.LegacyCoordsSchema;
+import org.micromanager.data.internal.schema.LegacyImageFormatSchema;
+import org.micromanager.data.internal.schema.LegacyMetadataSchema;
+import org.micromanager.data.internal.schema.LegacySummaryMetadataSchema;
 import org.micromanager.internal.utils.JavaUtils;
 import org.micromanager.internal.utils.ReportingUtils;
 import org.micromanager.internal.utils.TextUtils;
@@ -71,10 +74,9 @@ import org.micromanager.data.DataProviderHasNewSummaryMetadataEvent;
  * TaggedImageStorageDiskDefault class.
  */
 public final class StorageSinglePlaneTiffSeries implements Storage {
-   private static final HashSet<String> ALLOWED_AXES = new HashSet<String>(
-         Arrays.asList(Coords.CHANNEL, Coords.T, Coords.Z,
-            Coords.STAGE_POSITION));
-   private final DefaultDatastore store_;
+   private static final HashSet<String> ALLOWED_AXES = new HashSet<>(
+      Arrays.asList(Coords.CHANNEL, Coords.T, Coords.Z,
+         Coords.STAGE_POSITION));
    private final String dir_;
    private boolean firstElement_;
    private boolean amLoading_;
@@ -89,21 +91,20 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
 
    public StorageSinglePlaneTiffSeries(DefaultDatastore store,
          String directory, boolean newDataSet) throws IOException {
-      store_ = store;
       dir_ = directory;
-      store_.setSavePath(dir_);
-      store_.setName(new File(dir_).getName());
+      store.setSavePath(dir_);
+      store.setName(new File(dir_).getName());
       isDatasetWritable_ = newDataSet;
       if (isDatasetWritable_ && new File(dir_).exists()) {
          throw new IOException("Directory at " + dir_ + " already exists");
       }
       // Must be informed of events before traditional consumers, so that we
       // can provide images on request.
-      store_.registerForEvents(this, 0);
-      coordsToFilename_ = new HashMap<Coords, String>();
-      metadataStreams_ = new HashMap<Integer, Writer>();
-      positionIndexToName_ = new HashMap<Integer, String>();
-      orderedChannelNames_ = new ArrayList<String>();
+      store.registerForEvents(this, 0);
+      coordsToFilename_ = new HashMap<>();
+      metadataStreams_ = new HashMap<>();
+      positionIndexToName_ = new HashMap<>();
+      orderedChannelNames_ = new ArrayList<>();
       maxIndices_ = new DefaultCoords.Builder().build();
       amLoading_ = false;
       isMultiPosition_ = true;
@@ -269,9 +270,8 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
             return null;
          }
          Object pixels = proc.getPixels();
-         DefaultImage result = new DefaultImage(pixels, width, height,
+         return new DefaultImage(pixels, width, height,
                bytesPerPixel, numComponents, coords, metadata);
-         return result;
       } catch (IllegalArgumentException ex) {
          ReportingUtils.logError(ex);
          return null;
@@ -283,7 +283,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
       if (coordsToFilename_.isEmpty()) {
          return null;
       }
-      Coords coords = new ArrayList<Coords>(coordsToFilename_.keySet()).get(0);
+      Coords coords = new ArrayList<>(coordsToFilename_.keySet()).get(0);
       return getImage(coords);
    }
 
@@ -294,7 +294,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
 
    @Override
    public List<Image> getImagesMatching(Coords coords) {
-      ArrayList<Image> result = new ArrayList<Image>();
+      ArrayList<Image> result = new ArrayList<>();
       for (Coords altCoords : coordsToFilename_.keySet()) {
          boolean canUse = true;
          for (String axis : coords.getAxes()) {
@@ -341,15 +341,15 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
    private String createFileName(Coords coords) {
       List<String> axes = coords.getAxes();
       java.util.Collections.sort(axes);
-      String filename = "img";
+      StringBuilder filename = new StringBuilder("img");
       for (String axis : axes) {
          // HACK: more precision for the time axis.
          String precision = "%03d";
          if (axis.contentEquals(Coords.T)) {
             precision = "%09d";
          }
-         filename += String.format("_%s" + precision, axis,
-               coords.getIndex(axis));
+         filename.append(String.format("_%s" + precision, axis,
+            coords.getIndex(axis)));
       }
       return filename + ".tif";
    }
@@ -441,9 +441,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
 
    private void saveImageFile(Image image, String path, String tiffFileName,
          String metadataJSON) {
-      ImagePlus imp;
       try {
-         ImageProcessor ip;
          int width = image.getWidth();
          int height = image.getHeight();
          Object pixels = image.getRawPixels();
@@ -454,17 +452,17 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
             // 32-bit RGB
             proc = new ColorProcessor(width, height);
             // TODO XXX Probably need to change this!
-            ((ColorProcessor) proc).setPixels(pixels);
+            proc.setPixels(pixels);
          }
          else if (numComponents == 1 && bytesPerPixel == 1) {
             // Byte
             proc = new ByteProcessor(width, height);
-            proc.setPixels((byte[]) pixels);
+            proc.setPixels(pixels);
          }
          else if (numComponents == 1 && bytesPerPixel == 2) {
             // Short
             proc = new ShortProcessor(width, height);
-            proc.setPixels((short[]) pixels);
+            proc.setPixels(pixels);
          }
          else {
             throw new IllegalArgumentException(String.format("Unexpected image format with %d bytes per pixel and %d components", bytesPerPixel, numComponents));
@@ -484,7 +482,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
       }
       ImagePlus imp = new ImagePlus(path + "/" + tiffFileName, ip);
       applyPixelSizeCalibration(imp, image.getMetadata());
-      saveImagePlus(imp, image, path, tiffFileName, metadataJSON);
+      saveImagePlus(imp, path, tiffFileName, metadataJSON);
    }
 
    private void applyPixelSizeCalibration(final ImagePlus ip,
@@ -506,8 +504,8 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
    }
 
 
-   public void saveImagePlus(ImagePlus imp, Image image,
-      String path, String tiffFileName, String metadataJSON) {
+   private void saveImagePlus(ImagePlus imp,
+                              String path, String tiffFileName, String metadataJSON) {
       imp.setProperty("Info", metadataJSON);
 
       FileSaver fs = new FileSaver(imp);
@@ -576,7 +574,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
 
    private void openExistingDataSet() throws IOException {
       amLoading_ = true;
-      ArrayList<String> positions = new ArrayList<String>();
+      ArrayList<String> positions = new ArrayList<>();
       if (new File(dir_ + "/metadata.txt").exists()) {
          // Our base directory is a valid "position", i.e. there are no
          // positions in this dataset.
@@ -601,9 +599,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
          throw new IOException("Unable to find dataset at " + dir_);
       }
 
-      for (int positionIndex = 0; positionIndex < positions.size();
-            ++positionIndex) {
-         String position = positions.get(positionIndex);
+      for (String position : positions) {
          JsonObject data = readJSONMetadata(position);
          if (data == null) {
             ReportingUtils.logError("Couldn't load metadata for position " + position + " in directory " + dir_);
@@ -658,11 +654,11 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
 
                   List<String> items = Splitter.on("-").splitToList(key);
                   coords = Coordinates.builder().
-                        timePoint(Integer.parseInt(items.get(1))).
-                        channel(Integer.parseInt(items.get(2))).
-                        zSlice(Integer.parseInt(items.get(3))).
-                        stagePosition(c.getStagePosition()).
-                        build();
+                     timePoint(Integer.parseInt(items.get(1))).
+                     channel(Integer.parseInt(items.get(2))).
+                     zSlice(Integer.parseInt(items.get(3))).
+                     stagePosition(c.getStagePosition()).
+                     build();
 
                   assignChannelsToIndices(position);
                   fileName = create14FileName(coords);
@@ -675,7 +671,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
                try {
                   // TODO: omitting pixel type information.
                   if (position.length() > 0 &&
-                        !(new File(dir_ + "/" + fileName).exists())) {
+                     !(new File(dir_ + "/" + fileName).exists())) {
                      // Assume file is in a subdirectory.
                      fileName = position + "/" + fileName;
                   }
@@ -698,20 +694,6 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
       amLoading_ = false;
    }
 
-   /*
-   private int getChannelIndex(String channelName) {
-      if (summaryMetadata_.getChannelNames() == null) {
-         return 0;
-      }
-      int result = Arrays.asList(summaryMetadata_.getChannelNames()).indexOf(channelName);
-      if (result == -1) {
-         // Nothing for this channel.
-         result = 0;
-      }
-      return result;
-   }
-*/
-
    private JsonObject readJSONMetadata(String pos) {
       String fileStr;
       String path = new File(new File(dir_, pos), "metadata.txt").getPath();
@@ -730,7 +712,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
       try {
          return parser.parse(reader).getAsJsonObject();
       }
-      catch (JsonIOException e) {
+      catch (JsonIOException | JsonSyntaxException e) {
          // Try again with an added curly brace because some old versions
          // failed to write the final '}' under some circumstances.
          try {
@@ -738,25 +720,7 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
             reader.setLenient(true);
             return parser.parse(reader).getAsJsonObject();
          }
-         catch (JsonIOException e2) {
-            // Give up.
-            return null;
-         } catch (JsonSyntaxException e2) {
-            // Give up.
-            return null;
-         }
-      } catch (JsonSyntaxException e) {
-         // Try again with an added curly brace because some old versions
-         // failed to write the final '}' under some circumstances.
-         try {
-            reader = new JsonReader(new StringReader(fileStr + "}"));
-            reader.setLenient(true);
-            return parser.parse(reader).getAsJsonObject();
-         }
-         catch (JsonIOException e2) {
-            // Give up.
-            return null;
-         } catch (JsonSyntaxException e2) {
+         catch (JsonIOException | JsonSyntaxException e2) {
             // Give up.
             return null;
          }
