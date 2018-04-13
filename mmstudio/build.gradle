@@ -34,11 +34,6 @@ dependencies {
    runtime group:'org.swinglabs', name:'swingx', version:'0.9.5'
 }
 
-test {
-   // Requires decompression of test data. Exclude for now.
-   exclude 'org/micromanager/data/internal/VersionCompatTest.class'
-}
-
 jar {
    baseName = 'mmstudio_' // Underscore for ImageJ1 plugin
 
