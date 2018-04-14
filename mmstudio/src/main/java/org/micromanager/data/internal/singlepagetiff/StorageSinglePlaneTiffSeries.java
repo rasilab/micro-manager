@@ -745,6 +745,8 @@ public final class StorageSinglePlaneTiffSeries implements Storage {
 
    @Override
    public void close() {
-      // We don't maintain any state that needs to be cleaned up.
+      if (!amLoading_) {
+         freeze();
+      }
    }
 }
