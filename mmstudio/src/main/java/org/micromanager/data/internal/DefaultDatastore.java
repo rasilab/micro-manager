@@ -38,6 +38,7 @@ import org.micromanager.data.Image;
 import org.micromanager.data.Storage;
 import org.micromanager.data.SummaryMetadata;
 import org.micromanager.data.internal.multipagetiff.StorageMultipageTiff;
+import org.micromanager.data.internal.singlepagetiff.StorageSinglePlaneTiffSeries;
 import org.micromanager.events.internal.DefaultEventManager;
 import org.micromanager.internal.MMStudio;
 import org.micromanager.internal.utils.FileDialogs;
@@ -119,8 +120,8 @@ public class DefaultDatastore implements Datastore {
          ReportingUtils.logError("Inconsistent image coordinates in datastore");
       }
    }
-   
-   
+
+
    @Override
    public void setName(String name) {
       name_ = name;
@@ -263,7 +264,7 @@ public class DefaultDatastore implements Datastore {
    }
 
    @Override
-   public synchronized void setSummaryMetadata(SummaryMetadata metadata) 
+   public synchronized void setSummaryMetadata(SummaryMetadata metadata)
            throws DatastoreFrozenException, DatastoreRewriteException {
       if (isFrozen_) {
          throw new DatastoreFrozenException();

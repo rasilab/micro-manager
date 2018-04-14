@@ -48,6 +48,7 @@ import org.micromanager.data.SummaryMetadata;
 import org.micromanager.data.internal.multipagetiff.MultipageTiffReader;
 import org.micromanager.data.internal.multipagetiff.StorageMultipageTiff;
 import org.micromanager.data.internal.pipeline.DefaultPipeline;
+import org.micromanager.data.internal.singlepagetiff.StorageSinglePlaneTiffSeries;
 import org.micromanager.internal.MMStudio;
 import org.micromanager.internal.utils.FileDialogs;
 import org.micromanager.internal.utils.JavaUtils;

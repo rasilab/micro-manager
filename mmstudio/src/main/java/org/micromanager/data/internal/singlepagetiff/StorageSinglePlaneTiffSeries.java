@@ -18,7 +18,7 @@
 //               CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 //               INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
 
-package org.micromanager.data.internal;
+package org.micromanager.data.internal.singlepagetiff;
 
 import com.google.common.base.Splitter;
 import com.google.common.eventbus.Subscribe;
@@ -59,6 +59,7 @@ import org.micromanager.data.Image;
 import org.micromanager.data.Metadata;
 import org.micromanager.data.Storage;
 import org.micromanager.data.SummaryMetadata;
+import org.micromanager.data.internal.*;
 import org.micromanager.data.internal.schema.LegacyCoordsSchema;
 import org.micromanager.data.internal.schema.LegacyImageFormatSchema;
 import org.micromanager.data.internal.schema.LegacyMetadataSchema;
