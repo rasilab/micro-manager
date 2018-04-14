@@ -214,11 +214,7 @@ public enum PropertyKey {
 
       @Override
       protected JsonElement convertToGson(PropertyMap pmap) {
-         String string = pmap.getString(key(), null);
-         if (string != null) {
-            return new JsonPrimitive(string);
-         }
-         return null;
+         return makeGsonPrimitiveOrNull(pmap.getString(key(), null));
       }
    },
 
@@ -440,7 +436,7 @@ public enum PropertyKey {
 
       @Override
       protected JsonElement convertToGson(PropertyMap pmap) {
-         return new JsonPrimitive(pmap.getString(key(), null));
+         return makeGsonPrimitiveOrNull(pmap.getString(key(), null));
       }
    },
 
@@ -636,7 +632,7 @@ public enum PropertyKey {
 
       @Override
       protected JsonElement convertToGson(PropertyMap pmap) {
-         return new JsonPrimitive(pmap.getString(key(), null));
+         return makeGsonPrimitiveOrNull(pmap.getString(key(), null));
       }
    },
 
@@ -820,10 +816,7 @@ public enum PropertyKey {
 
       @Override
       protected JsonElement convertToGson(PropertyMap pmap) {
-         if (pmap.containsKey(key())) {
-            return new JsonPrimitive(pmap.getString(key(), null));
-         }
-         return null;
+         return makeGsonPrimitiveOrNull(pmap.getString(key(), null));
       }
    },
 
@@ -875,7 +868,7 @@ public enum PropertyKey {
 
       @Override
       protected JsonElement convertToGson(PropertyMap pmap) {
-         return new JsonPrimitive(pmap.getString(key(), null));
+         return makeGsonPrimitiveOrNull(pmap.getString(key(), null));
       }
    },
 
@@ -887,11 +880,7 @@ public enum PropertyKey {
 
       @Override
       protected JsonElement convertToGson(PropertyMap pmap) {
-         String string = pmap.getString(key(), null);
-         if (string != null) {
-            return new JsonPrimitive(string);
-         }
-         return null;
+         return makeGsonPrimitiveOrNull(pmap.getString(key(), null));
       }
    },
 
@@ -920,12 +909,7 @@ public enum PropertyKey {
 
       @Override
       protected JsonElement convertToGson(PropertyMap pmap) {
-         // To enable re-saving old data set, do not require this key
-         String receivedTime = pmap.getString(key(), null);
-         if (receivedTime != null) {
-            return makeGsonPrimitiveOrNull(receivedTime);
-         }
-         return null;
+         return makeGsonPrimitiveOrNull(pmap.getString(key(), null));
       }
    },
 
@@ -1295,11 +1279,7 @@ public enum PropertyKey {
 
       @Override
       protected JsonElement convertToGson(PropertyMap pmap) {
-         String string = pmap.getString(key(), null);
-         if (string != null) {
-            return new JsonPrimitive(string);
-         }
-         return null;
+         return makeGsonPrimitiveOrNull(pmap.getString(key(), null));
       }
    },
 
