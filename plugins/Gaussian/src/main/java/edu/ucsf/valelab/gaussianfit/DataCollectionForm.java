@@ -185,7 +185,7 @@ public class DataCollectionForm extends JFrame {
            "./data.tsf",
            false, new String[]{"txt", "tsf"});
  
-   private static CoordinateMapper c2t_;
+   private static List<CoordinateMapper> c2t_;
    private static String loadTSFDir_ = "";   
    private int jitterMethod_ = 1;
    private int jitterMaxSpots_ = 40000; 
@@ -261,7 +261,7 @@ public class DataCollectionForm extends JFrame {
       if (c2t_ == null) {
          return null;
       }
-      return c2t_.getAffineTransform();
+      return c2t_.get(0).getAffineTransform();
    }
 
   
@@ -366,9 +366,7 @@ public class DataCollectionForm extends JFrame {
                        (java.util.List<File>) t.getTransferData(DataFlavor.javaFileListFlavor);
                loadFiles((File[]) l.toArray());
 
-            } catch (UnsupportedFlavorException e) {
-               return false;
-            } catch (IOException e) {
+            } catch (UnsupportedFlavorException | IOException e) {
                return false;
             }
 
@@ -1156,25 +1154,25 @@ public class DataCollectionForm extends JFrame {
        if (row > -1) {
           try {
             showResults(mainTableModel_.getRow(row));
-          } catch (OutOfMemoryError ome) {
-             JOptionPane.showMessageDialog(this, "Not enough memory to show data");
-          }
-       } else {
-          JOptionPane.showMessageDialog(this, "Please select a dataset to show");
-       }
-    }
+         } catch (OutOfMemoryError ome) {
+            JOptionPane.showMessageDialog(this, "Not enough memory to show data");
+         }
+      } else {
+         JOptionPane.showMessageDialog(this, "Please select a dataset to show");
+      }
+   }
 
    private void extractTracksButton_ActionPerformed(java.awt.event.ActionEvent evt) {
       int row = mainTable_.getSelectedRowSorted();
       if (row > -1) {
          Point s = MouseInfo.getPointerInfo().getLocation();
-         ExtractTracksDialog extractTracksDialog = 
-                 new ExtractTracksDialog(studio_, mainTableModel_.getRow(row), s);
+         ExtractTracksDialog extractTracksDialog
+                 = new ExtractTracksDialog(studio_, mainTableModel_.getRow(row), s);
       } else {
          JOptionPane.showMessageDialog(this, "No Data Rows selected");
       }
    }
-    
+
    private void formComponentResized(java.awt.event.ComponentEvent evt) {
       mainTable_.update();
       super.repaint();
@@ -1182,83 +1180,99 @@ public class DataCollectionForm extends JFrame {
 
    /**
     * Use the selected data set as the reference for 2-channel color correction
-    * @param evt 
+    *
+    * @param evt
     */
    private void c2StandardButtonActionPerformed(java.awt.event.ActionEvent evt) {
       int rows[] = mainTable_.getSelectedRowsSorted();
       if (rows.length < 1) {
          JOptionPane.showMessageDialog(this, "Please select one or more datasets as color reference");
       } else {
-         
-         CoordinateMapper.PointMap points = new CoordinateMapper.PointMap();
-         for (int row : rows) {
-            
-            // Get points from both channels in first frame as ArrayLists        
-            ArrayList<Point2D.Double> xyPointsCh1 = new ArrayList<Point2D.Double>();
-            ArrayList<Point2D.Double> xyPointsCh2 = new ArrayList<Point2D.Double>();
-            for (SpotData gs : mainTableModel_.getRow(row).spotList_) {
-               if (gs.getFrame() == 1) {
-                  Point2D.Double point = new Point2D.Double(gs.getXCenter(), gs.getYCenter());
-                  if (gs.getChannel() == 1) {
-                     xyPointsCh1.add(point);
-                  } else if (gs.getChannel() == 2) {
-                     xyPointsCh2.add(point);
+         try {
+            int nrChannels = mainTableModel_.getRow(rows[0]).nrChannels_;
+            for (int row : rows) {
+               if (nrChannels != mainTableModel_.getRow(row).nrChannels_) {
+                  JOptionPane.showMessageDialog(this,
+                          "nrChannels should be the same for all data sets");
+                  return;
+               }
+            }
+            if (nrChannels < 2) {
+               JOptionPane.showMessageDialog(this,
+                       "Need at least 2 channels for a multi-color reference");
+               return;
+            }
+
+            CoordinateMapper.PointMap points = new CoordinateMapper.PointMap();
+            for (int row : rows) {
+               // Get points from both channels in first frame as ArrayLists
+               ArrayList<ArrayList<Point2D.Double>> xyPointsByCh
+                       = new ArrayList<ArrayList<Point2D.Double>>();
+               for (int c = 0; c < nrChannels; c++) {
+                  xyPointsByCh.add(new ArrayList<Point2D.Double>());
+               }
+               for (SpotData gs : mainTableModel_.getRow(row).spotList_) {
+                  if (gs.getFrame() == 1) {
+                     Point2D.Double point = new Point2D.Double(gs.getXCenter(), gs.getYCenter());
+                     xyPointsByCh.get(gs.getChannel() - 1).add(point);
                   }
                }
-            }
 
-            if (xyPointsCh2.isEmpty()) {
-               JOptionPane.showMessageDialog(this, 
-                       "No points found in second channel.  Is this a dual channel dataset?");
-               return;
-            }
-
-
-            // Find matching points in the two ArrayLists
-            Iterator it2 = xyPointsCh1.iterator();
-            NearestPoint2D np;
-            try {
-               np = new NearestPoint2D(xyPointsCh2,
-                       NumberUtils.displayStringToDouble(pairsMaxDistanceField_.getText()));
-            } catch (ParseException ex) {
-               ReportingUtils.showError("Problem parsing Pairs max distance number");
-               return;
-            }
-
-            while (it2.hasNext()) {
-               Point2D.Double pCh1 = (Point2D.Double) it2.next();
-               Point2D.Double pCh2 = np.findKDWSE(pCh1);
-               if (pCh2 != null) {
-                  points.put(pCh1, pCh2);
+               for (int c = 0; c < nrChannels; c++) {
+                  if (xyPointsByCh.get(c).isEmpty()) {
+                     JOptionPane.showMessageDialog(this,
+                             "No points found in channel" + c + ".  Is this a multi channel dataset?");
+                     return;
+                  }
                }
-            }
-            if (points.size() < 4) {
-               ReportingUtils.showError("Fewer than 4 matching points found.  Not enough to set as 2C reference");
-               return;
-            }
-         }
 
+               // (re-) create the list of pointmappers
+               c2t_ = new ArrayList<CoordinateMapper>(nrChannels - 1);
+               // Find matching points in the ArrayLists.  Ch1 is always the "master"
+               for (int c = 1; c < nrChannels; c++) {
+                  Iterator it2 = xyPointsByCh.get(0).iterator();
+                  NearestPoint2D np;
+                  try {
+                     np = new NearestPoint2D(xyPointsByCh.get(c),
+                             NumberUtils.displayStringToDouble(pairsMaxDistanceField_.getText()));
+                  } catch (ParseException ex) {
+                     ReportingUtils.showError("Problem parsing Pairs max distance number");
+                     return;
+                  }
 
-         // we have pairs from all images, construct the coordinate mapper
-         try {
-            c2t_ = new CoordinateMapper(points, 2, 1);
-            
-            studio_.alerts().postAlert("2C Reference", DataCollectionForm.class , 
-                    "Used " + points.size() + " spot pairs to calculate 2C Reference");
-            
-            String name = "ID: " + mainTableModel_.getRow(rows[0]).ID_;
-            if (rows.length > 1) {
-               for (int i = 1; i < rows.length; i++) {
-                  name += "," + mainTableModel_.getRow(rows[i]).ID_;
+                  while (it2.hasNext()) {
+                     Point2D.Double pCh1 = (Point2D.Double) it2.next();
+                     Point2D.Double pCh2 = np.findKDWSE(pCh1);
+                     if (pCh2 != null) {
+                        points.put(pCh1, pCh2);
+                     }
+                  }
+                  if (points.size() < 4) {
+                     ReportingUtils.showError("Fewer than 4 matching points found for ch. "
+                             + c + ".  Not enough to set as 2C reference");
+                     return;
+                  }
+
+                  // we have pairs from all images, construct the coordinate mapper
+                  c2t_.add(new CoordinateMapper(points, 2, 1));
+
+                  studio_.alerts().postAlert("2C Reference", DataCollectionForm.class,
+                          "Used " + points.size() + " spot pairs to calculate 2C Reference");
                }
+               String name = "ID: " + mainTableModel_.getRow(rows[0]).ID_;
+               if (rows.length > 1) {
+                  for (int i = 1; i < rows.length; i++) {
+                     name += "," + mainTableModel_.getRow(rows[i]).ID_;
+                  }
+               }
+               reference2CName_.setText(name);
             }
-            reference2CName_.setText(name);
          } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, 
-               "Error setting color reference.  Did you have enough input points?");
+            JOptionPane.showMessageDialog(this,
+                    "Error setting color reference.  Did you have enough input points?");
          }
-         
       }
+
    }
 
    
@@ -2298,6 +2312,13 @@ public class DataCollectionForm extends JFrame {
                  "No calibration data available.  First Calibrate using 2C Reference");
          return;
       }
+      /*
+      if (c2t_.size() < rowData.nrChannels_ - 1) {
+         JOptionPane.showMessageDialog(this, 
+                 "Dataset has more channels than the calibration data");
+         return;
+      }
+      */
 
       semaphore_.acquire();
       int method = CoordinateMapper.LWM;
@@ -2310,7 +2331,9 @@ public class DataCollectionForm extends JFrame {
       if (method2CBox_.getSelectedItem().equals("Piecewise-Affine")) {
          method = CoordinateMapper.PIECEWISEAFFINE;
       }
-      c2t_.setMethod(method);
+      for (CoordinateMapper cm : c2t_) {
+         cm.setMethod(method);
+      }
 
       ij.IJ.showStatus("Executing color correction");
 
@@ -2329,10 +2352,10 @@ public class DataCollectionForm extends JFrame {
                   ij.IJ.showStatus("Executing color correction...");
                   ij.IJ.showProgress(frameNr, rowData.nrFrames_);
                }
-               if (gs.getChannel() == 1) {
+               if (gs.getChannel() > 0 && gs.getChannel() < (c2t_.size() + 1) )  {
                   Point2D.Double point = new Point2D.Double(gs.getXCenter(), gs.getYCenter());
                   try {
-                     Point2D.Double corPoint = c2t_.transform(point);
+                     Point2D.Double corPoint = c2t_.get(gs.getChannel() - 1).transform(point);
                      SpotData gsn = new SpotData(gs);
                      if (corPoint != null) {
                         gsn.setXCenter(corPoint.x);
@@ -2453,10 +2476,7 @@ public class DataCollectionForm extends JFrame {
       
       try {
          zc_.fitFunction();
-      } catch (FunctionEvaluationException ex) {
-         ReportingUtils.showError("Error while fitting data");
-         return FAILEDDONOTINFORM;
-      } catch (OptimizationException ex) {
+      } catch (FunctionEvaluationException | OptimizationException ex) {
          ReportingUtils.showError("Error while fitting data");
          return FAILEDDONOTINFORM;
       }
@@ -2555,8 +2575,10 @@ public class DataCollectionForm extends JFrame {
 
    public void setPieceWiseAffineParameters(int maxControlPoints, double maxDistance) {
       if (c2t_ != null) {
-         c2t_.setPieceWiseAffineMaxControlPoints(maxControlPoints);
-         c2t_.setPieceWiseAffineMaxDistance(maxDistance);
+         for (CoordinateMapper cm : c2t_) {
+            cm.setPieceWiseAffineMaxControlPoints(maxControlPoints);
+            cm.setPieceWiseAffineMaxDistance(maxDistance);
+         }
       }
    }   
 

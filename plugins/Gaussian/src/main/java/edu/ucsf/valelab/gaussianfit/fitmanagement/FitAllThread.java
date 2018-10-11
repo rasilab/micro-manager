@@ -150,7 +150,7 @@ public class FitAllThread extends GaussianInfo implements Runnable  {
 
       // take the active ImageJ image
       ImagePlus siPlus;
-      Roi originalRoi = null;
+      Roi originalRoi ;
       try {
          siPlus = IJ.getImage();
          originalRoi = siPlus.getRoi();
