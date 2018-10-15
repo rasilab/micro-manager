@@ -80,9 +80,9 @@ public class SpotData implements PointData {
 
    private ImageProcessor ip_ = null;   // ImageProcessor for given spot
    private final int frame_;        // frame number in the original stack - 1-based
-   private final int channel_;      // channel number in the original stack
+   private final int channel_;      // channel number in the original stack - 1 based
    private final int slice_;        // slice number in the original stack - 1-based
-   private int position_;     // position number in the original stack
+   private int position_;     // position number in the original stack - 1-based
    private final int nr_;           // spot index in given image
    private final int x_;            // x as found by spotfinder
    private final int y_;            // y as found by spotfinder

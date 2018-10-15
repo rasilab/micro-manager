@@ -1174,7 +1174,7 @@ public class DataCollectionForm extends JFrame {
          JOptionPane.showMessageDialog(this, "No Data Rows selected");
       }
    }
-    
+
    private void formComponentResized(java.awt.event.ComponentEvent evt) {
       mainTable_.update();
       super.repaint();
@@ -1182,84 +1182,99 @@ public class DataCollectionForm extends JFrame {
 
    /**
     * Use the selected data set as the reference for 2-channel color correction
-    * @param evt 
+    *
+    * @param evt
     */
    private void c2StandardButtonActionPerformed(java.awt.event.ActionEvent evt) {
       int rows[] = mainTable_.getSelectedRowsSorted();
-      if (rows.length < 1) {
-         JOptionPane.showMessageDialog(this, "Please select one or more datasets as color reference");
-      } else {
-         
-         CoordinateMapper.PointMap points = new CoordinateMapper.PointMap();
-         for (int row : rows) {
-            
-            // Get points from both channels in first frame as ArrayLists        
-            ArrayList<Point2D.Double> xyPointsCh1 = new ArrayList<Point2D.Double>();
-            ArrayList<Point2D.Double> xyPointsCh2 = new ArrayList<Point2D.Double>();
-            for (SpotData gs : mainTableModel_.getRow(row).spotList_) {
-               if (gs.getFrame() == 1) {
-                  Point2D.Double point = new Point2D.Double(gs.getXCenter(), gs.getYCenter());
-                  if (gs.getChannel() == 1) {
-                     xyPointsCh1.add(point);
-                  } else if (gs.getChannel() == 2) {
-                     xyPointsCh2.add(point);
-                  }
-               }
-            }
-
-            if (xyPointsCh2.isEmpty()) {
-               JOptionPane.showMessageDialog(this, 
-                       "No points found in second channel.  Is this a dual channel dataset?");
-               return;
-            }
-
-
-            // Find matching points in the two ArrayLists
-            Iterator it2 = xyPointsCh1.iterator();
-            NearestPoint2D np;
-            try {
-               np = new NearestPoint2D(xyPointsCh2,
-                       NumberUtils.displayStringToDouble(pairsMaxDistanceField_.getText()));
-            } catch (ParseException ex) {
-               ReportingUtils.showError("Problem parsing Pairs max distance number");
-               return;
-            }
-
-            while (it2.hasNext()) {
-               Point2D.Double pCh1 = (Point2D.Double) it2.next();
-               Point2D.Double pCh2 = np.findKDWSE(pCh1);
-               if (pCh2 != null) {
-                  points.put(pCh1, pCh2);
-               }
-            }
-            if (points.size() < 4) {
-               ReportingUtils.showError("Fewer than 4 matching points found.  Not enough to set as 2C reference");
-               return;
-            }
-         }
-
-
-         // we have pairs from all images, construct the coordinate mapper
-         try {
-            c2t_ = new CoordinateMapper(points, 2, 1);
-            
-            studio_.alerts().postAlert("2C Reference", DataCollectionForm.class , 
-                    "Used " + points.size() + " spot pairs to calculate 2C Reference");
-            
-            String name = "ID: " + mainTableModel_.getRow(rows[0]).ID_;
-            if (rows.length > 1) {
-               for (int i = 1; i < rows.length; i++) {
-                  name += "," + mainTableModel_.getRow(rows[i]).ID_;
-               }
-            }
-            reference2CName_.setText(name);
-         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, 
-               "Error setting color reference.  Did you have enough input points?");
-         }
-         
+      if (rows.length != 1) {
+         JOptionPane.showMessageDialog(this, "Please select one dataset as color reference");
+         return;
       }
+
+      // For multi-channel datasets, data are mapped as:
+      // 1 - n
+      // 2 - n
+      // .. - n
+      // (n-1) - n
+      int row = rows[0];
+      RowData rowData = mainTableModel_.getRow(row);
+      List<CoordinateMapper.PointMap> pairsByChannel
+              = new ArrayList<CoordinateMapper.PointMap>(rowData.nrChannels_);
+      for (int ch = 0; ch < rowData.nrChannels_; ch++) {
+         pairsByChannel.add(new CoordinateMapper.PointMap());
+      }
+
+      // Get points from all channels in first frame as ArrayLists  
+      // pair them up frame by frame
+      Map<Integer, List<SpotData>> spotListIndexedByPosition = 
+              rowData.getSpotListIndexedByPosition();
+      for (int pos = 1; pos <= rowData.nrPositions_; pos++) {
+         Map<Integer, List<Point2D.Double>> xyPointsByCh
+                 = new HashMap<Integer, List<Point2D.Double>>();
+         for (int ch = 0; ch < rowData.nrChannels_; ch++) {
+            xyPointsByCh.put(ch, new ArrayList<Point2D.Double>());
+         }
+         List<SpotData> spotList = spotListIndexedByPosition.get(pos);
+         if (spotList != null) {
+            for (SpotData gs : spotList) {
+               int ch = gs.getChannel();
+               if (gs.getChannel() <= rowData.nrChannels_) {
+                  Point2D.Double point = new Point2D.Double(gs.getXCenter(), gs.getYCenter());
+                  xyPointsByCh.get(gs.getChannel() - 1).add(point);
+               }
+            }
+         }
+
+         // Find matching points in the two ArrayLists
+         NearestPoint2D np;
+         try {
+            np = new NearestPoint2D(xyPointsByCh.get(rowData.nrChannels_ - 1),
+                    NumberUtils.displayStringToDouble(pairsMaxDistanceField_.getText()));
+         } catch (ParseException ex) {
+            ReportingUtils.showError("Problem parsing Pairs max distance number");
+            return;
+         }
+         for (int ch = 0; ch < rowData.nrChannels_ - 1; ch++) {
+            for (Point2D.Double pChFirst : xyPointsByCh.get(ch)) {
+               Point2D.Double pChLast = np.findKDWSE(pChFirst);
+               if (pChLast != null) {
+                  pairsByChannel.get(ch).put(pChFirst, pChLast);
+               }
+            }
+         }
+      }
+
+      for (int ch = 0; ch < rowData.nrChannels_ - 1; ch++) {
+         if (pairsByChannel.get(ch).size() < 4) {
+            ReportingUtils.showError("Fewer than 4 matching points found for channels "
+                    + (ch + 1) + " and " + rowData.nrChannels_
+                    + ".  Not enough to set as 2C reference");
+            return;
+         }
+      }
+
+      // we have pairs from all images, construct the coordinate mapper
+      try {
+         c2t_ = new CoordinateMapper(pairsByChannel.get(0), 2, 1);
+
+         studio_.alerts().postAlert("2C Reference", DataCollectionForm.class,
+                 "Used " + pairsByChannel.get(0).size() + " spot pairs to calculate 2C Reference");
+
+         String name = "ID: " + mainTableModel_.getRow(rows[0]).ID_;
+         if (rows.length > 1) {
+            for (int i = 1; i < rows.length; i++) {
+               name += "," + mainTableModel_.getRow(rows[i]).ID_;
+            }
+         }
+         reference2CName_.setText(name);
+      } catch (Exception ex) {
+         JOptionPane.showMessageDialog(this,
+                 "Error setting color reference.  Did you have enough input points?");
+      }
+
    }
+
 
    
    public void listPairTracks(ParticlePairLister.Builder builder) {

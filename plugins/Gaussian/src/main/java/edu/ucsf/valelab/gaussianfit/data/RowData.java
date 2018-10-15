@@ -190,6 +190,7 @@ public class RowData {
 
    public final List<SpotData> spotList_;
    private Map<Integer, List<SpotData>> frameIndexSpotList_;
+   private Map<Integer, List<SpotData>> posIndexSpotList_;
    private Map<ImageIndex, List<SpotData>> indexedSpotList_;
    public final ArrayList<Double> timePoints_;
    private String name_;             // name as it appears in the DataCollection table
@@ -300,7 +301,11 @@ public class RowData {
    }
    
    /**
-    * Populates the list frameIndexSpotList which gives access to spots by frame
+    * Populates the lists frameIndexSpotList, positionIndexSpotList and 
+    * indexedSpotList.
+    * 
+    * TODO: evaluate whether splitting this function out into multiples
+    * (each to index only by one key) is more efficient
     */
    public void index() {
       boolean useFrames = nrFrames_ > nrSlices_;
@@ -310,6 +315,7 @@ public class RowData {
       }
 
       frameIndexSpotList_ = new HashMap<Integer, List<SpotData>>(nr);
+      posIndexSpotList_ = new HashMap<Integer, List<SpotData>>(nrPositions_);
       indexedSpotList_ = new HashMap<ImageIndex, List<SpotData>>();
 
       for (SpotData spot : spotList_) {
@@ -321,7 +327,13 @@ public class RowData {
             frameIndexSpotList_.put(frameIndex, new ArrayList<SpotData>());
          }
          frameIndexSpotList_.get(frameIndex).add(spot);
-
+         
+         int pos = spot.getPosition();
+         if (posIndexSpotList_.get(pos) == null) {
+            posIndexSpotList_.put(pos, new ArrayList<SpotData>());
+         }
+         posIndexSpotList_.get(pos).add(spot);
+ 
          ImageIndex ii = new ImageIndex(spot.getFrame(), spot.getSlice(),
                  spot.getChannel(), spot.getPosition());
          if (indexedSpotList_.get(ii) == null) {
@@ -331,11 +343,26 @@ public class RowData {
       }
    }
    
+   /**
+    * Access the spotList of this row indexed by Frame
+    * @return SpotList indexed by frame
+    */
    public Map<Integer, List<SpotData>> getSpotListIndexedByFrame () {
       if (frameIndexSpotList_ == null) {
          index();
       }
       return frameIndexSpotList_;
+   }
+   
+   /**
+    * Access the spotList of this row indexed by position
+    * @return SpotList indexed by position
+   */
+   public Map<Integer, List<SpotData>> getSpotListIndexedByPosition () {
+      if (posIndexSpotList_ == null) {
+         index();
+      }
+      return posIndexSpotList_;
    }
            
 
