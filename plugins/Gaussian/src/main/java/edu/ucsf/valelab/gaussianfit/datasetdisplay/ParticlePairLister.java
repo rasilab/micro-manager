@@ -33,6 +33,7 @@ import edu.ucsf.valelab.gaussianfit.data.GsSpotPair;
 import edu.ucsf.valelab.gaussianfit.data.SpotData;
 import edu.ucsf.valelab.gaussianfit.fitting.FittingException;
 import edu.ucsf.valelab.gaussianfit.fitting.Gaussian1DFitter;
+import edu.ucsf.valelab.gaussianfit.fitting.Gaussian1DecdFitter;
 import edu.ucsf.valelab.gaussianfit.fitting.P2DEcdfFitter;
 import edu.ucsf.valelab.gaussianfit.fitting.P2DFitter;
 import edu.ucsf.valelab.gaussianfit.spotoperations.NearestPoint2D;
@@ -558,8 +559,8 @@ public class ParticlePairLister {
                         GaussianUtils.plotGaussian("Gaussian fit of X distances of: "
                              + dc.getSpotData(row).getName(),
                              xDiffArray, 
-                             -5.0 * xGaussian[1], 
-                             5.0 * xGaussian[1], 
+                             xDiffArray[0] - 1.0, 
+                             xDiffArray[xDiffArray.length - 1] + 1.0, 
                              xGaussian, 50, 300);
                      double[] yDiffArray = ListUtils.toArray(yDiff);
                      double[] yGaussian = fitGaussianToData(yDiffArray, 
@@ -935,8 +936,8 @@ public class ParticlePairLister {
            final double min, final double max) throws FittingException {
       // fit vector distances with gaussian function
 
-      Gaussian1DFitter gf = new Gaussian1DFitter(input, max);
-      gf.setLowerBound(min);
+      Gaussian1DecdFitter gf = new Gaussian1DecdFitter(input);
+      //gf.setLowerBound(min);
       double avg = ListUtils.avg(input);
       gf.setStartParams(avg, ListUtils.stdDev(input, avg));
       return gf.solve();

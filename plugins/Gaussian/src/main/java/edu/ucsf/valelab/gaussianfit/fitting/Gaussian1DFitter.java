@@ -27,8 +27,6 @@
 
 package edu.ucsf.valelab.gaussianfit.fitting;
 
-import org.apache.commons.math3.analysis.MultivariateFunction;
-import org.apache.commons.math3.analysis.function.Exp;
 import org.apache.commons.math3.exception.TooManyEvaluationsException;
 import org.apache.commons.math3.optim.InitialGuess;
 import org.apache.commons.math3.optim.MaxEval;
@@ -38,41 +36,6 @@ import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.NelderMeadSimplex
 import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.SimplexOptimizer;
 import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
 import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateFunctionMappingAdapter;
-
-/**
-
- * @author nico
- */
-class Gaussian1DFunc implements MultivariateFunction {
-   private final double[] points_;
-   
-   /**
-    * 
-    * @param points array with measurements
-    */
-   public Gaussian1DFunc(double[] points) {
-      points_ = points;
-   }
-   
-   /**
-    * Calculate the sum of the likelihood function
-    * @param doubles array with parameters, here doubles[0] == mu, 
-    * doubles [1] == sigma
-    * @return -sum(logP2D(points, mu, sigma));
-    */
-   @Override
-   public double value(double[] doubles) {
-      double sum = 0.0;
-      for (double point : points_) {
-         double predictedValue = Gaussian1DFitter.gaussian(point, doubles[0], doubles[1]);
-         sum += Math.log(predictedValue);
-      }
-      return sum;
-   }
-  
-
-}
-
 
 
 
@@ -89,20 +52,6 @@ public class Gaussian1DFitter {
    private double sigmaGuess_ = 10.0;
    private final double upperBound_;
    private double lowerBound_ = 0.0;
-   
-   static double  sqrt2Pi = Math.sqrt(2 * Math.PI);
-   
-
-   
-   public static double gaussian (double r, double mu, double sigma) {
-      double first = 1 / (sqrt2Pi * sigma);
-      Exp exp = new Exp();
-      double second = exp.value(- (r - mu) * (r - mu) / (2 * sigma * sigma));
-
-      return first * second;
-   }
-   
-   
    
    /**
     * 

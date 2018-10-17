@@ -26,7 +26,7 @@
  */
 package edu.ucsf.valelab.gaussianfit.utils;
 
-import edu.ucsf.valelab.gaussianfit.fitting.Gaussian1DFitter;
+import org.apache.commons.math3.analysis.function.Exp;
 import org.jfree.data.function.Function2D;
 
 /**
@@ -37,7 +37,17 @@ import org.jfree.data.function.Function2D;
 public class Gaussian1D implements Function2D {
    private final double mu_;
    private final double sigma_;   
-   static double  sqrt2Pi = Math.sqrt(2 * Math.PI);
+      
+   final static double  SQRT2PI = Math.sqrt(2 * Math.PI);
+   
+   public static double gaussian (double r, double mu, double sigma) {
+      double first = 1 / (SQRT2PI * sigma);
+      Exp exp = new Exp();
+      double second = exp.value(- (r - mu) * (r - mu) / (2 * sigma * sigma));
+
+      return first * second;
+   }
+   
   
    public Gaussian1D(double mu, double sigma) {
       mu_ = mu;
@@ -46,7 +56,7 @@ public class Gaussian1D implements Function2D {
    
    @Override
    public double getValue(double d) {
-      return Gaussian1DFitter.gaussian(d, mu_, sigma_);
+      return gaussian(d, mu_, sigma_);
    }
    
 }
