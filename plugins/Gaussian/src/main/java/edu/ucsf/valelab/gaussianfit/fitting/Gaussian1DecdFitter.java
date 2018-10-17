@@ -1,32 +1,5 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-package edu.ucsf.valelab.gaussianfit.fitting;
-
-import edu.ucsf.valelab.gaussianfit.utils.EmpiricalCumulativeDistribution;
-import edu.ucsf.valelab.gaussianfit.utils.Gaussian1D;
-import org.apache.commons.math3.analysis.MultivariateFunction;
-import org.apache.commons.math3.analysis.UnivariateFunction;
-import org.apache.commons.math3.analysis.integration.SimpsonIntegrator;
-import org.apache.commons.math3.analysis.integration.UnivariateIntegrator;
-import org.apache.commons.math3.geometry.euclidean.twod.Vector2D;
-import org.apache.commons.math3.optim.InitialGuess;
-import org.apache.commons.math3.optim.MaxEval;
-import org.apache.commons.math3.optim.PointValuePair;
-import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
-import org.apache.commons.math3.optim.nonlinear.scalar.MultivariateFunctionMappingAdapter;
-import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
-import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.NelderMeadSimplex;
-import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.SimplexOptimizer;
-
-/**
- *
- * @author nico
- */
- /*
- * Copyright (c) 2015-2017, Regents the University of California
+ * Copyright (c) 2015-2018, Regents the University of California
  * Author: Nico Stuurman
  * All rights reserved.
  *
@@ -52,10 +25,26 @@ import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.SimplexOptimizer;
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+package edu.ucsf.valelab.gaussianfit.fitting;
+
+import edu.ucsf.valelab.gaussianfit.utils.EmpiricalCumulativeDistribution;
+import edu.ucsf.valelab.gaussianfit.utils.Gaussian1D;
+import org.apache.commons.math3.analysis.MultivariateFunction;
+import org.apache.commons.math3.analysis.UnivariateFunction;
+import org.apache.commons.math3.analysis.integration.SimpsonIntegrator;
+import org.apache.commons.math3.analysis.integration.UnivariateIntegrator;
+import org.apache.commons.math3.geometry.euclidean.twod.Vector2D;
+import org.apache.commons.math3.optim.InitialGuess;
+import org.apache.commons.math3.optim.MaxEval;
+import org.apache.commons.math3.optim.PointValuePair;
+import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
+import org.apache.commons.math3.optim.nonlinear.scalar.ObjectiveFunction;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.NelderMeadSimplex;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.SimplexOptimizer;
+
 /**
  * Class that uses the apache commons math3 library to fit a Gaussian distribution
- * by optimizing the maximum likelihood function
- * distances.
+ * by optimizing the maximum likelihood function distances.
  * @author nico
  */
 
@@ -72,9 +61,14 @@ public class Gaussian1DecdFitter {
    */
    private class Gauss1DIntegralFunc implements MultivariateFunction {
       private final Vector2D[] data_;
+      private final double maxIntegral_;
       
       public Gauss1DIntegralFunc(Vector2D[] data) {
          data_ = data;
+         // maxIntegral_ = in.integrate(100000000, function, -100.0, 
+         //        100.0);
+         maxIntegral_ = 1.0; // integral of our Gaussian over infinity is always 1
+         //  if the range does not capture everything, then we should penalize
       }
        
       /**
@@ -86,10 +80,7 @@ public class Gaussian1DecdFitter {
       public double value(double[] input) {
          UnivariateFunction function = v ->  Gaussian1D.gaussian(v, input[0], input[1]);
          UnivariateIntegrator in = new SimpsonIntegrator();
-         //double maxIntegral = in.integrate(100000000, function, -100.0, 
-         //        100.0);
-         double maxIntegral = 1.0; // integral of our Gaussian over infinity is always 1
-         //  if the range does not capture everything, then we should penalize
+
          double lsqErrorSum = 0.0d;
          Vector2D previousIntegral = new Vector2D(data_[0].getX() - 1.0, 0.0);
          for (Vector2D d : data_) {
@@ -102,7 +93,7 @@ public class Gaussian1DecdFitter {
                        previousIntegral.getX(), d.getX());
                double currentIntegral = previousIntegral.getY() + incrementalIntegral;
                previousIntegral = new Vector2D(d.getX(), currentIntegral);
-               double fractionalIntegral = currentIntegral / maxIntegral;
+               double fractionalIntegral = currentIntegral / maxIntegral_;
                lsqErrorSum += ( (fractionalIntegral - d.getY()) * (fractionalIntegral - d.getY()) );
             }
          }
@@ -143,10 +134,6 @@ public class Gaussian1DecdFitter {
       MultivariateFunctionMappingAdapter mfma = new MultivariateFunctionMappingAdapter(
               integralFunction, lowerBounds, upperBounds);
 
-      
-      // approach: calculate cdf.  Use a Simplexoptimizer to optimize the 
-      // least square error function of the numerical calculation of the PDF
-      // against the experimental cdf
 
          PointValuePair solution = optimizer.optimize(
                  new ObjectiveFunction(mfma),
@@ -159,7 +146,11 @@ public class Gaussian1DecdFitter {
          return mfma.unboundedToBounded(solution.getPoint());
    }
       */
+  
       
+      // approach: calculate cdf.  Use a Simplexoptimizer to optimize the 
+      // least square error function of the numerical calculation of the PDF
+      // against the experimental cdf    
 
       PointValuePair result = optimizer.optimize(new MaxEval(5000),
               new ObjectiveFunction(integralFunction),
@@ -173,6 +164,5 @@ public class Gaussian1DecdFitter {
       return result.getPoint();
 
    }
-
-            
-}  
+   
+}

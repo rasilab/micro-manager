@@ -32,7 +32,6 @@ import edu.ucsf.valelab.gaussianfit.Terms;
 import edu.ucsf.valelab.gaussianfit.data.GsSpotPair;
 import edu.ucsf.valelab.gaussianfit.data.SpotData;
 import edu.ucsf.valelab.gaussianfit.fitting.FittingException;
-import edu.ucsf.valelab.gaussianfit.fitting.Gaussian1DFitter;
 import edu.ucsf.valelab.gaussianfit.fitting.Gaussian1DecdFitter;
 import edu.ucsf.valelab.gaussianfit.fitting.P2DEcdfFitter;
 import edu.ucsf.valelab.gaussianfit.fitting.P2DFitter;
