@@ -14,7 +14,7 @@
  *
  * Created on Nov 20, 2010, 8:52:50 AM
  * 
- * Copyright (c) 2010-2017, Regents of the University of California
+ * Copyright (c) 2010-2018, Regents of the University of California
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -185,7 +185,7 @@ public class DataCollectionForm extends JFrame {
            "./data.tsf",
            false, new String[]{"txt", "tsf"});
  
-   private static CoordinateMapper c2t_;
+   private static List<CoordinateMapper> c2t_;
    private static String loadTSFDir_ = "";   
    private int jitterMethod_ = 1;
    private int jitterMaxSpots_ = 40000; 
@@ -254,14 +254,32 @@ public class DataCollectionForm extends JFrame {
   
    /**
     * Method that lets a script gets the Affinetransform calculated by the
-    * CoordinateMapper
+    * CoordinateMapper.
+    * Channels are 1-based.  Returns null if not found
     * @return  Affine transform object calculated by the Coordinate Mapper
     */
    public AffineTransform getAffineTransform() {
+      return getAffineTransform(1);
+   }
+   
+   /**
+    * Method that lets a script get the Affinetransform calculated by the
+    * CoordinateMapper for a given channel
+    * Channels are 1-based.  Returns null if not found
+    * @param ch channel (1-based) for which a CoordinateMapper is requested
+    * @return  Affine transform object calculated by the Coordinate Mapper
+    */
+   public AffineTransform getAffineTransform(int ch) {
       if (c2t_ == null) {
          return null;
       }
-      return c2t_.getAffineTransform();
+      if (ch < 1) {
+         return null;
+      }
+      if (c2t_.get(ch - 1) == null) {
+         return null;
+      }
+      return c2t_.get(ch - 1).getAffineTransform();
    }
 
   
@@ -366,9 +384,7 @@ public class DataCollectionForm extends JFrame {
                        (java.util.List<File>) t.getTransferData(DataFlavor.javaFileListFlavor);
                loadFiles((File[]) l.toArray());
 
-            } catch (UnsupportedFlavorException e) {
-               return false;
-            } catch (IOException e) {
+            } catch (UnsupportedFlavorException | IOException e) {
                return false;
             }
 
@@ -1244,6 +1260,10 @@ public class DataCollectionForm extends JFrame {
             }
          }
       }
+      
+      
+      c2t_ = new ArrayList<CoordinateMapper>(rowData.nrChannels_ - 1);
+
 
       for (int ch = 0; ch < rowData.nrChannels_ - 1; ch++) {
          if (pairsByChannel.get(ch).size() < 4) {
@@ -1252,25 +1272,25 @@ public class DataCollectionForm extends JFrame {
                     + ".  Not enough to set as 2C reference");
             return;
          }
-      }
 
-      // we have pairs from all images, construct the coordinate mapper
-      try {
-         c2t_ = new CoordinateMapper(pairsByChannel.get(0), 2, 1);
+         // we have pairs from all images, construct the coordinate mapper
+         try {
+            c2t_.add(new CoordinateMapper(pairsByChannel.get(ch), 2, 1));
 
-         studio_.alerts().postAlert("2C Reference", DataCollectionForm.class,
-                 "Used " + pairsByChannel.get(0).size() + " spot pairs to calculate 2C Reference");
+            studio_.alerts().postAlert("2C Reference", DataCollectionForm.class,
+                    "Used " + pairsByChannel.get(0).size() + " spot pairs to calculate 2C Reference");
 
-         String name = "ID: " + mainTableModel_.getRow(rows[0]).ID_;
-         if (rows.length > 1) {
-            for (int i = 1; i < rows.length; i++) {
-               name += "," + mainTableModel_.getRow(rows[i]).ID_;
+            String name = "ID: " + mainTableModel_.getRow(rows[0]).ID_;
+            if (rows.length > 1) {
+               for (int i = 1; i < rows.length; i++) {
+                  name += "," + mainTableModel_.getRow(rows[i]).ID_;
+               }
             }
+            reference2CName_.setText(name);
+         } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Error setting color reference.  Did you have enough input points?");
          }
-         reference2CName_.setText(name);
-      } catch (Exception ex) {
-         JOptionPane.showMessageDialog(this,
-                 "Error setting color reference.  Did you have enough input points?");
       }
 
    }
@@ -2225,10 +2245,10 @@ public class DataCollectionForm extends JFrame {
       Frame frame = WindowManager.getFrame(name);
       if (frame != null && frame instanceof TextWindow && siPlus != null) {
          final TextWindow win = (TextWindow) frame;
-         win.setSize(studio_.profile().getInt(DataCollectionForm.class, "ResWidth", 550),
-                 studio_.profile().getInt(DataCollectionForm.class, "ResHeight", 300));
-         win.setLocation(studio_.profile().getInt(DataCollectionForm.class, "ResXPos", 100),
-                 studio_.profile().getInt(DataCollectionForm.class, "ResYPos", 100));
+         win.setSize(settings_.getInteger("ResWidth", 550),
+                        settings_.getInteger("ResHeight", 300) );
+         win.setLocation(settings_.getInteger("ResXPos", 100),
+                        settings_.getInteger("ResYPos", 100));
          win.addWindowListener(new WindowListener() {
             @Override
             public void windowOpened(WindowEvent we) {
@@ -2236,10 +2256,10 @@ public class DataCollectionForm extends JFrame {
 
             @Override
             public void windowClosing(WindowEvent we) {
-               studio_.profile().setInt(DataCollectionForm.class, "ResWidth", win.getWidth());
-               studio_.profile().setInt(DataCollectionForm.class, "ResHeight", win.getHeight());
-               studio_.profile().setInt(DataCollectionForm.class, "ResXPos", win.getX());
-               studio_.profile().setInt(DataCollectionForm.class, "ResYPos", win.getY());
+               settings_.putInteger("ResWidth", win.getWidth());
+               settings_.putInteger("ResHeight", win.getHeight());
+               settings_.putInteger("ResXPos", win.getX());
+               settings_.putInteger("ResYPos", win.getY());
             }
 
             @Override
@@ -2325,14 +2345,16 @@ public class DataCollectionForm extends JFrame {
       if (method2CBox_.getSelectedItem().equals("Piecewise-Affine")) {
          method = CoordinateMapper.PIECEWISEAFFINE;
       }
-      c2t_.setMethod(method);
+      for (CoordinateMapper c2t : c2t_) {
+         c2t.setMethod(method);
+      }
 
       ij.IJ.showStatus("Executing color correction");
 
       Runnable doWorkRunnable = new Runnable() {
          @Override
          public void run() {
-
+            final int nrChannels = rowData.nrChannels_;
             List<SpotData> correctedData =
                     Collections.synchronizedList(new ArrayList<SpotData>());
             Iterator it = rowData.spotList_.iterator();
@@ -2344,10 +2366,12 @@ public class DataCollectionForm extends JFrame {
                   ij.IJ.showStatus("Executing color correction...");
                   ij.IJ.showProgress(frameNr, rowData.nrFrames_);
                }
-               if (gs.getChannel() == 1) {
-                  Point2D.Double point = new Point2D.Double(gs.getXCenter(), gs.getYCenter());
+               if (gs.getChannel() < nrChannels) {
+                  Point2D.Double point = new Point2D.Double(gs.getXCenter(), 
+                          gs.getYCenter());
                   try {
-                     Point2D.Double corPoint = c2t_.transform(point);
+                     Point2D.Double corPoint = c2t_.get(gs.getChannel() - 1).
+                             transform(point);
                      SpotData gsn = new SpotData(gs);
                      if (corPoint != null) {
                         gsn.setXCenter(corPoint.x);
@@ -2363,7 +2387,7 @@ public class DataCollectionForm extends JFrame {
                   } catch (Exception ex) {
                      ReportingUtils.logError(ex);
                   }
-               } else if (gs.getChannel() == 2) {
+               } else if (gs.getChannel() == nrChannels) {
                   correctedData.add(gs);
                }
 
@@ -2468,10 +2492,7 @@ public class DataCollectionForm extends JFrame {
       
       try {
          zc_.fitFunction();
-      } catch (FunctionEvaluationException ex) {
-         ReportingUtils.showError("Error while fitting data");
-         return FAILEDDONOTINFORM;
-      } catch (OptimizationException ex) {
+      } catch (FunctionEvaluationException | OptimizationException ex) {
          ReportingUtils.showError("Error while fitting data");
          return FAILEDDONOTINFORM;
       }
@@ -2570,8 +2591,10 @@ public class DataCollectionForm extends JFrame {
 
    public void setPieceWiseAffineParameters(int maxControlPoints, double maxDistance) {
       if (c2t_ != null) {
-         c2t_.setPieceWiseAffineMaxControlPoints(maxControlPoints);
-         c2t_.setPieceWiseAffineMaxDistance(maxDistance);
+         for (CoordinateMapper c2t : c2t_) {
+            c2t.setPieceWiseAffineMaxControlPoints(maxControlPoints);
+            c2t.setPieceWiseAffineMaxDistance(maxDistance);
+         }
       }
    }   
 
