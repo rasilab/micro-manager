@@ -338,7 +338,7 @@ public class ParticlePairLister {
                               pairTable.incrementCounter();
                               pairTable.addValue(Terms.FRAME, pair.getFirstSpot().getFrame());
                               pairTable.addValue(Terms.SLICE, pair.getFirstSpot().getSlice());
-                              pairTable.addValue(Terms.CHANNEL, pair.getFirstSpot().getSlice());
+                              pairTable.addValue(Terms.CHANNEL, pair.getFirstSpot().getChannel());
                               pairTable.addValue(Terms.POSITION, pair.getFirstSpot().getPosition());
                               pairTable.addValue(Terms.XPIX, pair.getFirstSpot().getX());
                               pairTable.addValue(Terms.YPIX, pair.getFirstSpot().getY());
@@ -553,9 +553,9 @@ public class ParticlePairLister {
                }
                
                if (showXYHistogram_) {
-                  List<Double> xDiff = new ArrayList<Double>();
-                  List<Double> yDiff = new ArrayList<Double>();
                   for (int ch = 0; ch < nrChannels - 1; ch++) {
+                     List<Double> xDiff = new ArrayList<Double>();
+                     List<Double> yDiff = new ArrayList<Double>();
                      for (int pos : positions) {
                         for (List<GsSpotPair> pairList : spotPairsByFrame.get(pos).get(ch)) {
                            for (GsSpotPair pair : pairList) {
@@ -566,43 +566,51 @@ public class ParticlePairLister {
                            }
                         }
                      }
-                     try {
-                        double[] xDiffArray = ListUtils.toArray(xDiff);
-                        double[] xGaussian = fitGaussianToData(xDiffArray,
-                                -maxDistanceNm_,
-                                maxDistanceNm_);
-                        GaussianUtils.plotGaussian("Gaussian fit of X distances of: "
-                                + dc.getSpotData(row).getName() + ". channel "  
-                                + (ch + 1) + " versus " + nrChannels,
-                                xDiffArray,
-                                xDiffArray[0] - 1.0,
-                                xDiffArray[xDiffArray.length - 1] + 1.0,
-                                xGaussian, 50, 300);
-                        double[] yDiffArray = ListUtils.toArray(yDiff);
-                        double[] yGaussian = fitGaussianToData(yDiffArray,
-                                -maxDistanceNm_,
-                                maxDistanceNm_);
-                        GaussianUtils.plotGaussian("Gaussian fit of Y distances of: "
-                                + dc.getSpotData(row).getName() + ". channel "
-                                + (ch + 1) + " versus " + nrChannels,
-                                yDiffArray,
-                                yDiffArray[0] - 1.0,
-                                yDiffArray[yDiffArray.length - 1] + 1.0,
-                                //-5.0 * yGaussian[1],
-                                //5.0 * yGaussian[1],
-                                yGaussian, 750, 300);
-                        final double combinedError = Math.sqrt(
-                                xGaussian[0] * xGaussian[0]
-                                + yGaussian[0] * yGaussian[0]);
-                        ij.IJ.log(dc.getSpotData(row).getName() + " X-error: "
-                                + NumberUtils.doubleToDisplayString(xGaussian[0], 3)
-                                + "nm, Y-error: "
-                                + NumberUtils.doubleToDisplayString(yGaussian[0], 3)
-                                + "nm, combined error: "
-                                + NumberUtils.doubleToDisplayString(combinedError, 3)
-                                + "nm.");
-                     } catch (FittingException ex) {
-                        ReportingUtils.showError("Failed to fit Gaussian, try decreasing the Maximum Distance value");
+                     if (xDiff.size() > 4 && yDiff.size() > 4) {
+                        try {
+                           double[] xDiffArray = ListUtils.toArray(xDiff);
+                           double[] xGaussian = fitGaussianToData(xDiffArray,
+                                   -maxDistanceNm_,
+                                   maxDistanceNm_);
+                           GaussianUtils.plotGaussian("Gaussian fit of X distances of: "
+                                   + dc.getSpotData(row).getName() + ". channel "
+                                   + (ch + 1) + " versus " + nrChannels,
+                                   xDiffArray,
+                                   xDiffArray[0] - 1.0,
+                                   xDiffArray[xDiffArray.length - 1] + 1.0,
+                                   xGaussian, 50 + ch * 50, 300 + ch * 50);
+                           double[] yDiffArray = ListUtils.toArray(yDiff);
+                           double[] yGaussian = fitGaussianToData(yDiffArray,
+                                   -maxDistanceNm_,
+                                   maxDistanceNm_);
+                           GaussianUtils.plotGaussian("Gaussian fit of Y distances of: "
+                                   + dc.getSpotData(row).getName() + ". channel "
+                                   + (ch + 1) + " versus " + nrChannels,
+                                   yDiffArray,
+                                   yDiffArray[0] - 1.0,
+                                   yDiffArray[yDiffArray.length - 1] + 1.0,
+                                   //-5.0 * yGaussian[1],
+                                   //5.0 * yGaussian[1],
+                                   yGaussian, 750 + ch * 50, 300 + ch * 50);
+                           final double combinedError = Math.sqrt(
+                                   xGaussian[0] * xGaussian[0]
+                                   + yGaussian[0] * yGaussian[0]);
+                           ij.IJ.log(dc.getSpotData(row).getName() + "-Ch" + (ch + 1) 
+                                   + " X-error: "
+                                   + NumberUtils.doubleToDisplayString(xGaussian[0], 3)
+                                   + "nm, sigma: "  
+                                   + NumberUtils.doubleToDisplayString(xGaussian[1], 3)
+                                   + "nm, Y-error: "
+                                   + NumberUtils.doubleToDisplayString(yGaussian[0], 3)
+                                   + "nm, sigma: " 
+                                   + NumberUtils.doubleToDisplayString(yGaussian[1], 3)
+                                   + "nm, combined error: "
+                                   + NumberUtils.doubleToDisplayString(combinedError, 3)
+                                   + "nm.");
+
+                        } catch (FittingException ex) {
+                           ReportingUtils.showError("Failed to fit Gaussian, try decreasing the Maximum Distance value");
+                        }
                      }
                   }
                }

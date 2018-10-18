@@ -1270,26 +1270,27 @@ public class DataCollectionForm extends JFrame {
             ReportingUtils.showError("Fewer than 4 matching points found for channels "
                     + (ch + 1) + " and " + rowData.nrChannels_
                     + ".  Not enough to set as 2C reference");
-            return;
-         }
+            c2t_.add(null);
+         } else {
 
-         // we have pairs from all images, construct the coordinate mapper
-         try {
-            c2t_.add(new CoordinateMapper(pairsByChannel.get(ch), 2, 1));
+            // we have pairs from all images, construct the coordinate mapper
+            try {
+               c2t_.add(new CoordinateMapper(pairsByChannel.get(ch), 2, 1));
 
-            studio_.alerts().postAlert("2C Reference", DataCollectionForm.class,
-                    "Used " + pairsByChannel.get(0).size() + " spot pairs to calculate 2C Reference");
+               studio_.alerts().postAlert("2C Reference", DataCollectionForm.class,
+                       "Used " + pairsByChannel.get(0).size() + " spot pairs to calculate 2C Reference");
 
-            String name = "ID: " + mainTableModel_.getRow(rows[0]).ID_;
-            if (rows.length > 1) {
-               for (int i = 1; i < rows.length; i++) {
-                  name += "," + mainTableModel_.getRow(rows[i]).ID_;
+               String name = "ID-" + mainTableModel_.getRow(rows[0]).ID_;
+               if (rows.length > 1) {
+                  for (int i = 1; i < rows.length; i++) {
+                     name += "," + mainTableModel_.getRow(rows[i]).ID_;
+                  }
                }
+               reference2CName_.setText(name);
+            } catch (Exception ex) {
+               JOptionPane.showMessageDialog(this,
+                       "Error setting color reference.  Did you have enough input points?");
             }
-            reference2CName_.setText(name);
-         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this,
-                    "Error setting color reference.  Did you have enough input points?");
          }
       }
 
@@ -2346,7 +2347,9 @@ public class DataCollectionForm extends JFrame {
          method = CoordinateMapper.PIECEWISEAFFINE;
       }
       for (CoordinateMapper c2t : c2t_) {
-         c2t.setMethod(method);
+         if (c2t != null) {
+            c2t.setMethod(method);
+         }
       }
 
       ij.IJ.showStatus("Executing color correction");
