@@ -98,18 +98,34 @@ public class PairFilter {
          @Override
          public void run() {
             try {
-               List<SpotData> correctedData = new ArrayList<SpotData>();
+               List<SpotData> correctedData = new ArrayList<>();
+               final int nrChannels = rowData.nrChannels_;
 
                for (int frame = 1; frame <= rowData.nrFrames_; frame++) {
                   ij.IJ.showProgress(frame, rowData.nrFrames_);
 
                   // Get points from both channels in each frame as ArrayLists 
-                  // split channel 1 into the nrQuadrants
-                  Map<Integer, List<SpotData>> gsCh1 = new HashMap<Integer, List<SpotData>>(nrQuadrants);
+                  // split last channel into the nrQuadrants
+                  Map<Integer, List<SpotData>> gsChLast = new HashMap<>(nrQuadrants);
                   for (int q = 0; q < nrQuadrants; q++) {
-                     gsCh1.put(q, new ArrayList<SpotData>());
+                     gsChLast.put(q, new ArrayList<>());
                   }
-                  // index channel 2 by position
+                  // index 1 to last - 1 by position
+                  // channel - position - List of Points or spots
+                  // Note that channel is zero-based in these data structures
+                  List<List<List<Point2D.Double>>> xyPointsF = 
+                          new ArrayList<>(nrChannels - 1);
+                  List<List<List<SpotData>>> xySpotsF = 
+                          new ArrayList<>(nrChannels - 1);
+                  for (int c = 1; c < nrChannels; c++) {
+                     xyPointsF.add(new ArrayList<>(rowData.nrPositions_));
+                     xySpotsF.add(new ArrayList<>(rowData.nrPositions_));
+                     for (int position = 1; position <= rowData.nrPositions_; position++) {
+                        xyPointsF.get(c - 1).add(position - 1, new ArrayList<>());
+                        xySpotsF.get(c - 1).add(position - 1, new ArrayList<>());
+                     }
+                  }
+                  /*
                   ArrayList<List<Point2D.Double>> xyPointsCh2 = 
                           new ArrayList<List<Point2D.Double>>(rowData.nrPositions_);
                   ArrayList<List<SpotData>> xySpotsCh2 = 
@@ -118,81 +134,121 @@ public class PairFilter {
                      xyPointsCh2.add(position - 1, new ArrayList<Point2D.Double>());
                      xySpotsCh2.add(position - 1, new ArrayList<SpotData>());
                   }
+                  */
 
                   for (SpotData gs : rowData.spotList_) {
                      if (gs.getFrame() == frame) {
-                        if (gs.getChannel() == 1) {
+                        if (gs.getChannel() == nrChannels) {
                            int yOffset = (int) Math.floor(gs.getYCenter() / qSize);
                            int xOffset = (int) Math.floor(gs.getXCenter() / qSize);
                            int q = yOffset * sqrtNrQuadrants + xOffset;
                            if (q >= 0 && q < nrQuadrants) {
-                              gsCh1.get(q).add(gs);
+                              gsChLast.get(q).add(gs);
                            }
-                        } else if (gs.getChannel() == 2) {
-                           xySpotsCh2.get(gs.getPosition() - 1).add(gs);
+                        } else if (gs.getChannel() < nrChannels) {
+                           xySpotsF.get(gs.getChannel() - 1).get(gs.getPosition() - 1).add(gs);
                            Point2D.Double point = new Point2D.Double(gs.getXCenter(), gs.getYCenter());
-                           xyPointsCh2.get(gs.getPosition() - 1).add(point);
+                           xyPointsF.get(gs.getChannel() - 1).get(gs.getPosition() - 1).add(point);
                         }
                      }
                   }
 
-                  if (xyPointsCh2.isEmpty()) {
-                     ReportingUtils.logError("Pairs function in Localization plugin: no points found in second channel in frame " + frame);
-                     continue;
+                  for (int c = 1; c < nrChannels; c++) {
+                     if (xyPointsF.get(c - 1).isEmpty()) {
+                        ReportingUtils.logError("Pairs function in Localization plugin: no points found in second channel in frame " + frame);
+                        continue;
+                     }
                   }
 
-                  // we have the points of channel 1 in each quadrant
-                  // find each matching partner, and do statistics on each quadrant
+                  // we have the points of the last channel in each quadrant
+                  // find matching pairs for each previous channel, 
+                  // and do statistics on each quadrant
                   // only keep pairs that match what was requested
                   
-                  // First set up the nearestPoint maps for all positions
-                  List<NearestPoint2D> npsByPosition = new ArrayList<NearestPoint2D>(rowData.nrPositions_);
-                  for (int position = 1; position <= rowData.nrPositions_; position++) {
-                     npsByPosition.add(position - 1, new NearestPoint2D(xyPointsCh2.get(position - 1), maxDistance));
+                  // First set up the nearestPoint maps for all channels and positions
+                  List<List<NearestPoint2D>> npsByChannelAndPosition = 
+                          new ArrayList<>(nrChannels - 1);
+                  for (int c = 1; c < nrChannels; c++) {
+                     npsByChannelAndPosition.add(c - 1, new ArrayList<>(rowData.nrPositions_));
+                     for (int position = 1; position <= rowData.nrPositions_; position++) {
+                        npsByChannelAndPosition.get(c - 1).add(position - 1, 
+                             new NearestPoint2D(xyPointsF.get(c - 1).get(position - 1), maxDistance));
+                     }
                   }
+                  
+                  // go through the quadrants and find pairs in channel 1 to last - 1
                   for (int q = 0; q < nrQuadrants; q++) {
                      ij.IJ.showProgress( (q+1) * frame, (nrQuadrants + 1) * rowData.nrFrames_);
-                     // Find matching points in the two ArrayLists
-                     Iterator it2 = gsCh1.get(q).iterator();
-                     ArrayList<Double> distances = new ArrayList<Double>();
-                     ArrayList<Double> orientations = new ArrayList<Double>();
+                     // Find matching points between all first channels and the last
+                     Iterator it2 = gsChLast.get(q).iterator();
+                     List<List<Double>> distances = new ArrayList<>();
+                     List<List<Double>> orientations = new ArrayList<>();
+                     for (int c = 1; c < nrChannels; c++) {
+                        distances.add(new ArrayList<>());
+                        orientations.add(new ArrayList<>());
+                     }
 
                      while (it2.hasNext()) {
                         SpotData gs = (SpotData) it2.next();
-                        Point2D.Double pCh1 = new Point2D.Double(gs.getXCenter(), gs.getYCenter());
-                        Point2D.Double pCh2 = npsByPosition.get(gs.getPosition() - 1).findKDWSE(pCh1);
-                        if (pCh2 != null) {
-                           double d2 = NearestPoint2D.distance2(pCh1, pCh2);
-                           double d = Math.sqrt(d2);
-                           distances.add(d);
-                           orientations.add(NearestPoint2D.orientation(pCh1, pCh2));
+                        Point2D.Double pChLast = new Point2D.Double(gs.getXCenter(), gs.getYCenter());
+                        for (int c = 1; c < nrChannels; c++) {
+                           Point2D.Double pChF = npsByChannelAndPosition.
+                                   get(c - 1).get(gs.getPosition() - 1).
+                                   findKDWSE(pChLast);
+                           if (pChF != null) {
+                              double d2 = NearestPoint2D.distance2(pChLast, pChF);
+                              double d = Math.sqrt(d2);
+                              distances.get(c - 1).add(d);
+                              orientations.get(c - 1).add(NearestPoint2D.orientation(pChLast, pChF));
+                           }
                         }
                      }
-                     double distAvg = ListUtils.listAvg(distances);
-                     double distStd = ListUtils.listStdDev(distances, distAvg);
-                     double orientationAvg = ListUtils.listAvg(orientations);
-                     double orientationStd = ListUtils.listStdDev(orientations,
-                             orientationAvg);
+                     List<Double> distAvg = new ArrayList<>(distances.size());
+                     List<Double> distStd = new ArrayList<>(distances.size());
+                     List<Double> orientationAvg = new ArrayList<>(orientations.size());
+                     for (int c = 1; c < nrChannels; c++) {
+                        distAvg.add(c - 1, ListUtils.listAvg(distances.get(c - 1)));
+                        distStd.add(c - 1, ListUtils.listStdDev(distances.get(c - 1), distAvg.get(c - 1)));
+                        orientationAvg.add(ListUtils.listAvg(orientations.get(c - 1)));
+                     }
 
                      // now repeat going through the list and apply the criteria
-                     it2 = gsCh1.get(q).iterator();
+                     it2 = gsChLast.get(q).iterator();
                      while (it2.hasNext()) {
                         SpotData gs = (SpotData) it2.next();
-                        Point2D.Double pCh1 = new Point2D.Double(gs.getXCenter(), gs.getYCenter());
-                        Point2D.Double pCh2 = npsByPosition.get(gs.getPosition() - 1).findKDWSE(pCh1);
-                        if (pCh2 != null) {
-                           double d2 = NearestPoint2D.distance2(pCh1, pCh2);
-                           double d = Math.sqrt(d2);
-                           // we can possibly add the same criterium for orientation
-                           if (d > distAvg - deviationMax * distStd
-                                   && d < distAvg + deviationMax * distStd) {
+                        Point2D.Double pChLast = new Point2D.Double(gs.getXCenter(), gs.getYCenter());
+                        boolean foundAll = true;
+                        List<Point2D.Double> pChF = new ArrayList<>(nrChannels - 1);
+                        for (int c = 1; c < nrChannels && foundAll; c++) {
+                           Point2D.Double pCh = 
+                                npsByChannelAndPosition.get(c - 1).
+                                        get(gs.getPosition() - 1).findKDWSE(pChLast);
+                           if (pCh != null) {
+                              pChF.add(c - 1, pCh);
+                           } else {
+                              foundAll = false;
+                           }
+                        }
+                        if (foundAll) {
+                           boolean qualifies = true;
+                           for (int c = 1; c < nrChannels; c++) {
+                              double d2 = NearestPoint2D.distance2(pChLast, pChF.get(c - 1));
+                              double d = Math.sqrt(d2);
+                              // we can possibly add the same criterium for orientation
+                              if (! (d > distAvg.get(c - 1) - deviationMax * distStd.get(c - 1)
+                                   && d < distAvg.get(c - 1) + deviationMax * distStd.get(c - 1))) {
+                                 qualifies = false;
+                              }
+                           }
+                           if (qualifies) {
                               correctedData.add(gs);
-                              // we have to find the matching spot in channel 2!
-                              for (SpotData gsCh2 : xySpotsCh2.get(gs.getPosition() - 1)) {
-                                 if (gsCh2.getFrame() == frame) {
-                                    if (gsCh2.getChannel() == 2) {
-                                       if (gsCh2.getXCenter() == pCh2.x && gsCh2.getYCenter() == pCh2.y) {
-                                          correctedData.add(gsCh2);
+                              // we have to find the matching spots in the other channels
+                              for (int c = 1; c < nrChannels; c++) {
+                                 for (SpotData gsChF : xySpotsF.get(c - 1).get(gs.getPosition() - 1)) {
+                                    if (gsChF.getFrame() == frame) {
+                                       if (gsChF.getXCenter() == pChF.get(c - 1).x
+                                               && gsChF.getYCenter() == pChF.get(c - 1).y) {
+                                          correctedData.add(gsChF);
                                        }
                                     }
                                  }
@@ -222,6 +278,7 @@ public class PairFilter {
          isRunning_.set(true);
          (new Thread(doWorkRunnable)).start();
       } else {
+         
          // TODO: let the user know
       }
    }
