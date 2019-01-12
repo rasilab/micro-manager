@@ -237,19 +237,19 @@ public class ParticlePairLister {
 
                // position, channel, frame, List of GsSpotPairs
                Map<Integer, List<List<List<GsSpotPair>>>> spotPairsByFrame
-                       = new HashMap<Integer, List<List<List<GsSpotPair>>>>();
+                       = new HashMap<>();
 
                // index spots by position
                Map<Integer, ArrayList<SpotData>> spotListsByPosition = 
-                       new HashMap<Integer, ArrayList<SpotData>>();
+                       new HashMap<>();
                // and keep track of the positions that are actually used
-               List<Integer> positions = new ArrayList<Integer>();
+               List<Integer> positions = new ArrayList<>();
                for (SpotData spot : dc.getSpotData(row).spotList_) {
                   if (positions.indexOf(spot.getPosition()) == -1) {
                      positions.add(spot.getPosition());
                   }
                   if (spotListsByPosition.get(spot.getPosition()) == null) {
-                     spotListsByPosition.put(spot.getPosition(), new ArrayList<SpotData>());
+                     spotListsByPosition.put(spot.getPosition(), new ArrayList<>());
                   }
                   spotListsByPosition.get(spot.getPosition()).add(spot);
                }
@@ -259,9 +259,9 @@ public class ParticlePairLister {
 
                // First go through all frames to find all pairs, organize by position
                for (int pos : positions) {
-                  spotPairsByFrame.put(pos, new ArrayList<List<List<GsSpotPair>>>());
+                  spotPairsByFrame.put(pos, new ArrayList<>());
                   for (int ch = 0; ch < nrChannels; ch++) {
-                     spotPairsByFrame.get(pos).add(new ArrayList<List<GsSpotPair>>());
+                     spotPairsByFrame.get(pos).add(new ArrayList<>());
                   }
 
                   for (int frame = 1; frame <= dc.getSpotData(row).nrFrames_; frame++) {
@@ -271,14 +271,14 @@ public class ParticlePairLister {
 
                      // Get points from all channels as ArrayLists 
                      Map<Integer, List<SpotData>> spotsByCh
-                             = new HashMap<Integer, List<SpotData>> (nrChannels);
+                             = new HashMap<> (nrChannels);
                      for (int ch = 0; ch < nrChannels; ch++) {
-                        spotsByCh.put(ch, new ArrayList<SpotData>());
+                        spotsByCh.put(ch, new ArrayList<>());
                         spotPairsByFrame.get(pos).get(ch).
-                                add(new ArrayList<GsSpotPair>());
+                                add(new ArrayList<>());
                      }
                      List<Point2D.Double> xyPointsLastCh
-                             = new ArrayList<Point2D.Double>();
+                             = new ArrayList<>();
                      
                      for (SpotData gs : spotListsByPosition.get(pos)) {
                         if (gs.getFrame() == frame) {
@@ -395,11 +395,11 @@ public class ParticlePairLister {
                // We have all pairs, assemble in tracks
                ij.IJ.showStatus("Analyzing pairs for row " + rowCounter);
 
-               ArrayList<ArrayList<GsSpotPair>> tracks = new ArrayList<ArrayList<GsSpotPair>>();
+               ArrayList<ArrayList<GsSpotPair>> tracks = new ArrayList<>();
 
                for (int pos : positions) {
                   // prepare NearestPoint objects to speed up finding closest pair 
-                  ArrayList<NearestPointByData> npsp = new ArrayList<NearestPointByData>();
+                  ArrayList<NearestPointByData> npsp = new ArrayList<>();
                   for (int ch = 0; ch < nrChannels; ch++) {
                      for (int frame = 1; frame <= dc.getSpotData(row).nrFrames_; frame++) {
                         npsp.add(new NearestPointByData(
@@ -415,7 +415,7 @@ public class ParticlePairLister {
                            if (!spotPair.partOfTrack()) {
                               for (int frame = firstFrame; frame <= dc.getSpotData(row).nrFrames_; frame++) {
                                  if (!spotPair.partOfTrack() && spotPair.getFirstSpot().getFrame() == frame) {
-                                    ArrayList<GsSpotPair> track = new ArrayList<GsSpotPair>();
+                                    ArrayList<GsSpotPair> track = new ArrayList<>();
                                     track.add(spotPair);
                                     spotPair.useInTrack(true);
                                     int searchInFrame = frame + 1;
@@ -455,22 +455,22 @@ public class ParticlePairLister {
 
                Iterator<ArrayList<GsSpotPair>> itTracks = tracks.iterator();
                int spotId = 0;
-               List<Double> allDistances = new ArrayList<Double>(
+               List<Double> allDistances = new ArrayList<>(
                        tracks.size() * dc.getSpotData(row).nrFrames_);
-               List<Double> allSigmas = new ArrayList<Double>(
+               List<Double> allSigmas = new ArrayList<>(
                        tracks.size() * dc.getSpotData(row).nrFrames_);
-               List<Double> sigmasFirstSpot  = new ArrayList<Double>(
+               List<Double> sigmasFirstSpot  = new ArrayList<>(
                        tracks.size() * dc.getSpotData(row).nrFrames_);
-               List<Double> sigmasSecondSpot = new ArrayList<Double>(
+               List<Double> sigmasSecondSpot = new ArrayList<>(
                        tracks.size() * dc.getSpotData(row).nrFrames_);
-               List<Double> vectorDistances = new ArrayList<Double>(
+               List<Double> vectorDistances = new ArrayList<>(
                        tracks.size() );
                while (itTracks.hasNext()) {
                   ArrayList<GsSpotPair> track = itTracks.next();
-                  ArrayList<Double> distances = new ArrayList<Double>();
-                  ArrayList<Double> xDiff = new ArrayList<Double>();
-                  ArrayList<Double> yDiff = new ArrayList<Double>();
-                  ArrayList<Double> sigmas = new ArrayList<Double>();
+                  ArrayList<Double> distances = new ArrayList<>();
+                  ArrayList<Double> xDiff = new ArrayList<>();
+                  ArrayList<Double> yDiff = new ArrayList<>();
+                  ArrayList<Double> sigmas = new ArrayList<>();
                   for (GsSpotPair pair : track) {
                      double distance = Math.sqrt(
                              NearestPoint2D.distance2(pair.getFirstPoint(), pair.getSecondPoint()));
@@ -553,11 +553,13 @@ public class ParticlePairLister {
                }
                
                if (showXYHistogram_) {
-                  for (int ch = 0; ch < nrChannels - 1; ch++) {
-                     List<Double> xDiff = new ArrayList<Double>();
-                     List<Double> yDiff = new ArrayList<Double>();
+                  Map<Integer, Map<Integer, Map<Integer, Map<Integer, List<GsSpotPair>>>>> 
+                          allPossiblePairs = PairOrganizer.allPossiblePairs(dc, row, maxDistanceNm_);
+                  for (int ch1 = 0; ch1 < nrChannels - 1; ch1++) {
+                     List<Double> xDiff = new ArrayList<>();
+                     List<Double> yDiff = new ArrayList<>();
                      for (int pos : positions) {
-                        for (List<GsSpotPair> pairList : spotPairsByFrame.get(pos).get(ch)) {
+                        for (List<GsSpotPair> pairList : spotPairsByFrame.get(pos).get(ch1)) {
                            for (GsSpotPair pair : pairList) {
                               xDiff.add(pair.getFirstPoint().getX()
                                       - pair.getSecondPoint().getX());
@@ -574,28 +576,28 @@ public class ParticlePairLister {
                                    maxDistanceNm_);
                            GaussianUtils.plotGaussian("Gaussian fit of X distances of: "
                                    + dc.getSpotData(row).getName() + ". channel "
-                                   + (ch + 1) + " versus " + nrChannels,
+                                   + (ch1 + 1) + " versus " + nrChannels,
                                    xDiffArray,
                                    xDiffArray[0] - 1.0,
                                    xDiffArray[xDiffArray.length - 1] + 1.0,
-                                   xGaussian, 50 + ch * 50, 300 + ch * 50);
+                                   xGaussian, 50 + ch1 * 50, 300 + ch1 * 50);
                            double[] yDiffArray = ListUtils.toArray(yDiff);
                            double[] yGaussian = fitGaussianToData(yDiffArray,
                                    -maxDistanceNm_,
                                    maxDistanceNm_);
                            GaussianUtils.plotGaussian("Gaussian fit of Y distances of: "
                                    + dc.getSpotData(row).getName() + ". channel "
-                                   + (ch + 1) + " versus " + nrChannels,
+                                   + (ch1 + 1) + " versus " + nrChannels,
                                    yDiffArray,
                                    yDiffArray[0] - 1.0,
                                    yDiffArray[yDiffArray.length - 1] + 1.0,
                                    //-5.0 * yGaussian[1],
                                    //5.0 * yGaussian[1],
-                                   yGaussian, 750 + ch * 50, 300 + ch * 50);
+                                   yGaussian, 750 + ch1 * 50, 300 + ch1 * 50);
                            final double combinedError = Math.sqrt(
                                    xGaussian[0] * xGaussian[0]
                                    + yGaussian[0] * yGaussian[0]);
-                           ij.IJ.log(dc.getSpotData(row).getName() + "-Ch" + (ch + 1) 
+                           ij.IJ.log(dc.getSpotData(row).getName() + "-Ch" + (ch1 + 1) 
                                    + " X-error: "
                                    + NumberUtils.doubleToDisplayString(xGaussian[0], 3)
                                    + "nm, sigma: "  
