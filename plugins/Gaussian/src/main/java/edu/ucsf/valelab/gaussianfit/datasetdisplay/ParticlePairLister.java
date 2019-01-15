@@ -53,7 +53,6 @@ import java.awt.event.KeyListener;
 import java.awt.event.MouseListener;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -235,87 +234,15 @@ public class ParticlePairLister {
                rowCounter++;
                ij.IJ.showStatus("Creating Pairs for row " + rowCounter);
 
-               // position, channel, frame, List of GsSpotPairs
-               Map<Integer, List<List<List<GsSpotPair>>>> spotPairsByFrame
-                       = new HashMap<>();
-
                // index spots by position
                SpotsByPosition spotsByPosition = 
                        PairOrganizer.spotsByPosition(dc.getSpotData(row).spotList_);
                List<Integer> positions = spotsByPosition.positionsUsed_;
-               final int maxPos = positions.get(positions.size() - 1);
                final int nrChannels = dc.getSpotData(row).nrChannels_;
-
-               // Go through all frames to find all pairs, organized by position
-               for (int pos : positions) {
-                  spotPairsByFrame.put(pos, new ArrayList<>());
-                  for (int ch = 0; ch < nrChannels; ch++) {
-                     spotPairsByFrame.get(pos).add(new ArrayList<>());
-                  }
-
-                  for (int frame = 1; frame <= dc.getSpotData(row).nrFrames_; frame++) {
-                     
-                     ij.IJ.showProgress(pos * dc.getSpotData(row).nrFrames_ + frame, 
-                             maxPos * dc.getSpotData(row).nrFrames_);
-
-                     // Get points from all channels as ArrayLists 
-                     Map<Integer, List<SpotData>> spotsByCh
-                             = new HashMap<> (nrChannels);
-                     for (int ch = 0; ch < nrChannels; ch++) {
-                        spotsByCh.put(ch, new ArrayList<>());
-                        spotPairsByFrame.get(pos).get(ch).
-                                add(new ArrayList<>());
-                     }
-                     List<Point2D.Double> xyPointsLastCh
-                             = new ArrayList<>();
-                     
-                     for (SpotData gs : spotsByPosition.spotListByPosition_.get(pos)) {
-                        if (gs.getFrame() == frame) {
-                           spotsByCh.get(gs.getChannel() - 1).add(gs);
-                           if (gs.getChannel() == nrChannels) {
-                              Point2D.Double point = new Point2D.Double(
-                                      gs.getXCenter(), gs.getYCenter());
-                              xyPointsLastCh.add(point);
-                           }
-                        }
-                     }
-
-                     if (xyPointsLastCh.isEmpty()) {
-                        //MMStudio.getInstance().alerts().postAlert("No points found error", null,
-                        //        "Pairs function in Localization plugin: no points found in second channel in frame "
-                        //        + frame);
-                        continue;
-                     }
-
-                     // Find matching points in the two ArrayLists
-                     NearestPoint2D np = new NearestPoint2D(xyPointsLastCh, maxDistanceNm_);
-                     final List<SpotData> spotsLastCh = spotsByCh.get(nrChannels -1);
-                     for (int ch = 0; ch < nrChannels - 1; ch++) {
-                        for (SpotData spot : spotsByCh.get(ch)) {
-                           Point2D.Double pFirst = new Point2D.Double(
-                                   spot.getXCenter(), spot.getYCenter());
-                           Point2D.Double pLast = np.findKDWSE(pFirst);
-                           if (pLast != null) {
-                              // find this point in the ch2 spot list
-                              SpotData chLastSpot = null;
-                              for (int i = 0; i < spotsLastCh.size() && chLastSpot == null; i++) {
-                                 if (pLast.x == spotsLastCh.get(i).getXCenter()
-                                         && pLast.y == spotsLastCh.get(i).getYCenter()) {
-                                    chLastSpot = spotsLastCh.get(i);
-                                 }
-                              }
-                              if (chLastSpot != null) {
-                                 GsSpotPair pair = new GsSpotPair(spot, chLastSpot, pFirst, pLast);
-                                 spotPairsByFrame.get(pos).get(ch).get(frame - 1).add(pair);
-                              } else {
-                                 // this should never happen!
-                                 System.out.println("Failed to find spot");
-                              }
-                           }
-                        }
-                     }
-                  }
-               } // end of for (int pos : positions)
+               
+               // position, channel, frame, List of GsSpotPairs
+               Map<Integer, List<List<List<GsSpotPair>>>> spotPairsByFrame
+                       = PairOrganizer.spotPairsByFrame(dc, row, maxDistanceNm_, spotsByPosition);           
 
                if (showPairs_ ) {
                   ResultsTable pairTable = new ResultsTable();
@@ -692,8 +619,8 @@ public class ParticlePairLister {
                      }
                      GaussianUtils.plotData("Log Likelihood for " + dc.getSpotData(row).getName(), 
                                       data, "Distance (nm)", "Likelihood", 100, 100);
-                      */
- /*
+                     */
+                     /*
                      // Confidence interval calculation as in matlab code by Stirling Churchman
                      
                      int indexOfMaxLogLikelihood = CalcUtils.maxIndex(logLikelihood);
@@ -818,11 +745,11 @@ public class ParticlePairLister {
                   // where dmu of 0.001nm should be small enough
                   // double dMu = 0.001;
                   // double[] llTest = {mu - dMu, mu, mu + dMu};
-                  //double[] llResult = p2df.logLikelihood(p2dfResult, llTest);
-                  //double info = Math.abs(
+                  // double[] llResult = p2df.logLikelihood(p2dfResult, llTest);
+                  // double info = Math.abs(
                   //       llResult[2] + llResult[0] - 2 * llResult[1])
                   //       / (dMu * dMu);
-                  //double fisherStdDev = 1 / Math.sqrt(info);
+                  // double fisherStdDev = 1 / Math.sqrt(info);
                   double muEstimate = 0.0;
                   double stdDevEstimate = 0.0;
                   boolean bootstrapSucceeded = false;
