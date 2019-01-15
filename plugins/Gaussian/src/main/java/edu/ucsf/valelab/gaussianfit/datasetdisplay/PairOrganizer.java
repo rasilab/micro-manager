@@ -3,6 +3,7 @@ package edu.ucsf.valelab.gaussianfit.datasetdisplay;
 import edu.ucsf.valelab.gaussianfit.DataCollectionForm;
 import edu.ucsf.valelab.gaussianfit.data.GsSpotPair;
 import edu.ucsf.valelab.gaussianfit.data.SpotData;
+import edu.ucsf.valelab.gaussianfit.data.SpotsByPosition;
 import edu.ucsf.valelab.gaussianfit.spotoperations.NearestPoint2D;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -17,19 +18,13 @@ import java.util.Map;
  */
 public class PairOrganizer {
 
-   public static Map<Integer, Map<Integer, Map<Integer, Map<Integer, List<GsSpotPair>>>>>
-           allPossiblePairs(final DataCollectionForm dc, final int row, final Double maxDistanceNm_) {
-
-      // position, channel1, channel2, frame, List of GsSpotPairs
-      Map<Integer, Map<Integer, Map<Integer, Map<Integer, List<GsSpotPair>>>>> spotPairsByFrame
-              = new HashMap<>();
-
+   
+   public static SpotsByPosition spotsByPosition(List<SpotData> spotData) {
       // index spots by position
-      Map<Integer, ArrayList<SpotData>> spotListsByPosition
-              = new HashMap<>();
+      Map<Integer, List<SpotData>> spotListsByPosition = new HashMap<>();
       // and keep track of the positions that are actually used
       List<Integer> positions = new ArrayList<>();
-      for (SpotData spot : dc.getSpotData(row).spotList_) {
+      for (SpotData spot : spotData) {
          if (positions.indexOf(spot.getPosition()) == -1) {
             positions.add(spot.getPosition());
          }
@@ -39,19 +34,34 @@ public class PairOrganizer {
          spotListsByPosition.get(spot.getPosition()).add(spot);
       }
       Collections.sort(positions);
-      final int maxPos = positions.get(positions.size() - 1);
+      return new SpotsByPosition(spotListsByPosition, positions);
+   }
+   
+
+   public static Map<Integer, Map<Integer, List<GsSpotPair>>>
+           allPossiblePairs(final DataCollectionForm dc, final int row, 
+                   final Double maxDistanceNm_, SpotsByPosition spotsByP) {
+
+      // channel1, channel2, List of GsSpotPairs
+      final Map<Integer, Map<Integer,  List<GsSpotPair>>> spotPairs = new HashMap<>();
       final int nrChannels = dc.getSpotData(row).nrChannels_;
-
-      // First go through all frames to find all pairs, organize by position
-      for (int pos : positions) {
-         spotPairsByFrame.put(pos, new HashMap<>());
-         for (int ch1 = 1; ch1 <= nrChannels; ch1++) {
-            spotPairsByFrame.get(pos).put(ch1, new HashMap<>());
-            for (int ch2 = ch1 + 1; ch2 <= nrChannels; ch2++) {
-               spotPairsByFrame.get(pos).get(ch1).put(ch2, new HashMap<>());
-            }
+      for (int c1 = 1; c1 < nrChannels; c1++) {
+         spotPairs.put(c1, new HashMap<>(nrChannels - c1));
+         for (int c2 = c1 + 1; c2 <= nrChannels; c2++) {
+            spotPairs.get(c1).put(c2, new ArrayList<>());
          }
+      }
+      
+      SpotsByPosition spotsByPosition = spotsByP;
+      if (spotsByPosition == null) {
+         spotsByPosition = PairOrganizer.spotsByPosition(dc.getSpotData(row).spotList_);
+      }
 
+      List<Integer> positions = spotsByPosition.positionsUsed_;
+      final int maxPos = positions.get(positions.size() - 1);
+
+      // Go through positions and frames to find all pairs
+      for (int pos : positions) {
          for (int frame = 1; frame <= dc.getSpotData(row).nrFrames_; frame++) {
             ij.IJ.showProgress(pos * dc.getSpotData(row).nrFrames_ + frame,
                     maxPos * dc.getSpotData(row).nrFrames_);
@@ -62,12 +72,9 @@ public class PairOrganizer {
             for (int ch1 = 1; ch1 <= nrChannels; ch1++) {
                spotsByCh.put(ch1, new ArrayList<>());
                pointsByCh.put(ch1, new ArrayList<>());
-               for (int ch2 = ch1 + 1; ch2 <= nrChannels; ch2++) {
-                  spotPairsByFrame.get(pos).get(ch1).get(ch2).put(frame, new ArrayList<>());
-               }
             }
 
-            for (SpotData gs : spotListsByPosition.get(pos)) {
+            for (SpotData gs : spotsByPosition.spotListByPosition_.get(pos)) {
                if (gs.getFrame() == frame) {
                   spotsByCh.get(gs.getChannel()).add(gs);
                   pointsByCh.get(gs.getChannel()).add(
@@ -80,8 +87,8 @@ public class PairOrganizer {
                NearestPoint2D np = new NearestPoint2D(pointsByCh.get(chLast),
                        maxDistanceNm_);
                final List<SpotData> spotsLastCh = spotsByCh.get(chLast);
-               for (int ch = 1; ch < chLast; ch++) {
-                  for (SpotData spot : spotsByCh.get(ch)) {
+               for (int ch1 = 1; ch1 < chLast; ch1++) {
+                  for (SpotData spot : spotsByCh.get(ch1)) {
                      Point2D.Double pFirst = new Point2D.Double(
                              spot.getXCenter(), spot.getYCenter());
                      Point2D.Double pLast = np.findKDWSE(pFirst);
@@ -97,10 +104,10 @@ public class PairOrganizer {
                         if (chLastSpot != null) {
                            GsSpotPair pair = new GsSpotPair(spot, chLastSpot, pFirst, pLast);
                            try {
-                              spotPairsByFrame.get(pos).get(ch).get(chLast).get(frame).add(pair);
+                              spotPairs.get(ch1).get(chLast).add(pair);
                            } catch (NullPointerException npe) {
                               System.out.println("pos" + pos + ", ch: "
-                                      + ch + ", chLast: " + chLast + ", frame: " + frame);
+                                      + ch1 + ", chLast: " + chLast + ", frame: " + frame);
                            }
                         } else {
                            // this should never happen!
@@ -113,6 +120,6 @@ public class PairOrganizer {
          }
       } // end of for (int pos : positions)
 
-      return spotPairsByFrame;
+      return spotPairs;
    }
 }
