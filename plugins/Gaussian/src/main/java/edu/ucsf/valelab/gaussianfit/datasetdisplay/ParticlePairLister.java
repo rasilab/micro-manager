@@ -246,7 +246,7 @@ public class ParticlePairLister {
                final int maxPos = positions.get(positions.size() - 1);
                final int nrChannels = dc.getSpotData(row).nrChannels_;
 
-               // First go through all frames to find all pairs, organize by position
+               // Go through all frames to find all pairs, organized by position
                for (int pos : positions) {
                   spotPairsByFrame.put(pos, new ArrayList<>());
                   for (int ch = 0; ch < nrChannels; ch++) {
