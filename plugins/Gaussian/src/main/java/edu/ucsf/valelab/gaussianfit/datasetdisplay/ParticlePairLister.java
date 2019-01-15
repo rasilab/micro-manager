@@ -545,6 +545,7 @@ public class ParticlePairLister {
                   Map<Integer, Map<Integer, List<GsSpotPair>>> allPossiblePairs
                           = PairOrganizer.allPossiblePairs(dc, row, 
                                   maxDistanceNm_, spotsByPosition);
+                  int screenOffset = 50;
                   for (int ch1 = 1; ch1 < nrChannels; ch1++) {
                      for (int ch2 = ch1 + 1; ch2 <= nrChannels; ch2++) {
                         List<Double> xDiff = new ArrayList<>();
@@ -568,7 +569,7 @@ public class ParticlePairLister {
                                       xDiffArray,
                                       xDiffArray[0] - 1.0,
                                       xDiffArray[xDiffArray.length - 1] + 1.0,
-                                      xGaussian, 50 + ch1 * 50, 300 + ch1 * 50);
+                                      xGaussian, 50 + screenOffset, 300 + screenOffset);
                               double[] yDiffArray = ListUtils.toArray(yDiff);
                               double[] yGaussian = fitGaussianToData(yDiffArray,
                                       -maxDistanceNm_,
@@ -581,7 +582,7 @@ public class ParticlePairLister {
                                       yDiffArray[yDiffArray.length - 1] + 1.0,
                                       //-5.0 * yGaussian[1],
                                       //5.0 * yGaussian[1],
-                                      yGaussian, 750 + ch1 * 50, 300 + ch1 * 50);
+                                      yGaussian, 750 + screenOffset, 300 + screenOffset);
                               final double combinedError = Math.sqrt(
                                       xGaussian[0] * xGaussian[0]
                                       + yGaussian[0] * yGaussian[0]);
@@ -597,6 +598,7 @@ public class ParticlePairLister {
                                       + "nm, combined error: "
                                       + NumberUtils.doubleToDisplayString(combinedError, 3)
                                       + "nm.");
+                              screenOffset += 50;
 
                            } catch (FittingException ex) {
                               ReportingUtils.showError("Failed to fit Gaussian, try decreasing the Maximum Distance value");
