@@ -318,11 +318,8 @@ public class ParticlePairLister {
                // We have all pairs, assemble in tracks
                ij.IJ.showStatus("Analyzing pairs for row " + rowCounter);
                
-               List<List<GsSpotPair>> tracks =  PairOrganizer.oldPairTracks(
-                       spotPairsByFrame, nrChannels, dc.getSpotData(row).nrFrames_, maxDistanceNm_, 
-                       spotsByPosition); 
-               
-               
+               List<List<GsSpotPair>> tracks = PairOrganizer.pairTracks(allPairsIndexed, nrChannels, 
+                       dc.getSpotData(row).nrFrames_, maxDistanceNm_, spotsByPosition);
  
                if (tracks.isEmpty()) {
                   MMStudio.getInstance().alerts().postAlert("P2D fit error", 

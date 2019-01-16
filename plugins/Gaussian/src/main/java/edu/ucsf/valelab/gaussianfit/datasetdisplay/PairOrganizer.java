@@ -342,11 +342,12 @@ public class PairOrganizer {
            Map<Integer, List<List<List<GsSpotPair>>>> spotPairsByFrame, 
            final int nrChannels, final int nrFrames, final Double maxDistanceNm_, 
            SpotsByPosition spotsByPosition) {
+      
       List<List<GsSpotPair>> tracks = new ArrayList<>();
 
       for (int pos : spotsByPosition.positionsUsed_) {
          // prepare NearestPoint objects to speed up finding closest pair 
-         ArrayList<NearestPointByData> npsp = new ArrayList<>();
+         List<NearestPointByData> npsp = new ArrayList<>();
          for (int ch = 0; ch < nrChannels; ch++) {
             for (int frame = 1; frame <= nrFrames; frame++) {
                npsp.add(new NearestPointByData(
@@ -391,24 +392,26 @@ public class PairOrganizer {
    
         
    /**
-    *
-    * @param spotPairs
-    * @param nrFrames
-    * @param nrChannels
-    * @param maxDistanceNm_
-    * @param spotsByPosition
-    * @return
+    * Assembles tracks from lists of spotPairs
+    * 
+    * @param spotPairs Data structure of spot paits indexed by position, ch1, ch2, and frame
+    *                   Can be generated with spotPairsByFrameAndChannel function
+    * @param nrFrames   nrFrames in this dataset
+    * @param nrChannels nrChannels in this dataset
+    * @param maxDistanceNm_   distance between frames should be less than this
+    * @param spotsByPosition  Datastructure containing all positions used in this dataset
+    * @return List with tracks at each position
     */
    public static List<List<GsSpotPair>> pairTracks(
            Map<Integer, Map<Integer, Map<Integer, List<List<GsSpotPair>>>>> spotPairs,
-           final int nrFrames, final int nrChannels, final Double maxDistanceNm_,
+           final int nrChannels, final int nrFrames, final Double maxDistanceNm_,
            SpotsByPosition spotsByPosition) {
 
       List<List<GsSpotPair>> tracks = new ArrayList<>();
 
       for (int pos : spotsByPosition.positionsUsed_) {
          // prepare NearestPoint objects to speed up finding closest pair 
-         ArrayList<NearestPointByData> npsp = new ArrayList<>();
+         List<NearestPointByData> npsp = new ArrayList<>();
          for (int ch1 = 1; ch1 < nrChannels; ch1++) {
             for (int ch2 = ch1 + 1; ch2 <= nrChannels; ch2++) {
                for (int frame = 1; frame <= nrFrames; frame++) {
