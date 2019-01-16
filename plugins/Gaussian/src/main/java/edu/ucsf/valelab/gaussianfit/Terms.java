@@ -40,6 +40,8 @@ public class Terms {
    public static final String FRAME = "Frame";
    public static final String POSITION = "Pos";
    public static final String CHANNEL = "Channel";
+   public static final String CHANNEL1 = "Channel1";
+   public static final String CHANNEL2 = "Channel2";
    public static final String SLICE = "Slice";
    public static final String INT = "Int(photons)";
    public static final String BACKGROUND = "Background";

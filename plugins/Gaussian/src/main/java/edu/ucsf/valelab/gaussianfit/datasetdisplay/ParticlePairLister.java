@@ -244,17 +244,24 @@ public class ParticlePairLister {
                Map<Integer, List<List<List<GsSpotPair>>>> spotPairsByFrame
                        = PairOrganizer.spotPairsByFrame(dc, row, maxDistanceNm_, spotsByPosition);           
 
+               Map<Integer, Map<Integer, Map<Integer, List <List<GsSpotPair>>>>> allPairsIndexed
+                       = PairOrganizer.spotPairsByFrameAndChannel(dc, row, maxDistanceNm_, spotsByPosition);
+               
+               
                if (showPairs_ ) {
                   ResultsTable pairTable = new ResultsTable();
                   pairTable.setPrecision(2);
                   for (int pos : positions) {
-                     for (List<List<GsSpotPair>> posPairList : spotPairsByFrame.get(pos)) {
-                        for (List<GsSpotPair> pairList : posPairList) {
+                     for (int ch1 : allPairsIndexed.get(pos).keySet()) {
+                        for (int ch2 : allPairsIndexed.get(pos).get(ch1).keySet())
+                        
+                        for (List<GsSpotPair> pairList : allPairsIndexed.get(pos).get(ch1).get(ch2)) {
                            for (GsSpotPair pair : pairList) {
                               pairTable.incrementCounter();
                               pairTable.addValue(Terms.FRAME, pair.getFirstSpot().getFrame());
                               pairTable.addValue(Terms.SLICE, pair.getFirstSpot().getSlice());
-                              pairTable.addValue(Terms.CHANNEL, pair.getFirstSpot().getChannel());
+                              pairTable.addValue(Terms.CHANNEL1, pair.getFirstSpot().getChannel());
+                              pairTable.addValue(Terms.CHANNEL2, pair.getSecondSpot().getChannel());
                               pairTable.addValue(Terms.POSITION, pair.getFirstSpot().getPosition());
                               pairTable.addValue(Terms.XPIX, pair.getFirstSpot().getX());
                               pairTable.addValue(Terms.YPIX, pair.getFirstSpot().getY());
@@ -310,51 +317,13 @@ public class ParticlePairLister {
                
                // We have all pairs, assemble in tracks
                ij.IJ.showStatus("Analyzing pairs for row " + rowCounter);
-
-               ArrayList<ArrayList<GsSpotPair>> tracks = new ArrayList<>();
-
-               for (int pos : positions) {
-                  // prepare NearestPoint objects to speed up finding closest pair 
-                  ArrayList<NearestPointByData> npsp = new ArrayList<>();
-                  for (int ch = 0; ch < nrChannels; ch++) {
-                     for (int frame = 1; frame <= dc.getSpotData(row).nrFrames_; frame++) {
-                        npsp.add(new NearestPointByData(
-                                spotPairsByFrame.get(pos).get(ch).get(frame - 1), maxDistanceNm_));
-                     }
-
-                     for (int firstFrame = 1; firstFrame <= dc.getSpotData(row).nrFrames_; firstFrame++) {
-                        Iterator<GsSpotPair> iSpotPairs
-                                = spotPairsByFrame.get(pos).get(ch).get(firstFrame - 1).iterator();
-                        while (iSpotPairs.hasNext()) {
-                           GsSpotPair spotPair = iSpotPairs.next();
-
-                           if (!spotPair.partOfTrack()) {
-                              for (int frame = firstFrame; frame <= dc.getSpotData(row).nrFrames_; frame++) {
-                                 if (!spotPair.partOfTrack() && spotPair.getFirstSpot().getFrame() == frame) {
-                                    ArrayList<GsSpotPair> track = new ArrayList<>();
-                                    track.add(spotPair);
-                                    spotPair.useInTrack(true);
-                                    int searchInFrame = frame + 1;
-                                    while (searchInFrame <= dc.getSpotData(row).nrFrames_) {
-                                       GsSpotPair newSpotPair = (GsSpotPair) npsp.get(searchInFrame - 1).findKDWSE(
-                                               new Point2D.Double(spotPair.getFirstPoint().getX(),
-                                                       spotPair.getFirstPoint().getY()));
-                                       if (newSpotPair != null && !newSpotPair.partOfTrack()) {
-                                          newSpotPair.useInTrack(true);
-                                          spotPair = newSpotPair;
-                                          track.add(spotPair);
-                                       }
-                                       searchInFrame++;
-                                    }
-                                    tracks.add(track);
-                                 }
-                              }
-                           }
-                        }
-                     }
-                  }                 
-               }  // end of assembling tracks.  
                
+               List<List<GsSpotPair>> tracks =  PairOrganizer.oldPairTracks(
+                       spotPairsByFrame, nrChannels, dc.getSpotData(row).nrFrames_, maxDistanceNm_, 
+                       spotsByPosition); 
+               
+               
+ 
                if (tracks.isEmpty()) {
                   MMStudio.getInstance().alerts().postAlert("P2D fit error", 
                             null, "ID: " + dc.getSpotData(row).ID_ + 
@@ -369,7 +338,7 @@ public class ParticlePairLister {
                   Arrow.setDefaultWidth(0.5);
                }
 
-               Iterator<ArrayList<GsSpotPair>> itTracks = tracks.iterator();
+               Iterator<List<GsSpotPair>> itTracks = tracks.iterator();
                int spotId = 0;
                List<Double> allDistances = new ArrayList<>(
                        tracks.size() * dc.getSpotData(row).nrFrames_);
@@ -382,7 +351,7 @@ public class ParticlePairLister {
                List<Double> vectorDistances = new ArrayList<>(
                        tracks.size() );
                while (itTracks.hasNext()) {
-                  ArrayList<GsSpotPair> track = itTracks.next();
+                  List<GsSpotPair> track = itTracks.next();
                   ArrayList<Double> distances = new ArrayList<>();
                   ArrayList<Double> xDiff = new ArrayList<>();
                   ArrayList<Double> yDiff = new ArrayList<>();
@@ -413,7 +382,8 @@ public class ParticlePairLister {
                   rt2.addValue("Spot ID", spotId);
                   rt2.addValue(Terms.FRAME, pair.getFirstSpot().getFrame());
                   rt2.addValue(Terms.SLICE, pair.getFirstSpot().getSlice());
-                  rt2.addValue(Terms.CHANNEL, pair.getFirstSpot().getSlice());
+                  rt2.addValue(Terms.CHANNEL1, pair.getFirstSpot().getChannel());
+                  rt2.addValue(Terms.CHANNEL2, pair.getSecondSpot().getChannel());
                   rt2.addValue(Terms.POSITION, pair.getFirstSpot().getPosition());
                   rt2.addValue(Terms.XPIX, pair.getFirstSpot().getX());
                   rt2.addValue(Terms.YPIX, pair.getFirstSpot().getY());
@@ -759,7 +729,7 @@ public class ParticlePairLister {
                      int errorCounter = 0;
                      final int nrRuns = 1000;
                      final int maxNrErrors = 10;
-                     List<Double> mus = new ArrayList<Double>();
+                     List<Double> mus = new ArrayList<>();
                      double[] bootsTrapResult;
                      while (counter < nrRuns && errorCounter < maxNrErrors) {
                         List bootstrapList = ListUtils.listToListForBootstrap(vectorDistances);
