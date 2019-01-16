@@ -394,7 +394,7 @@ public class PairOrganizer {
    /**
     * Assembles tracks from lists of spotPairs
     * 
-    * @param spotPairs Data structure of spot paits indexed by position, ch1, ch2, and frame
+    * @param spotPairs Data structure of spot pairs indexed by position, ch1, ch2, and frame
     *                   Can be generated with spotPairsByFrameAndChannel function
     * @param nrFrames   nrFrames in this dataset
     * @param nrChannels nrChannels in this dataset

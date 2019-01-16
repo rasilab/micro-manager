@@ -39,7 +39,7 @@ public class GaussianTrack_ implements PlugIn, MenuPlugin, SciJavaPlugin {
 
    @Override
    public String getSubMenu() {
-      return "Acquisition Tools";
+      return "Analysis";
    }
 
    @Override

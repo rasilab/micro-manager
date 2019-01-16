@@ -37,7 +37,6 @@ import edu.ucsf.valelab.gaussianfit.fitting.Gaussian1DecdFitter;
 import edu.ucsf.valelab.gaussianfit.fitting.P2DEcdfFitter;
 import edu.ucsf.valelab.gaussianfit.fitting.P2DFitter;
 import edu.ucsf.valelab.gaussianfit.spotoperations.NearestPoint2D;
-import edu.ucsf.valelab.gaussianfit.spotoperations.NearestPointByData;
 import edu.ucsf.valelab.gaussianfit.utils.GaussianUtils;
 import edu.ucsf.valelab.gaussianfit.utils.ListUtils;
 import edu.ucsf.valelab.gaussianfit.utils.NumberUtils;
@@ -51,8 +50,8 @@ import java.awt.Color;
 import java.awt.Frame;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseListener;
-import java.awt.geom.Point2D;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -239,14 +238,25 @@ public class ParticlePairLister {
                        PairOrganizer.spotsByPosition(dc.getSpotData(row).spotList_);
                List<Integer> positions = spotsByPosition.positionsUsed_;
                final int nrChannels = dc.getSpotData(row).nrChannels_;
-               
-               // position, channel, frame, List of GsSpotPairs
-               Map<Integer, List<List<List<GsSpotPair>>>> spotPairsByFrame
-                       = PairOrganizer.spotPairsByFrame(dc, row, maxDistanceNm_, spotsByPosition);           
 
+               // get all pairs between two channels, indexed by position, 
+               // channel1, channel2, frame
                Map<Integer, Map<Integer, Map<Integer, List <List<GsSpotPair>>>>> allPairsIndexed
                        = PairOrganizer.spotPairsByFrameAndChannel(dc, row, maxDistanceNm_, spotsByPosition);
+                                          
+               // We have all pairs, assemble in tracks
+               ij.IJ.showStatus("Analyzing pairs for row " + rowCounter);
                
+               // Get Sequences of pairs in two channels, only indexed by position
+               List<List<GsSpotPair>> tracks = PairOrganizer.pairTracks(allPairsIndexed, nrChannels, 
+                       dc.getSpotData(row).nrFrames_, maxDistanceNm_, spotsByPosition);
+ 
+               if (tracks.isEmpty()) {
+                  MMStudio.getInstance().alerts().postAlert("P2D fit error", 
+                            null, "ID: " + dc.getSpotData(row).ID_ + 
+                            ", No Pairs found");
+               }
+              
                
                if (showPairs_ ) {
                   ResultsTable pairTable = new ResultsTable();
@@ -314,19 +324,30 @@ public class ParticlePairLister {
                      frame.toFront();
                   }
                }  // end of show pairs
-               
-               // We have all pairs, assemble in tracks
-               ij.IJ.showStatus("Analyzing pairs for row " + rowCounter);
-               
-               List<List<GsSpotPair>> tracks = PairOrganizer.pairTracks(allPairsIndexed, nrChannels, 
-                       dc.getSpotData(row).nrFrames_, maxDistanceNm_, spotsByPosition);
  
-               if (tracks.isEmpty()) {
-                  MMStudio.getInstance().alerts().postAlert("P2D fit error", 
-                            null, "ID: " + dc.getSpotData(row).ID_ + 
-                            ", No Pairs found");
+               Iterator<List<GsSpotPair>> itTracks = tracks.iterator();
+               int spotId = 0;
+               Map<Integer, Map<Integer, List<Double>>> allDistances = new HashMap<>();
+               Map<Integer, Map<Integer, List<Double>>> allSigmas = new HashMap<>();
+               Map<Integer, Map<Integer, List<Double>>> sigmasFirstSpot = new HashMap<>();
+               Map<Integer, Map<Integer, List<Double>>> sigmasSecondSpot = new HashMap<>();
+               Map<Integer, Map<Integer, List<Double>>> vectorDistances = new HashMap<>();
+               
+               for (int ch1 = 1; ch1 < nrChannels; ch1++) {
+                  allDistances.put(ch1, new HashMap<>());
+                  allSigmas.put(ch1, new HashMap<>());
+                  sigmasFirstSpot.put(ch1, new HashMap<>());
+                  sigmasSecondSpot.put(ch1, new HashMap<>());
+                  vectorDistances.put(ch1, new HashMap<>());
+                  for (int ch2 = ch1 + 1; ch2 <= nrChannels; ch2++) {
+                     allDistances.get(ch1).put(ch2, new ArrayList<>());
+                     allSigmas.get(ch1).put(ch2, new ArrayList<>());
+                     sigmasFirstSpot.get(ch1).put(ch2, new ArrayList<>());
+                     sigmasSecondSpot.get(ch1).put(ch2, new ArrayList<>());
+                     vectorDistances.get(ch1).put(ch2, new ArrayList<>());
+                  }
                }
-
+                              
                ImagePlus siPlus = ij.WindowManager.getImage(dc.getSpotData(row).title_);
                if (showOverlay_) {
                   if (siPlus != null && siPlus.getOverlay() != null) {
@@ -334,19 +355,30 @@ public class ParticlePairLister {
                   }
                   Arrow.setDefaultWidth(0.5);
                }
+               
+               while (itTracks.hasNext()) {
+                  List<GsSpotPair> track = itTracks.next();
+                  for (GsSpotPair pair : track) {
+                     final int ch1 = pair.getFirstSpot().getChannel();
+                     final int ch2 = pair.getSecondSpot().getChannel();
+                     double distance = Math.sqrt(
+                             NearestPoint2D.distance2(pair.getFirstPoint(), pair.getSecondPoint()));
+                     allDistances.get(ch1).get(ch2).add(distance);
+                     if (pair.getFirstSpot().hasKey(SpotData.Keys.INTEGRALAPERTURESIGMA)
+                             && pair.getSecondSpot().hasKey(SpotData.Keys.INTEGRALAPERTURESIGMA)) {
+                        double sigma1 = pair.getFirstSpot().getValue(SpotData.Keys.INTEGRALAPERTURESIGMA);
+                        double sigma2 = pair.getSecondSpot().getValue(SpotData.Keys.INTEGRALAPERTURESIGMA);
+                        double sigma = Math.sqrt(sigma1 * sigma1
+                                + sigma2 * sigma2
+                                + registrationError_ * registrationError_);
+                        allSigmas.get(ch1).get(ch2).add(sigma);
+                        sigmasFirstSpot.get(ch1).get(ch2).add(sigma1);
+                        sigmasSecondSpot.get(ch1).get(ch2).add(sigma2);
+                     }
+                  }
+               }
 
-               Iterator<List<GsSpotPair>> itTracks = tracks.iterator();
-               int spotId = 0;
-               List<Double> allDistances = new ArrayList<>(
-                       tracks.size() * dc.getSpotData(row).nrFrames_);
-               List<Double> allSigmas = new ArrayList<>(
-                       tracks.size() * dc.getSpotData(row).nrFrames_);
-               List<Double> sigmasFirstSpot  = new ArrayList<>(
-                       tracks.size() * dc.getSpotData(row).nrFrames_);
-               List<Double> sigmasSecondSpot = new ArrayList<>(
-                       tracks.size() * dc.getSpotData(row).nrFrames_);
-               List<Double> vectorDistances = new ArrayList<>(
-                       tracks.size() );
+               itTracks = tracks.iterator();
                while (itTracks.hasNext()) {
                   List<GsSpotPair> track = itTracks.next();
                   ArrayList<Double> distances = new ArrayList<>();
@@ -357,7 +389,6 @@ public class ParticlePairLister {
                      double distance = Math.sqrt(
                              NearestPoint2D.distance2(pair.getFirstPoint(), pair.getSecondPoint()));
                      distances.add(distance);
-                     allDistances.add(distance);
                      xDiff.add(pair.getFirstPoint().getX() - pair.getSecondPoint().getX());
                      yDiff.add(pair.getFirstPoint().getY() - pair.getSecondPoint().getY());
                      if (pair.getFirstSpot().hasKey(SpotData.Keys.INTEGRALAPERTURESIGMA)
@@ -368,9 +399,6 @@ public class ParticlePairLister {
                                 + sigma2 * sigma2
                                 + registrationError_ * registrationError_);
                         sigmas.add(sigma);
-                        allSigmas.add(sigma);
-                        sigmasFirstSpot.add(sigma1);
-                        sigmasSecondSpot.add(sigma2);
                      }
                   }
                   GsSpotPair pair = track.get(0);
@@ -404,12 +432,13 @@ public class ParticlePairLister {
                      double yDiffAvg = ListUtils.listAvg(yDiff);
                      double vectorDistanceAvg = (Math.sqrt( xDiffAvg * xDiffAvg + 
                              yDiffAvg * yDiffAvg));
-                     vectorDistances.add(vectorDistanceAvg);
+                     vectorDistances.get(pair.getFirstSpot().getChannel()).
+                             get(pair.getSecondSpot().getChannel()).add(vectorDistanceAvg);
                      rt2.addValue("Distance-VectorAvg", vectorDistanceAvg);
                   }
 
                   if (showOverlay_) {
-                     /* draw arrows in overlay */
+                     // draw arrows in overlay //
                      double mag = 100.0;  // factor that sets magnification of the arrow
                      double factor = mag * 1 / dc.getSpotData(row).pixelSizeNm_;  // factor relating mag and pixelSize
                      int xStart = track.get(0).getFirstSpot().getX();
@@ -428,7 +457,9 @@ public class ParticlePairLister {
                   }
                   spotId++;
                }
-
+         
+               
+               
                if (showOverlay_) {
                   if (siPlus != null) {
                      siPlus.setHideOverlay(false);
@@ -527,53 +558,58 @@ public class ParticlePairLister {
                      frame.toFront();
                   }
                }
+               
+               
+               int windowOffset = 0;
 
                /**
                 * *************** Single frame calculations ******************
                 */
                if (p2dDistanceCalc_ && p2dSingleFrames_ && allDistances.size() > 0) {
-                  double[] d = ListUtils.toArray(allDistances);
-                  double[] sigmas = ListUtils.toArray(allSigmas);
-                  if (d.length != sigmas.length) {
-                     ReportingUtils.showError("Internal Error: number of distances and sigmas not identical\n"
-                             + "Data may not contain Mortenson Integral Sigma from Aperture intensity");
-                     return;
-                  }
+                  for (int ch1 = 1; ch1 < nrChannels; ch1++) {
+                     for (int ch2 = ch1 + 1; ch2 <= nrChannels; ch2++) {
+                        double[] d = ListUtils.toArray(allDistances.get(ch1).get(ch2));
+                        double[] sigmas = ListUtils.toArray(allSigmas.get(ch1).get(ch2));
+                        if (d.length != sigmas.length) {
+                           ReportingUtils.showError("Internal Error: number of distances and sigmas not identical\n"
+                                   + "Data may not contain Mortenson Integral Sigma from Aperture intensity");
+                           return;
+                        }
 
-                  P2DFitter p2df = new P2DFitter(d, sigmas, true, false, maxDistanceNm_);
+                        P2DFitter p2df = new P2DFitter(d, sigmas, true, false, maxDistanceNm_);
 
-                  // Generate a population average of the distance sigma
-                  double distMean = ListUtils.listAvg(allDistances);
-                  double sfsAvg = ListUtils.listAvg(sigmasFirstSpot);
-                  double sSsAvg = ListUtils.listAvg(sigmasSecondSpot);
-                  double sfsStdDev = ListUtils.listStdDev(sigmasFirstSpot, sfsAvg);
-                  double sSsStdDev = ListUtils.listStdDev(sigmasSecondSpot, sSsAvg);
-                  double distStd = Math.sqrt(sfsAvg * sfsAvg + sSsAvg * sSsAvg
-                          + sfsStdDev * sfsStdDev + sSsStdDev * sSsStdDev
-                          + registrationError_ * registrationError_);
+                        // Generate a population average of the distance sigma
+                        double distMean = ListUtils.listAvg(allDistances.get(ch1).get(ch2));
+                        double sfsAvg = ListUtils.listAvg(sigmasFirstSpot.get(ch1).get(ch2));
+                        double sSsAvg = ListUtils.listAvg(sigmasSecondSpot.get(ch1).get(ch2));
+                        double sfsStdDev = ListUtils.listStdDev(sigmasFirstSpot.get(ch1).get(ch2), sfsAvg);
+                        double sSsStdDev = ListUtils.listStdDev(sigmasSecondSpot.get(ch1).get(ch2), sSsAvg);
+                        double distStd = Math.sqrt(sfsAvg * sfsAvg + sSsAvg * sSsAvg
+                                + sfsStdDev * sfsStdDev + sSsStdDev * sSsStdDev
+                                + registrationError_ * registrationError_);
 
-                  p2df.setStartParams(distMean, distStd);
+                        p2df.setStartParams(distMean, distStd);
 
-                  try {
-                     double[] p2dfResult = p2df.solve();
-                     double mu = p2dfResult[0];
-                     double[] muSigma = {mu, distStd};
+                        try {
+                           double[] p2dfResult = p2df.solve();
+                           double mu = p2dfResult[0];
+                           double[] muSigma = {mu, distStd};
 
-                     // calculate standard devication accoring to Fisher information theory
-                     // algorithm by Jongmin Sung
-                     // stdDev (of mu) = 1 / sqrt(info), where info:
-                     // info = abs (LL(mu + dmu) + LL (mu-dmu) - 2 * LL(mu) / dmu^2)
-                     // where dmu of 0.001nm should be small enough
-                     double dMu = 0.001;
-                     double[] llTest = {mu - dMu, mu, mu + dMu};
-                     double[] llResult = p2df.logLikelihood(p2dfResult, llTest);
-                     double info = Math.abs(
-                             llResult[2] + llResult[0] - 2 * llResult[1])
-                             / (dMu * dMu);
-                     double fisherStdDev = 1 / Math.sqrt(info);
+                           // calculate standard devication accoring to Fisher information theory
+                           // algorithm by Jongmin Sung
+                           // stdDev (of mu) = 1 / sqrt(info), where info:
+                           // info = abs (LL(mu + dmu) + LL (mu-dmu) - 2 * LL(mu) / dmu^2)
+                           // where dmu of 0.001nm should be small enough
+                           double dMu = 0.001;
+                           double[] llTest = {mu - dMu, mu, mu + dMu};
+                           double[] llResult = p2df.logLikelihood(p2dfResult, llTest);
+                           double info = Math.abs(
+                                   llResult[2] + llResult[0] - 2 * llResult[1])
+                                   / (dMu * dMu);
+                           double fisherStdDev = 1 / Math.sqrt(info);
 
-                     // Uncomment the following to plot loglikelihood
-                     /*
+                           // Uncomment the following to plot loglikelihood
+                           /*
                      double sigmaRange = 4.0 * distStd / Math.sqrt(d.length);
                      double resolution = 0.001 * distStd;
                      double[] distances;
@@ -586,8 +622,8 @@ public class ParticlePairLister {
                      }
                      GaussianUtils.plotData("Log Likelihood for " + dc.getSpotData(row).getName(), 
                                       data, "Distance (nm)", "Likelihood", 100, 100);
-                     */
-                     /*
+                            */
+                        /*
                      // Confidence interval calculation as in matlab code by Stirling Churchman
                      
                      int indexOfMaxLogLikelihood = CalcUtils.maxIndex(logLikelihood);
@@ -601,27 +637,28 @@ public class ParticlePairLister {
                         lowConflim = mu - dist2;
                         highConflim = dist1 - mu;
                      }
-                      */
-                     String msg1 = "P2D fit for " + dc.getSpotData(row).getName();
-                     String msg2 = "n = " + allDistances.size() + ", mu = "
-                             + NumberUtils.doubleToDisplayString(mu, 2)
-                             + "\u00b1"
-                             + NumberUtils.doubleToDisplayString(fisherStdDev, 2)
-                             + "  nm, sigma = "
-                             + NumberUtils.doubleToDisplayString(distStd, 2)
-                             + " nm, ";
-                     MMStudio.getInstance().alerts().postAlert(msg1, null, msg2);
+                            */
+                           String msg1 = "P2D fit of " + dc.getSpotData(row).getName() +
+                                   "ch " + ch1 + " versus " + ch2;
+                           String msg2 = "n = " + allDistances.size() + ", mu = "
+                                   + NumberUtils.doubleToDisplayString(mu, 2)
+                                   + "\u00b1"
+                                   + NumberUtils.doubleToDisplayString(fisherStdDev, 2)
+                                   + "  nm, sigma = "
+                                   + NumberUtils.doubleToDisplayString(distStd, 2)
+                                   + " nm, ";
+                           MMStudio.getInstance().alerts().postAlert(msg1, null, msg2);
 
-                     MMStudio.getInstance().alerts().postAlert("Gaussian distribution for "
-                             + dc.getSpotData(row).getName(),
-                             null,
-                             "n = " + allDistances.size()
-                             + ", avg = "
-                             + NumberUtils.doubleToDisplayString(distMean, 2)
-                             + " nm, std = "
-                             + NumberUtils.doubleToDisplayString(distStd, 2) + " nm");
+                           MMStudio.getInstance().alerts().postAlert("Gaussian distribution for "
+                                   + dc.getSpotData(row).getName(),
+                                   null,
+                                   "n = " + allDistances.size()
+                                   + ", avg = "
+                                   + NumberUtils.doubleToDisplayString(distMean, 2)
+                                   + " nm, std = "
+                                   + NumberUtils.doubleToDisplayString(distStd, 2) + " nm");
 
-                     /*
+                           /*
                      // we have a good estimate of mu, use this to estimate an average std      
                      P2DFitter p2df2 = new P2DFitter(d, null, false, true, maxDistanceNm_);
                      p2df2.setStartParams(mu, distStd);
@@ -629,114 +666,38 @@ public class ParticlePairLister {
                      double[] p2df2Result = p2df2.solve();
                      // Confidence interval calculation as in matlab code by Stirling Churchman
                      double[] fitResult2 = new double[] {mu, p2df2Result[0]};
-                      */
-                     // plot function and histogram
-                     if (showHistogram_) {
-                        GaussianUtils.plotP2D("P2D fit of: "
-                                + dc.getSpotData(row).getName() + " distances",
-                                d, maxDistanceNm_, muSigma);
-                     }
-
-                     // The following is used to output results in a machine readable fashion
-                     // Uncomment when needed:
-                     rt3.incrementCounter();
-                     rt3.addValue("Max. Dist.", maxDistanceNm_);
-                     rt3.addValue("File", dc.getSpotData(row).getName());
-                     String useVect = p2dSingleFrames_ ? "no" : "yes";
-                     rt3.addValue("Vect. Dist.", useVect);
-                     String fittedSigma = "yes";
-                     rt3.addValue("Fit Sigma", fittedSigma);
-                     rt3.addValue("Sigma from data", "yes");
-                     rt3.addValue("Registration error", registrationError_);
-                     rt3.addValue("n", allDistances.size());
-                     rt3.addValue("Frames", dc.getSpotData(row).nrFrames_);
-                     rt3.addValue("Positions", dc.getSpotData(row).nrPositions_);
-                     rt3.addValue("mu", mu);
-                     rt3.addValue("stdDev", fisherStdDev);
-                     rt3.addValue("sigma", distStd);
-
-                     rt3.show("P2D Summary");
-
-                  } catch (FittingException fe) {
-                     String msg = "ID: " + dc.getSpotData(row).ID_
-                             + ", Failed to fit p2d function";
-                     MMStudio.getInstance().alerts().postAlert("P2D fit error",
-                             null, msg);
-                     if (row == rows_[rows_.length - 1]) {
-                        ReportingUtils.showError(msg);
-                     }
-                  } catch (TooManyEvaluationsException tmee) {
-                     String msg = "ID: " + dc.getSpotData(row).ID_
-                             + ", Too many evaluations while fitting";
-                     MMStudio.getInstance().alerts().postAlert("P2D fit error",
-                             null, msg);
-                     if (row == rows_[rows_.length - 1]) {
-                        ReportingUtils.showError(msg);
-                     }
-                  }
-               }
-
-               /**
-                * **************** P2D - Multi-Frame **********************
-                */
-               if (p2dDistanceCalc_ && !p2dSingleFrames_ && allDistances.size() > 0) {
-                  double[] p2dfResult = {0.0, 0.0};
-                  try {
-                     p2dfResult = p2dLeastSquareFit(vectorDistances, maxDistanceNm_);
-                  } catch (FittingException fe) {
-                     String msg = "ID: " + dc.getSpotData(row).ID_
-                             + ", Failed to fit p2d function";
-                     MMStudio.getInstance().alerts().postAlert("P2D fit error",
-                             null, msg);
-                     if (row == rows_[rows_.length - 1]) {
-                        ReportingUtils.showError(msg);
-                     }
-                  } catch (TooManyEvaluationsException tmee) {
-                     String msg = "ID: " + dc.getSpotData(row).ID_
-                             + ", Too many evaluations while fitting";
-                     MMStudio.getInstance().alerts().postAlert("P2D fit error",
-                             null, msg);
-                     if (row == rows_[rows_.length - 1]) {
-                        ReportingUtils.showError(msg);
-                     }
-                  }
-
-                  double mu = p2dfResult[0];
-                  double sigma = p2dfResult[1];
-
-                  // calculate standard devication of MLE fit 
-                  // accoring to Fisher information theory
-                  // algorithm by Jongmin Sung
-                  // stdDev (of mu) = 1 / sqrt(info), where info:
-                  // info = abs (LL(mu + dmu) + LL (mu-dmu) - 2 * LL(mu) / dmu^2)
-                  // where dmu of 0.001nm should be small enough
-                  // double dMu = 0.001;
-                  // double[] llTest = {mu - dMu, mu, mu + dMu};
-                  // double[] llResult = p2df.logLikelihood(p2dfResult, llTest);
-                  // double info = Math.abs(
-                  //       llResult[2] + llResult[0] - 2 * llResult[1])
-                  //       / (dMu * dMu);
-                  // double fisherStdDev = 1 / Math.sqrt(info);
-                  double muEstimate = 0.0;
-                  double stdDevEstimate = 0.0;
-                  boolean bootstrapSucceeded = false;
-                  if (bootstrap_) {
-                     ij.IJ.showStatus("Bootstrap analysis running");
-                     int counter = 0;
-                     int errorCounter = 0;
-                     final int nrRuns = 1000;
-                     final int maxNrErrors = 10;
-                     List<Double> mus = new ArrayList<>();
-                     double[] bootsTrapResult;
-                     while (counter < nrRuns && errorCounter < maxNrErrors) {
-                        List bootstrapList = ListUtils.listToListForBootstrap(vectorDistances);
-                        try {
-                           bootsTrapResult = p2dLeastSquareFit(bootstrapList, maxDistanceNm_);
-                           mus.add(bootsTrapResult[0]);
-                           counter++;
-                           if (counter % 25 == 0) {
-                              ij.IJ.showProgress(counter, nrRuns);
+                            */
+                           // plot function and histogram
+                           if (showHistogram_) {
+                              GaussianUtils.plotP2D("P2D fit of: "
+                                      + dc.getSpotData(row).getName() 
+                                      + ", channel " + ch1 + " - " + ch2 +" distances",
+                                      d, maxDistanceNm_, muSigma, windowOffset);
+                              windowOffset += 50;
                            }
+
+                           // The following is used to output results in a machine readable fashion
+                           // Uncomment when needed:
+                           rt3.incrementCounter();
+                           rt3.addValue("Max. Dist.", maxDistanceNm_);
+                           rt3.addValue("File", dc.getSpotData(row).getName());
+                           rt3.addValue("Ch1", ch1);
+                           rt3.addValue("Ch2", ch2);
+                           String useVect = p2dSingleFrames_ ? "no" : "yes";
+                           rt3.addValue("Vect. Dist.", useVect);
+                           String fittedSigma = "yes";
+                           rt3.addValue("Fit Sigma", fittedSigma);
+                           rt3.addValue("Sigma from data", "yes");
+                           rt3.addValue("Registration error", registrationError_);
+                           rt3.addValue("n", allDistances.size());
+                           rt3.addValue("Frames", dc.getSpotData(row).nrFrames_);
+                           rt3.addValue("Positions", dc.getSpotData(row).nrPositions_);
+                           rt3.addValue("mu", mu);
+                           rt3.addValue("stdDev", fisherStdDev);
+                           rt3.addValue("sigma", distStd);
+
+                           rt3.show("P2D Summary");
+
                         } catch (FittingException fe) {
                            String msg = "ID: " + dc.getSpotData(row).ID_
                                    + ", Failed to fit p2d function";
@@ -745,7 +706,6 @@ public class ParticlePairLister {
                            if (row == rows_[rows_.length - 1]) {
                               ReportingUtils.showError(msg);
                            }
-                           errorCounter++;
                         } catch (TooManyEvaluationsException tmee) {
                            String msg = "ID: " + dc.getSpotData(row).ID_
                                    + ", Too many evaluations while fitting";
@@ -754,73 +714,165 @@ public class ParticlePairLister {
                            if (row == rows_[rows_.length - 1]) {
                               ReportingUtils.showError(msg);
                            }
-                           errorCounter++;
-                        } catch (NumberIsTooLargeException nitle) {
+                        }
+                     }
+                  }
+               }
+
+               /**
+                * **************** P2D - Multi-Frame **********************
+                */
+               if (p2dDistanceCalc_ && !p2dSingleFrames_ && allDistances.size() > 0) {
+                  for (int ch1 = 1; ch1 < nrChannels; ch1++) {
+                     for (int ch2 = ch1 + 1; ch2 <= nrChannels; ch2++) {
+
+                        double[] p2dfResult = {0.0, 0.0};
+                        try {
+                           p2dfResult = p2dLeastSquareFit(vectorDistances.get(ch1).get(ch2), maxDistanceNm_);
+                        } catch (FittingException fe) {
                            String msg = "ID: " + dc.getSpotData(row).ID_
-                                   + ", Internal error during bootystrapping";
+                                   + ", Failed to fit p2d function";
                            MMStudio.getInstance().alerts().postAlert("P2D fit error",
                                    null, msg);
                            if (row == rows_[rows_.length - 1]) {
                               ReportingUtils.showError(msg);
                            }
-                           errorCounter++;
+                        } catch (TooManyEvaluationsException tmee) {
+                           String msg = "ID: " + dc.getSpotData(row).ID_
+                                   + ", Too many evaluations while fitting";
+                           MMStudio.getInstance().alerts().postAlert("P2D fit error",
+                                   null, msg);
+                           if (row == rows_[rows_.length - 1]) {
+                              ReportingUtils.showError(msg);
+                           }
                         }
-                     }
-                     if (errorCounter >= 100) {
-                        MMStudio.getInstance().alerts().postAlert("Boostrapping error",
-                                null, "Bootstrap analysis failed due to too many errors");
-                     } else {
-                        muEstimate = ListUtils.listAvg(mus);
-                        stdDevEstimate = ListUtils.listStdDev(mus, muEstimate);
-                        bootstrapSucceeded = true;
-                     }
+
+                        double mu = p2dfResult[0];
+                        double sigma = p2dfResult[1];
+
+                        // calculate standard devication of MLE fit 
+                        // accoring to Fisher information theory
+                        // algorithm by Jongmin Sung
+                        // stdDev (of mu) = 1 / sqrt(info), where info:
+                        // info = abs (LL(mu + dmu) + LL (mu-dmu) - 2 * LL(mu) / dmu^2)
+                        // where dmu of 0.001nm should be small enough
+                        // double dMu = 0.001;
+                        // double[] llTest = {mu - dMu, mu, mu + dMu};
+                        // double[] llResult = p2df.logLikelihood(p2dfResult, llTest);
+                        // double info = Math.abs(
+                        //       llResult[2] + llResult[0] - 2 * llResult[1])
+                        //       / (dMu * dMu);
+                        // double fisherStdDev = 1 / Math.sqrt(info);
+                        double muEstimate = 0.0;
+                        double stdDevEstimate = 0.0;
+                        boolean bootstrapSucceeded = false;
+                        if (bootstrap_) {
+                           ij.IJ.showStatus("Bootstrap analysis running");
+                           int counter = 0;
+                           int errorCounter = 0;
+                           final int nrRuns = 1000;
+                           final int maxNrErrors = 10;
+                           List<Double> mus = new ArrayList<>();
+                           double[] bootsTrapResult;
+                           while (counter < nrRuns && errorCounter < maxNrErrors) {
+                              List bootstrapList = ListUtils.listToListForBootstrap(
+                                      vectorDistances.get(ch1).get(ch2));
+                              try {
+                                 bootsTrapResult = p2dLeastSquareFit(bootstrapList, maxDistanceNm_);
+                                 mus.add(bootsTrapResult[0]);
+                                 counter++;
+                                 if (counter % 25 == 0) {
+                                    ij.IJ.showProgress(counter, nrRuns);
+                                 }
+                              } catch (FittingException fe) {
+                                 String msg = "ID: " + dc.getSpotData(row).ID_
+                                         + ", Failed to fit p2d function";
+                                 MMStudio.getInstance().alerts().postAlert("P2D fit error",
+                                         null, msg);
+                                 if (row == rows_[rows_.length - 1]) {
+                                    ReportingUtils.showError(msg);
+                                 }
+                                 errorCounter++;
+                              } catch (TooManyEvaluationsException tmee) {
+                                 String msg = "ID: " + dc.getSpotData(row).ID_
+                                         + ", Too many evaluations while fitting";
+                                 MMStudio.getInstance().alerts().postAlert("P2D fit error",
+                                         null, msg);
+                                 if (row == rows_[rows_.length - 1]) {
+                                    ReportingUtils.showError(msg);
+                                 }
+                                 errorCounter++;
+                              } catch (NumberIsTooLargeException nitle) {
+                                 String msg = "ID: " + dc.getSpotData(row).ID_
+                                         + ", Internal error during bootystrapping";
+                                 MMStudio.getInstance().alerts().postAlert("P2D fit error",
+                                         null, msg);
+                                 if (row == rows_[rows_.length - 1]) {
+                                    ReportingUtils.showError(msg);
+                                 }
+                                 errorCounter++;
+                              }
+                           }
+                           if (errorCounter >= 100) {
+                              MMStudio.getInstance().alerts().postAlert("Boostrapping error",
+                                      null, "Bootstrap analysis failed due to too many errors");
+                           } else {
+                              muEstimate = ListUtils.listAvg(mus);
+                              stdDevEstimate = ListUtils.listStdDev(mus, muEstimate);
+                              bootstrapSucceeded = true;
+                           }
+                        }
+
+                        ij.IJ.showStatus("");
+
+                        String msg1 = "P2D fit for " + dc.getSpotData(row).getName() + 
+                                ", channel " + ch1 + " - " + ch2;
+                        String msg2 = "n = " + allDistances.size() + ", mu = "
+                                + NumberUtils.doubleToDisplayString(mu, 2)
+                                // + "\u00b1"
+                                //+ NumberUtils.doubleToDisplayString(fisherStdDev, 2)
+                                + " nm, sigma = "
+                                + NumberUtils.doubleToDisplayString(sigma, 2)
+                                + " nm";
+                        MMStudio.getInstance().alerts().postAlert(msg1, null, msg2);
+
+                        // plot function and histogram
+                        if (showHistogram_) {
+                           GaussianUtils.plotP2D("P2D fit of: "
+                                   + dc.getSpotData(row).getName() + 
+                                   ", channel " + ch1 + " - " + ch2 + " distances",
+                                   ListUtils.toArray(vectorDistances.get(ch1).get(ch2)), maxDistanceNm_,
+                                   p2dfResult, windowOffset);
+                           windowOffset += 50;
+                        }
+
+                        rt3.incrementCounter();
+                        rt3.addValue("Max. Dist.", maxDistanceNm_);
+                        rt3.addValue("File", dc.getSpotData(row).getName());
+                        String useVect = p2dSingleFrames_ ? "no" : "yes";
+                        rt3.addValue("Vect. Dist.", useVect);
+                        rt3.addValue("Fit Sigma", "no");
+                        rt3.addValue("Sigma from data", "no");
+                        rt3.addValue("n", allDistances.size());
+                        rt3.addValue("Frames", dc.getSpotData(row).nrFrames_);
+                        rt3.addValue("Positions", dc.getSpotData(row).nrPositions_);
+                        rt3.addValue("mu", mu);
+                        //rt3.addValue("stdDev", fisherStdDev);
+                        rt3.addValue("sigma", sigma);
+                        if (bootstrapSucceeded) {
+                           rt3.addValue("bootstrap Mu", muEstimate);
+                           rt3.addValue("bootstrap StdDev", stdDevEstimate);
+                        }
+
+                        rt3.show("P2D Summary");
+
+                     }  // end of p2dCalc using multiple frames
+
+                     ij.IJ.showProgress(100.0);
+                     ij.IJ.showStatus("Done listing pairs");
+
                   }
-
-                  ij.IJ.showStatus("");
-
-                  String msg1 = "P2D fit for " + dc.getSpotData(row).getName();
-                  String msg2 = "n = " + allDistances.size() + ", mu = "
-                          + NumberUtils.doubleToDisplayString(mu, 2)
-                          // + "\u00b1"
-                          //+ NumberUtils.doubleToDisplayString(fisherStdDev, 2)
-                          + " nm, sigma = "
-                          + NumberUtils.doubleToDisplayString(sigma, 2)
-                          + " nm";
-                  MMStudio.getInstance().alerts().postAlert(msg1, null, msg2);
-
-                  // plot function and histogram
-                  if (showHistogram_) {
-                     GaussianUtils.plotP2D("P2D fit of: "
-                             + dc.getSpotData(row).getName() + " distances",
-                             ListUtils.toArray(vectorDistances), maxDistanceNm_,
-                             p2dfResult);
-                  }
-
-                  rt3.incrementCounter();
-                  rt3.addValue("Max. Dist.", maxDistanceNm_);
-                  rt3.addValue("File", dc.getSpotData(row).getName());
-                  String useVect = p2dSingleFrames_ ? "no" : "yes";
-                  rt3.addValue("Vect. Dist.", useVect);
-                  rt3.addValue("Fit Sigma", "no");
-                  rt3.addValue("Sigma from data", "no");
-                  rt3.addValue("n", allDistances.size());
-                  rt3.addValue("Frames", dc.getSpotData(row).nrFrames_);
-                  rt3.addValue("Positions", dc.getSpotData(row).nrPositions_);
-                  rt3.addValue("mu", mu);
-                  //rt3.addValue("stdDev", fisherStdDev);
-                  rt3.addValue("sigma", sigma);
-                  if (bootstrapSucceeded) {
-                     rt3.addValue("bootstrap Mu", muEstimate);
-                     rt3.addValue("bootstrap StdDev", stdDevEstimate);
-                  }
-
-                  rt3.show("P2D Summary");
-
-               }  // end of p2dCalc using multiple frames
-
-               ij.IJ.showProgress(100.0);
-               ij.IJ.showStatus("Done listing pairs");
-
+               }
             }  // end of for (row : rows)
          }
       };

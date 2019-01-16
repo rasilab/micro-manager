@@ -316,7 +316,7 @@ public class GaussianUtils {
     * @param fitResult - double[0] is mu, double[1] is sigma
     */
    public static void plotP2D(final String title, final double[] data, 
-           final double max, double[] fitResult) {
+           final double max, double[] fitResult, int windowOffset) {
       final double testNrBins = (data.length / max) * 5.0;
       final int nrBins = testNrBins > 25 ? (int) testNrBins : 25;
       final double min = 0.0;
@@ -384,7 +384,7 @@ public class GaussianUtils {
       ChartFrame graphFrame = new ChartFrame(title, chart);
       graphFrame.getChartPanel().setMouseWheelEnabled(true);
       graphFrame.pack();
-      graphFrame.setLocation(300, 300);
+      graphFrame.setLocation(200 + windowOffset, 200 + windowOffset);
       graphFrame.setVisible(true);
       
    }
