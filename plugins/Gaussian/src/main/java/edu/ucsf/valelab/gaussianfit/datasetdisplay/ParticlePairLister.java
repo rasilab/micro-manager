@@ -32,6 +32,7 @@ import edu.ucsf.valelab.gaussianfit.Terms;
 import edu.ucsf.valelab.gaussianfit.data.GsSpotPair;
 import edu.ucsf.valelab.gaussianfit.data.SpotData;
 import edu.ucsf.valelab.gaussianfit.data.SpotsByPosition;
+import edu.ucsf.valelab.gaussianfit.data.TracksStats;
 import edu.ucsf.valelab.gaussianfit.fitting.FittingException;
 import edu.ucsf.valelab.gaussianfit.fitting.Gaussian1DecdFitter;
 import edu.ucsf.valelab.gaussianfit.fitting.P2DEcdfFitter;
@@ -189,12 +190,12 @@ public class ParticlePairLister {
       
    /**
     * Cycles through the spots of the selected data set and finds the most
-    * nearby spot in channel 2. It will list this as a pair if the two spots are
+    * nearby spot in the other channels. It will list this as a pair if the two spots are
     * within maxDistanceNm_ of each other.
     *
     * Once all pairs are found, it will go through all frames and try to build
     * up tracks. If the spot is within maxDistanceNm_ between frames, the code
-    * will consider the particle to be identical.
+    * will consider the particle to be identical and add to the "track".
     *
     * All "tracks" of particles will be listed
     *
@@ -257,6 +258,10 @@ public class ParticlePairLister {
                             ", No Pairs found");
                }
               
+               // Calculate per track statistics
+               final TracksStats tracksStats = PairOrganizer.trackStatistics(tracks, 
+                       nrChannels, registrationError_);
+               
                
                if (showPairs_ ) {
                   ResultsTable pairTable = new ResultsTable();
@@ -325,29 +330,6 @@ public class ParticlePairLister {
                   }
                }  // end of show pairs
  
-               Iterator<List<GsSpotPair>> itTracks = tracks.iterator();
-               int spotId = 0;
-               Map<Integer, Map<Integer, List<Double>>> allDistances = new HashMap<>();
-               Map<Integer, Map<Integer, List<Double>>> allSigmas = new HashMap<>();
-               Map<Integer, Map<Integer, List<Double>>> sigmasFirstSpot = new HashMap<>();
-               Map<Integer, Map<Integer, List<Double>>> sigmasSecondSpot = new HashMap<>();
-               Map<Integer, Map<Integer, List<Double>>> vectorDistances = new HashMap<>();
-               
-               for (int ch1 = 1; ch1 < nrChannels; ch1++) {
-                  allDistances.put(ch1, new HashMap<>());
-                  allSigmas.put(ch1, new HashMap<>());
-                  sigmasFirstSpot.put(ch1, new HashMap<>());
-                  sigmasSecondSpot.put(ch1, new HashMap<>());
-                  vectorDistances.put(ch1, new HashMap<>());
-                  for (int ch2 = ch1 + 1; ch2 <= nrChannels; ch2++) {
-                     allDistances.get(ch1).put(ch2, new ArrayList<>());
-                     allSigmas.get(ch1).put(ch2, new ArrayList<>());
-                     sigmasFirstSpot.get(ch1).put(ch2, new ArrayList<>());
-                     sigmasSecondSpot.get(ch1).put(ch2, new ArrayList<>());
-                     vectorDistances.get(ch1).put(ch2, new ArrayList<>());
-                  }
-               }
-                              
                ImagePlus siPlus = ij.WindowManager.getImage(dc.getSpotData(row).title_);
                if (showOverlay_) {
                   if (siPlus != null && siPlus.getOverlay() != null) {
@@ -356,29 +338,9 @@ public class ParticlePairLister {
                   Arrow.setDefaultWidth(0.5);
                }
                
-               while (itTracks.hasNext()) {
-                  List<GsSpotPair> track = itTracks.next();
-                  for (GsSpotPair pair : track) {
-                     final int ch1 = pair.getFirstSpot().getChannel();
-                     final int ch2 = pair.getSecondSpot().getChannel();
-                     double distance = Math.sqrt(
-                             NearestPoint2D.distance2(pair.getFirstPoint(), pair.getSecondPoint()));
-                     allDistances.get(ch1).get(ch2).add(distance);
-                     if (pair.getFirstSpot().hasKey(SpotData.Keys.INTEGRALAPERTURESIGMA)
-                             && pair.getSecondSpot().hasKey(SpotData.Keys.INTEGRALAPERTURESIGMA)) {
-                        double sigma1 = pair.getFirstSpot().getValue(SpotData.Keys.INTEGRALAPERTURESIGMA);
-                        double sigma2 = pair.getSecondSpot().getValue(SpotData.Keys.INTEGRALAPERTURESIGMA);
-                        double sigma = Math.sqrt(sigma1 * sigma1
-                                + sigma2 * sigma2
-                                + registrationError_ * registrationError_);
-                        allSigmas.get(ch1).get(ch2).add(sigma);
-                        sigmasFirstSpot.get(ch1).get(ch2).add(sigma1);
-                        sigmasSecondSpot.get(ch1).get(ch2).add(sigma2);
-                     }
-                  }
-               }
-
-               itTracks = tracks.iterator();
+               // TODO: Factor this data aggregation code out into PairOrganizer
+               Iterator<List<GsSpotPair>> itTracks = tracks.iterator();
+               int spotId = 0;
                while (itTracks.hasNext()) {
                   List<GsSpotPair> track = itTracks.next();
                   ArrayList<Double> distances = new ArrayList<>();
@@ -414,7 +376,7 @@ public class ParticlePairLister {
                   rt2.addValue(Terms.YPIX, pair.getFirstSpot().getY());
                   rt2.addValue("n", track.size());
                  
-                  // Average of Euclidean distances in this strack
+                  // Average of Euclidean distances in this track
                   double avg = ListUtils.listAvg(distances);
                   rt2.addValue("Distance-Avg", avg);
                   // Standard Deviation of Euclidean distances in this track
@@ -432,8 +394,8 @@ public class ParticlePairLister {
                      double yDiffAvg = ListUtils.listAvg(yDiff);
                      double vectorDistanceAvg = (Math.sqrt( xDiffAvg * xDiffAvg + 
                              yDiffAvg * yDiffAvg));
-                     vectorDistances.get(pair.getFirstSpot().getChannel()).
-                             get(pair.getSecondSpot().getChannel()).add(vectorDistanceAvg);
+                     tracksStats.vectorDistances(pair.getFirstSpot().getChannel(),
+                             pair.getSecondSpot().getChannel()).add(vectorDistanceAvg);
                      rt2.addValue("Distance-VectorAvg", vectorDistanceAvg);
                   }
 
@@ -565,11 +527,11 @@ public class ParticlePairLister {
                /**
                 * *************** Single frame calculations ******************
                 */
-               if (p2dDistanceCalc_ && p2dSingleFrames_ && allDistances.size() > 0) {
+               if (p2dDistanceCalc_ && p2dSingleFrames_ && tracks.size() > 0) {
                   for (int ch1 = 1; ch1 < nrChannels; ch1++) {
                      for (int ch2 = ch1 + 1; ch2 <= nrChannels; ch2++) {
-                        double[] d = ListUtils.toArray(allDistances.get(ch1).get(ch2));
-                        double[] sigmas = ListUtils.toArray(allSigmas.get(ch1).get(ch2));
+                        double[] d = ListUtils.toArray(tracksStats.distances(ch1, ch2));
+                        double[] sigmas = ListUtils.toArray(tracksStats.sigmas(ch1, ch2));
                         if (d.length != sigmas.length) {
                            ReportingUtils.showError("Internal Error: number of distances and sigmas not identical\n"
                                    + "Data may not contain Mortenson Integral Sigma from Aperture intensity");
@@ -579,11 +541,13 @@ public class ParticlePairLister {
                         P2DFitter p2df = new P2DFitter(d, sigmas, true, false, maxDistanceNm_);
 
                         // Generate a population average of the distance sigma
-                        double distMean = ListUtils.listAvg(allDistances.get(ch1).get(ch2));
-                        double sfsAvg = ListUtils.listAvg(sigmasFirstSpot.get(ch1).get(ch2));
-                        double sSsAvg = ListUtils.listAvg(sigmasSecondSpot.get(ch1).get(ch2));
-                        double sfsStdDev = ListUtils.listStdDev(sigmasFirstSpot.get(ch1).get(ch2), sfsAvg);
-                        double sSsStdDev = ListUtils.listStdDev(sigmasSecondSpot.get(ch1).get(ch2), sSsAvg);
+                        double distMean = ListUtils.listAvg(tracksStats.distances(ch1, ch2));
+                        double sfsAvg = ListUtils.listAvg(tracksStats.sigmasFirstSpot(ch1, ch2));
+                        double sSsAvg = ListUtils.listAvg(tracksStats.sigmasSecondSpot(ch1, ch2));
+                        double sfsStdDev = ListUtils.listStdDev(
+                                tracksStats.sigmasFirstSpot(ch1, ch2), sfsAvg);
+                        double sSsStdDev = ListUtils.listStdDev(
+                                tracksStats.sigmasSecondSpot(ch1, ch2), sSsAvg);
                         double distStd = Math.sqrt(sfsAvg * sfsAvg + sSsAvg * sSsAvg
                                 + sfsStdDev * sfsStdDev + sSsStdDev * sSsStdDev
                                 + registrationError_ * registrationError_);
@@ -640,7 +604,7 @@ public class ParticlePairLister {
                             */
                            String msg1 = "P2D fit of " + dc.getSpotData(row).getName() +
                                    "ch " + ch1 + " versus " + ch2;
-                           String msg2 = "n = " + allDistances.size() + ", mu = "
+                           String msg2 = "n = " + tracksStats.distances(ch1, ch2).size() + ", mu = "
                                    + NumberUtils.doubleToDisplayString(mu, 2)
                                    + "\u00b1"
                                    + NumberUtils.doubleToDisplayString(fisherStdDev, 2)
@@ -652,7 +616,7 @@ public class ParticlePairLister {
                            MMStudio.getInstance().alerts().postAlert("Gaussian distribution for "
                                    + dc.getSpotData(row).getName(),
                                    null,
-                                   "n = " + allDistances.size()
+                                   "n = " + tracksStats.distances(ch1, ch2).size()
                                    + ", avg = "
                                    + NumberUtils.doubleToDisplayString(distMean, 2)
                                    + " nm, std = "
@@ -689,7 +653,7 @@ public class ParticlePairLister {
                            rt3.addValue("Fit Sigma", fittedSigma);
                            rt3.addValue("Sigma from data", "yes");
                            rt3.addValue("Registration error", registrationError_);
-                           rt3.addValue("n", allDistances.size());
+                           rt3.addValue("n", tracksStats.distances(ch1, ch2).size());
                            rt3.addValue("Frames", dc.getSpotData(row).nrFrames_);
                            rt3.addValue("Positions", dc.getSpotData(row).nrPositions_);
                            rt3.addValue("mu", mu);
@@ -722,13 +686,14 @@ public class ParticlePairLister {
                /**
                 * **************** P2D - Multi-Frame **********************
                 */
-               if (p2dDistanceCalc_ && !p2dSingleFrames_ && allDistances.size() > 0) {
+               if (p2dDistanceCalc_ && !p2dSingleFrames_ && tracks.size() > 0) {
                   for (int ch1 = 1; ch1 < nrChannels; ch1++) {
                      for (int ch2 = ch1 + 1; ch2 <= nrChannels; ch2++) {
 
                         double[] p2dfResult = {0.0, 0.0};
                         try {
-                           p2dfResult = p2dLeastSquareFit(vectorDistances.get(ch1).get(ch2), maxDistanceNm_);
+                           p2dfResult = p2dLeastSquareFit(
+                                   tracksStats.vectorDistances(ch1, ch2), maxDistanceNm_);
                         } catch (FittingException fe) {
                            String msg = "ID: " + dc.getSpotData(row).ID_
                                    + ", Failed to fit p2d function";
@@ -776,7 +741,7 @@ public class ParticlePairLister {
                            double[] bootsTrapResult;
                            while (counter < nrRuns && errorCounter < maxNrErrors) {
                               List bootstrapList = ListUtils.listToListForBootstrap(
-                                      vectorDistances.get(ch1).get(ch2));
+                                      tracksStats.vectorDistances(ch1, ch2) );
                               try {
                                  bootsTrapResult = p2dLeastSquareFit(bootstrapList, maxDistanceNm_);
                                  mus.add(bootsTrapResult[0]);
@@ -827,7 +792,7 @@ public class ParticlePairLister {
 
                         String msg1 = "P2D fit for " + dc.getSpotData(row).getName() + 
                                 ", channel " + ch1 + " - " + ch2;
-                        String msg2 = "n = " + allDistances.size() + ", mu = "
+                        String msg2 = "n = " + tracksStats.distances(ch1, ch2) + ", mu = "
                                 + NumberUtils.doubleToDisplayString(mu, 2)
                                 // + "\u00b1"
                                 //+ NumberUtils.doubleToDisplayString(fisherStdDev, 2)
@@ -841,7 +806,7 @@ public class ParticlePairLister {
                            GaussianUtils.plotP2D("P2D fit of: "
                                    + dc.getSpotData(row).getName() + 
                                    ", channel " + ch1 + " - " + ch2 + " distances",
-                                   ListUtils.toArray(vectorDistances.get(ch1).get(ch2)), maxDistanceNm_,
+                                   ListUtils.toArray(tracksStats.vectorDistances(ch1, ch2)), maxDistanceNm_,
                                    p2dfResult, windowOffset);
                            windowOffset += 50;
                         }
@@ -853,7 +818,7 @@ public class ParticlePairLister {
                         rt3.addValue("Vect. Dist.", useVect);
                         rt3.addValue("Fit Sigma", "no");
                         rt3.addValue("Sigma from data", "no");
-                        rt3.addValue("n", allDistances.size());
+                        rt3.addValue("n", tracksStats.distances(ch1, ch2).size());
                         rt3.addValue("Frames", dc.getSpotData(row).nrFrames_);
                         rt3.addValue("Positions", dc.getSpotData(row).nrPositions_);
                         rt3.addValue("mu", mu);

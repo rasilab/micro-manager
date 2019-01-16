@@ -4,6 +4,7 @@ import edu.ucsf.valelab.gaussianfit.DataCollectionForm;
 import edu.ucsf.valelab.gaussianfit.data.GsSpotPair;
 import edu.ucsf.valelab.gaussianfit.data.SpotData;
 import edu.ucsf.valelab.gaussianfit.data.SpotsByPosition;
+import edu.ucsf.valelab.gaussianfit.data.TracksStats;
 import edu.ucsf.valelab.gaussianfit.spotoperations.NearestPoint2D;
 import edu.ucsf.valelab.gaussianfit.spotoperations.NearestPointByData;
 import java.awt.geom.Point2D;
@@ -19,6 +20,7 @@ import java.util.Map;
  * sets of pairs extracted from the data
  * Pairs need to be indexed by image position, frame nr, and 
  * combination of channels
+ * 
  * @author nico
  */
 public class PairOrganizer {
@@ -306,5 +308,45 @@ public class PairOrganizer {
       return tracks;
    }
   
+  /**
+   * Calculates statistics for each track and adds them to several lists 
+   * contained in TrackStats
+   * 
+   * @param tracks List of tracks, with each point in the track consisting of 
+   *                 a GsSpotPair
+   * @param nrChannels total nr Channels in the data set
+   * @param registrationError will be added to the sigma calculated for each spot pair
+   * @return Data structure with lists of distances, sigmas, sigmas for each spot, 
+   *        indexed by the two channels that each spot came from
+   */ 
+   public static TracksStats trackStatistics(List<List<GsSpotPair>> tracks,
+           final int nrChannels, final double registrationError) {
+      TracksStats tracksStats = new TracksStats(nrChannels);
+
+      Iterator<List<GsSpotPair>> itTracks = tracks.iterator();
+      while (itTracks.hasNext()) {
+         List<GsSpotPair> track = itTracks.next();
+         for (GsSpotPair pair : track) {
+            final int ch1 = pair.getFirstSpot().getChannel();
+            final int ch2 = pair.getSecondSpot().getChannel();
+            double distance = Math.sqrt(
+                    NearestPoint2D.distance2(pair.getFirstPoint(), pair.getSecondPoint()));
+            tracksStats.distances(ch1, ch2).add(distance);
+            if (pair.getFirstSpot().hasKey(SpotData.Keys.INTEGRALAPERTURESIGMA)
+                    && pair.getSecondSpot().hasKey(SpotData.Keys.INTEGRALAPERTURESIGMA)) {
+               double sigma1 = pair.getFirstSpot().getValue(SpotData.Keys.INTEGRALAPERTURESIGMA);
+               double sigma2 = pair.getSecondSpot().getValue(SpotData.Keys.INTEGRALAPERTURESIGMA);
+               double sigma = Math.sqrt(sigma1 * sigma1
+                       + sigma2 * sigma2
+                       + registrationError * registrationError);
+               tracksStats.sigmas(ch1, ch2).add(sigma);
+               tracksStats.sigmasFirstSpot(ch1, ch2).add(sigma1);
+               tracksStats.sigmasSecondSpot(ch1, ch2).add(sigma2);
+            }
+         }
+      }
+      return tracksStats;
+
+   }
 
 }

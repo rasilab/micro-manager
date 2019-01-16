@@ -48,7 +48,7 @@ public class TrackData implements PointData {
     private Point2D.Double center_;
     
     public TrackData() {
-       spotList_ = new ArrayList<SpotData>();
+       spotList_ = new ArrayList<>();
        missingAtEnd_ = 0;
     }
     
