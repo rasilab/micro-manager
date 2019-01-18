@@ -185,7 +185,7 @@ public class DataCollectionForm extends JFrame {
            "./data.tsf",
            false, new String[]{"txt", "tsf"});
  
-   private static List<CoordinateMapper> c2t_;
+   private static List<CoordinateMapper> cMappersByCh_;
    private static String loadTSFDir_ = "";   
    private int jitterMethod_ = 1;
    private int jitterMaxSpots_ = 40000; 
@@ -270,16 +270,16 @@ public class DataCollectionForm extends JFrame {
     * @return  Affine transform object calculated by the Coordinate Mapper
     */
    public AffineTransform getAffineTransform(int ch) {
-      if (c2t_ == null) {
+      if (cMappersByCh_ == null) {
          return null;
       }
       if (ch < 1) {
          return null;
       }
-      if (c2t_.get(ch - 1) == null) {
+      if (cMappersByCh_.get(ch - 1) == null) {
          return null;
       }
-      return c2t_.get(ch - 1).getAffineTransform();
+      return cMappersByCh_.get(ch - 1).getAffineTransform();
    }
 
   
@@ -1262,7 +1262,7 @@ public class DataCollectionForm extends JFrame {
       }
       
       
-      c2t_ = new ArrayList<CoordinateMapper>(rowData.nrChannels_ - 1);
+      cMappersByCh_ = new ArrayList<CoordinateMapper>(rowData.nrChannels_ - 1);
 
 
       for (int ch = 0; ch < rowData.nrChannels_ - 1; ch++) {
@@ -1270,12 +1270,12 @@ public class DataCollectionForm extends JFrame {
             ReportingUtils.showError("Fewer than 4 matching points found for channels "
                     + (ch + 1) + " and " + rowData.nrChannels_
                     + ".  Not enough to set as 2C reference");
-            c2t_.add(null);
+            cMappersByCh_.add(null);
          } else {
 
             // we have pairs from all images, construct the coordinate mapper
             try {
-               c2t_.add(new CoordinateMapper(pairsByChannel.get(ch), 2, 1));
+               cMappersByCh_.add(new CoordinateMapper(pairsByChannel.get(ch), 2, 1));
 
                studio_.alerts().postAlert("2C Reference", DataCollectionForm.class,
                        "Used " + pairsByChannel.get(0).size() + " spot pairs to calculate 2C Reference");
@@ -2329,7 +2329,7 @@ public class DataCollectionForm extends JFrame {
          JOptionPane.showMessageDialog(this, "Please select a dataset to Color correct");
          return;
       }
-      if (c2t_ == null) {
+      if (cMappersByCh_ == null) {
          JOptionPane.showMessageDialog(this, 
                  "No calibration data available.  First Calibrate using 2C Reference");
          return;
@@ -2346,7 +2346,7 @@ public class DataCollectionForm extends JFrame {
       if (method2CBox_.getSelectedItem().equals("Piecewise-Affine")) {
          method = CoordinateMapper.PIECEWISEAFFINE;
       }
-      for (CoordinateMapper c2t : c2t_) {
+      for (CoordinateMapper c2t : cMappersByCh_) {
          if (c2t != null) {
             c2t.setMethod(method);
          }
@@ -2373,7 +2373,7 @@ public class DataCollectionForm extends JFrame {
                   Point2D.Double point = new Point2D.Double(gs.getXCenter(), 
                           gs.getYCenter());
                   try {
-                     Point2D.Double corPoint = c2t_.get(gs.getChannel() - 1).
+                     Point2D.Double corPoint = cMappersByCh_.get(gs.getChannel() - 1).
                              transform(point);
                      SpotData gsn = new SpotData(gs);
                      if (corPoint != null) {
@@ -2593,8 +2593,8 @@ public class DataCollectionForm extends JFrame {
    }
 
    public void setPieceWiseAffineParameters(int maxControlPoints, double maxDistance) {
-      if (c2t_ != null) {
-         for (CoordinateMapper c2t : c2t_) {
+      if (cMappersByCh_ != null) {
+         for (CoordinateMapper c2t : cMappersByCh_) {
             c2t.setPieceWiseAffineMaxControlPoints(maxControlPoints);
             c2t.setPieceWiseAffineMaxDistance(maxDistance);
          }
