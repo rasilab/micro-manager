@@ -263,9 +263,9 @@ public class PairOrganizer {
 
       for (int pos : spotsByPosition.positionsUsed_) {
          // prepare NearestPoint objects to speed up finding closest pair 
-         List<NearestPointByData> npsp = new ArrayList<>();
          for (int ch1 = 1; ch1 < nrChannels; ch1++) {
             for (int ch2 = ch1 + 1; ch2 <= nrChannels; ch2++) {
+               List<NearestPointByData> npsp = new ArrayList<>();
                for (int frame = 1; frame <= nrFrames; frame++) {
                   npsp.add(new NearestPointByData(
                           spotPairs.get(pos).get(ch1).get(ch2).get(frame - 1), maxDistanceNm_));
