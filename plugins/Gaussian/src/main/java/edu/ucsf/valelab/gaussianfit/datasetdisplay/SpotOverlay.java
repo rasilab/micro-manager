@@ -17,22 +17,10 @@ import org.micromanager.display.overlay.AbstractOverlay;
  */
 public class SpotOverlay extends AbstractOverlay {
    List<Square> squares_;
-   
-   private class Square {
-      int x_, y_, width_;
-      
-      public Square(int x, int y, int width) {
-         x_ = x;
-         y_ = y;
-         width_ = width;
-      }
-      public int getX() { return x_;}
-      public int getY() { return y_;}
-      public int getWidth() { return width_; }
-   }
-   
+  
+  
    public SpotOverlay() {
-      squares_ = new ArrayList<Square>();
+      squares_ = new ArrayList<>();
    }
 
    @Override

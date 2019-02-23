@@ -57,6 +57,7 @@ import edu.ucsf.valelab.gaussianfit.data.LoadAndSave;
 import edu.ucsf.valelab.gaussianfit.spotoperations.SpotLinker;
 import edu.ucsf.valelab.gaussianfit.data.RowData;
 import edu.ucsf.valelab.gaussianfit.datasetdisplay.ParticlePairLister;
+import edu.ucsf.valelab.gaussianfit.datasetdisplay.TrackOverlay;
 import edu.ucsf.valelab.gaussianfit.datasetdisplay.TrackPlotter;
 import edu.ucsf.valelab.gaussianfit.datasettransformations.DriftCorrector;
 import edu.ucsf.valelab.gaussianfit.datasettransformations.PairFilter;
@@ -128,6 +129,8 @@ import org.apache.commons.math.optimization.OptimizationException;
 import org.apache.commons.math.stat.StatUtils;
 import org.micromanager.Studio;
 import org.micromanager.UserProfile;
+import org.micromanager.data.Coords;
+import org.micromanager.display.overlay.Overlay;
 import org.micromanager.events.ShutdownCommencingEvent;
 import org.micromanager.internal.MMStudio;
 import org.micromanager.propertymap.MutablePropertyMapView;
@@ -1046,6 +1049,8 @@ public class DataCollectionForm extends JFrame {
       public void mousePressed(MouseEvent e) {
          if (e.isPopupTrigger()) {
             doPop(e);
+         } else {
+            showPosition();
          }
       }
 
@@ -1059,6 +1064,36 @@ public class DataCollectionForm extends JFrame {
       private void doPop(MouseEvent e) {
          PopupMenu menu = new PopupMenu();
          menu.show(e.getComponent(), e.getX(), e.getY());
+      }
+      
+   }
+   
+   private void showPosition() {
+      final int rows[] = mainTable_.getSelectedRowsSorted();
+      for (int row : rows) {
+         final RowData rowData = mainTableModel_.getRow(row);
+         if (rowData.isTrack_ && rowData.dw_ != null) {
+            SpotData firstSpot = rowData.spotList_.get(0);
+            TrackOverlay to = null;
+            List<Overlay> overlays = rowData.dw_.getOverlays();
+            for (Overlay overlay: overlays) {
+               if (overlay instanceof TrackOverlay) {
+                  to = (TrackOverlay) overlay;
+               }
+            }
+            if (to == null) {
+               to = new TrackOverlay();
+               rowData.dw_.addOverlay(to);
+            }
+            to.setSquare(firstSpot.getX(), firstSpot.getY(), 2 * rowData.halfSize_);
+            // toggle visibility to ensure that the overlay gets drawn
+            to.setVisible(false);
+            to.setVisible(true);
+            Coords.CoordsBuilder builder = org.micromanager.data.Coordinates.builder();
+            Coords coords = builder.channel(firstSpot.getChannel() - 1).time(firstSpot.getFrame() - 1).
+                    z(firstSpot.getSlice() - 1).stagePosition(firstSpot.getPosition() - 1).build();
+            rowData.dw_.setDisplayPosition(coords);
+         }
       }
    }
 

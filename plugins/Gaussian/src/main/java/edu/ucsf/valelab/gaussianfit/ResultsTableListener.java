@@ -29,9 +29,9 @@ either expressed or implied, of the FreeBSD Project.
 
 package edu.ucsf.valelab.gaussianfit;
 
+import edu.ucsf.valelab.gaussianfit.datasetdisplay.TrackOverlay;
 import ij.IJ;
 import ij.ImagePlus;
-import ij.gui.Roi;
 import ij.measure.ResultsTable;
 import ij.text.TextPanel;
 import ij.text.TextWindow;
@@ -39,9 +39,11 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.util.List;
 import org.micromanager.data.Coordinates;
 import org.micromanager.data.Coords;
 import org.micromanager.display.DisplayWindow;
+import org.micromanager.display.overlay.Overlay;
 
 /**
  *
@@ -176,13 +178,20 @@ public class ResultsTableListener implements KeyListener, MouseListener {
             Coords.CoordsBuilder builder = Coordinates.builder();
             Coords coords = builder.channel(channel - 1).time(frame - 1).
                     z(slice - 1).stagePosition(pos - 1).build();
+            TrackOverlay to = null;
+            List<Overlay> overlays = dw_.getOverlays();
+            for (Overlay overlay: overlays) {
+               if (overlay instanceof TrackOverlay) {
+                  to = (TrackOverlay) overlay;
+               }
+            }
+            if (to == null) {
+               to = new TrackOverlay();
+               dw_.addOverlay(to);
+            }
+            to.setSquare(x, y, 2 * hBS_);
             dw_.setDisplayPosition(coords);
-         } else if (siPlus_.isHyperStack()) {
-            siPlus_.setPosition(channel, slice, frame);
-         } else {
-            siPlus_.setPosition(Math.max(frame, slice));
-         }
-         siPlus_.setRoi(new Roi(x - hBS_, y - hBS_, 2 * hBS_, 2 * hBS_));
+         } 
       }
    }
 }
