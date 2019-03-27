@@ -68,6 +68,11 @@
       <dependency org="org.ddogleg" name="ddogleg" rev="0.16"/>
       <dependency org="org.ejml" name="core" rev="0.30"/>
 
+      <dependency org="org.tensorflow" name="tensorflow" rev="1.12.0"/>
+      <dependency org="org.tensorflow" name="libtensorflow" rev="1.12.0"/>
+      <dependency org="org.tensorflow" name="libtensorflow_jni_gpu" rev="1.12.0"/>
+
+
 		<!-- Not in Maven yet (resolved in 3rdpartypublic/classext) -->
 		<dependency org="" name="iconloader" rev="GIT"/>
 
