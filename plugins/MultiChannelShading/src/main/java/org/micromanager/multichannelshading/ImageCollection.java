@@ -49,9 +49,9 @@ public class ImageCollection {
    
    public ImageCollection(Studio gui) {
       gui_ = gui;
-      background_ = new HashMap<String, ImagePlusInfo>();
-      flatFields_ = new HashMap<String, HashMap<String, ImagePlusInfo>>();
-      presetFiles_ = new HashMap<String, String>();
+      background_ = new HashMap<>();
+      flatFields_ = new HashMap<>();
+      presetFiles_ = new HashMap<>();
    }
    
    public void setBackground(String file) throws ShadingException {
@@ -170,8 +170,7 @@ public class ImageCollection {
 
          flatField = new ImagePlusInfo(fp);
 
-         HashMap<String, ImagePlusInfo> newFlatField =
-                 new HashMap<String, ImagePlusInfo>();
+         HashMap<String, ImagePlusInfo> newFlatField = new HashMap<>();
          newFlatField.put(BASEIMAGE, flatField);
          newFlatField.put(makeKey(1, fp.getRoi()), flatField);
          flatFields_.put(preset, newFlatField);

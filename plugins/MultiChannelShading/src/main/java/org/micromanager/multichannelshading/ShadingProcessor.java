@@ -21,16 +21,7 @@
 
 package org.micromanager.multichannelshading;
 
-import clearcl.ClearCL;
-import clearcl.ClearCLBuffer;
-import clearcl.ClearCLContext;
-import clearcl.ClearCLDevice;
-import clearcl.ClearCLKernel;
-import clearcl.ClearCLProgram;
-import clearcl.backend.ClearCLBackends;
-import clearcl.enums.BuildStatus;
-import clearcl.exceptions.OpenCLException;
-import coremem.enums.NativeTypeEnum;
+
 import ij.process.ImageProcessor;
 
 import java.awt.Rectangle;
@@ -39,7 +30,14 @@ import java.util.List;
 
 import mmcorej.Configuration;
 import mmcorej.PropertySetting;
-import static org.junit.Assert.assertEquals;
+import net.haesleinhuepf.clij.clearcl.ClearCL;
+import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
+import net.haesleinhuepf.clij.clearcl.ClearCLContext;
+import net.haesleinhuepf.clij.clearcl.ClearCLDevice;
+import net.haesleinhuepf.clij.clearcl.backend.ClearCLBackendInterface;
+import net.haesleinhuepf.clij.clearcl.backend.ClearCLBackends;
+import net.haesleinhuepf.clij.clearcl.ocllib.OCLlib;
+import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
 
 import org.micromanager.data.Image;
 import org.micromanager.data.Metadata;
@@ -47,6 +45,9 @@ import org.micromanager.data.Processor;
 import org.micromanager.data.ProcessorContext;
 import org.micromanager.PropertyMap;
 import org.micromanager.Studio;
+import org.micromanager.clops.CLKernelException;
+import org.micromanager.clops.CLKernelExecutor;
+import org.micromanager.clops.Kernels;
 import org.micromanager.data.internal.DefaultImage;
 
 /**
@@ -60,9 +61,10 @@ public class ShadingProcessor extends Processor {
    private Boolean useOpenCL_;
    private final List<String> presets_;
    private final ImageCollection imageCollection_;
-   private ClearCL ccl_;
-   private ClearCLContext cclContext_;
-   private ClearCLProgram cclProgram_;
+   private CLKernelExecutor gCLKE_;
+   private ClearCLContext gCLContext_;
+   private ClearCLBuffer clImg_;
+   private ClearCLBuffer clDestImg_;
 
    public ShadingProcessor(Studio studio, String channelGroup,
            Boolean useOpenCL, String backgroundFile, List<String> presets,
@@ -71,18 +73,20 @@ public class ShadingProcessor extends Processor {
       channelGroup_ = channelGroup;
       useOpenCL_ = useOpenCL;
       if (useOpenCL_) {
-         ccl_ = new ClearCL(ClearCLBackends.getBestBackend()); 
-         ClearCLDevice bestGPUDevice = ccl_.getBestGPUDevice();
-         if (bestGPUDevice == null) { // assume that is what is returned if there is no GPU
+         ClearCLBackendInterface lClearCLBackend
+              = ClearCLBackends.getBestBackend();
+
+          ClearCL lClearCL = new ClearCL(lClearCLBackend);
+
+   
+         ClearCLDevice lBestGPUDevice = lClearCL.getBestGPUDevice();
+
+         if (lBestGPUDevice == null) { // assume that is what is returned if there is no GPU
             useOpenCL_ = false;
          } else {
             try {
-            cclContext_ = bestGPUDevice.createContext();
-            cclProgram_ = cclContext_.createProgram(ShadingProcessor.class,
-                                                     "bufferMath.cl");
-            BuildStatus lBuildStatus = cclProgram_.buildAndLog();
-
-            assertEquals(lBuildStatus, BuildStatus.Success);
+               gCLContext_ = lBestGPUDevice.createContext();
+               gCLKE_ = new CLKernelExecutor(gCLContext_, OCLlib.class);
             } catch (IOException ioe) {
                studio_.alerts().postAlert(MultiChannelShading.MENUNAME, this.getClass(), 
                        "Failed to initialize OpenCL, falling back");
@@ -168,53 +172,75 @@ public class ShadingProcessor extends Processor {
 
       if (useOpenCL_) {
          try {
-            ClearCLBuffer clImg, clBackground, clFlatField;
-            String suffix;
+            ClearCLBuffer clBackground, clFlatField;
+            // buffering of clImg_ and clDestImg_.  TODO: do this more elegantly
             if (image.getBytesPerPixel() == 2) {
-               clImg = cclContext_.createBuffer(NativeTypeEnum.UnsignedShort,
+               if (clImg_ == null || clImg_.getDimensions()[0] != width || 
+                       clImg_.getDimensions()[1] != height || 
+                       clImg_.getNativeType() != NativeTypeEnum.UnsignedShort) {
+                  if (clImg_ != null) {
+                     clImg_.close();
+                  }
+                  clImg_ = gCLContext_.createBuffer(NativeTypeEnum.UnsignedShort,
                        image.getWidth() * image.getHeight());
-               suffix = "US";
+               }
+               if (clDestImg_ == null || clDestImg_.getDimensions()[0] != width || 
+                       clDestImg_.getDimensions()[1] != height || 
+                       clDestImg_.getNativeType() != NativeTypeEnum.UnsignedShort) {
+                  if (clDestImg_ != null) {
+                     clDestImg_.close();
+                  }
+                  clDestImg_ = gCLContext_.createBuffer(NativeTypeEnum.UnsignedShort,
+                       image.getWidth() * image.getHeight());
+               }
             } else { //(image.getBytesPerPixel() == 1) 
-               clImg = cclContext_.createBuffer(NativeTypeEnum.UnsignedByte,
+               if (clImg_ == null || clImg_.getDimensions()[0] != width || 
+                       clImg_.getDimensions()[1] != height || 
+                       clImg_.getNativeType() != NativeTypeEnum.UnsignedByte) {
+                  if (clImg_ != null) {
+                     clImg_.close();
+                  }
+                  clImg_ = gCLContext_.createBuffer(NativeTypeEnum.UnsignedByte,
                        image.getWidth() * image.getHeight());
-               suffix = "UB";
+               }
+               if (clDestImg_ == null || clDestImg_.getDimensions()[0] != width || 
+                       clDestImg_.getDimensions()[1] != height || 
+                       clDestImg_.getNativeType() != NativeTypeEnum.UnsignedByte) {
+                  if (clDestImg_ != null) {
+                     clDestImg_.close();
+                  }
+                  clDestImg_ = gCLContext_.createBuffer(NativeTypeEnum.UnsignedByte,
+                       image.getWidth() * image.getHeight());
+               }
             }
 
+
             // copy image to the GPU
-            clImg.readFrom(((DefaultImage) image).getPixelBuffer(), false);
+            clImg_.readFrom(((DefaultImage) image).getPixelBuffer(), false);
             // process with different kernels depending on availability of flatfield
             // and background:
             if (background != null && flatFieldImage == null) {
-               clBackground = background.getCLBuffer(cclContext_);
+               clBackground = background.getCLBuffer(gCLContext_);
                // need to use different kernels for differe types
-               ClearCLKernel lKernel = cclProgram_.createKernel("subtract" + suffix);
-               lKernel.setArguments(clImg, clBackground);
-               lKernel.setGlobalSizes(clImg);
-               lKernel.run();
+               Kernels.subtractImages(gCLKE_, clImg_, clBackground, clDestImg_);
             } else if (background == null && flatFieldImage != null) {
-               clFlatField = flatFieldImage.getCLBuffer(cclContext_);
-               ClearCLKernel lKernel = cclProgram_.createKernel("multiply" + suffix + "F");
-               lKernel.setArguments(clImg, clFlatField);
-               lKernel.setGlobalSizes(clImg);
-               lKernel.run();
+               clFlatField = flatFieldImage.getCLBuffer(gCLContext_);
+               Kernels.multiplyImages(gCLKE_, clImg_, clFlatField, clDestImg_);
             } else if (background != null && flatFieldImage != null) {
-               clBackground = background.getCLBuffer(cclContext_);
-               clFlatField = flatFieldImage.getCLBuffer(cclContext_);
-               ClearCLKernel lKernel = cclProgram_.createKernel("subtractAndMultiply" + suffix + "F");
-               lKernel.setArguments(clImg, clBackground, clFlatField);
-               lKernel.setGlobalSizes(clImg);
-               lKernel.run();
+               clBackground = background.getCLBuffer(gCLContext_);
+               clFlatField = flatFieldImage.getCLBuffer(gCLContext_);               
+               Kernels.subtractImages(gCLKE_, clImg_, clBackground, clDestImg_);               
+               Kernels.multiplyImages(gCLKE_, clDestImg_, clFlatField, clDestImg_);
             }
             // copy processed image back from the GPU
-            clImg.writeTo(((DefaultImage) image).getPixelBuffer(), true);
+            clDestImg_.writeTo(((DefaultImage) image).getPixelBuffer(), true);
             // release resources.  If more GPU processing is desired, this should change
-            clImg.close();
             context.outputImage(image);
             return;
-         } catch (OpenCLException ocle) {
+         } catch (CLKernelException clke) {
             studio_.alerts().postAlert(MultiChannelShading.MENUNAME,
                     ErrorInOpenCLClass.class,
-                    "Error using GPU: " + ocle.getMessage());
+                    "Error using GPU: " + clke.getMessage());
             useOpenCL_ = false;
          }
       }

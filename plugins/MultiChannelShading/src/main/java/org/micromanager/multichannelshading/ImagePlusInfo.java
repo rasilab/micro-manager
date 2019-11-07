@@ -21,9 +21,6 @@
 
 package org.micromanager.multichannelshading;
 
-import clearcl.ClearCLBuffer;
-import clearcl.ClearCLContext;
-import coremem.enums.NativeTypeEnum;
 import ij.ImagePlus;
 import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
@@ -35,9 +32,9 @@ import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.util.HashMap;
 import java.util.Map;
-import org.micromanager.data.Coordinates;
-import org.micromanager.data.Image;
-import org.micromanager.data.internal.DefaultImage;
+import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
+import net.haesleinhuepf.clij.clearcl.ClearCLContext;
+import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
 
 /**
  * Utility class that bundles an ImagePlus with the binning setting and the roi 
@@ -54,7 +51,7 @@ public class ImagePlusInfo extends ImagePlus{
       super(ip.getTitle(), ip.getProcessor());
       binning_ = binning;
       roi_ = roi;
-      clBuffers_ = new HashMap<ClearCLContext, ClearCLBuffer>(1);
+      clBuffers_ = new HashMap<>(1);
    }
    
    public ImagePlusInfo(ImagePlus ip) {
@@ -65,7 +62,7 @@ public class ImagePlusInfo extends ImagePlus{
       super("", ip);
       binning_ = 1;
       roi_ = new Rectangle(0, 0, ip.getWidth(), ip.getHeight());
-      clBuffers_ = new HashMap<ClearCLContext, ClearCLBuffer>(1);
+      clBuffers_ = new HashMap<>(1);
    }
    
    public int getBinning() {
