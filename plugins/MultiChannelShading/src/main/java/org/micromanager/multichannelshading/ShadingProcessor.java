@@ -181,8 +181,8 @@ public class ShadingProcessor extends Processor {
                   if (clImg_ != null) {
                      clImg_.close();
                   }
-                  clImg_ = gCLContext_.createBuffer(NativeTypeEnum.UnsignedShort,
-                       image.getWidth() * image.getHeight());
+                  clImg_ = gCLKE_.createCLBuffer(new long[] {image.getWidth(),image.getHeight()}, 
+                          NativeTypeEnum.UnsignedShort);
                }
                if (clDestImg_ == null || clDestImg_.getDimensions()[0] != width || 
                        clDestImg_.getDimensions()[1] != height || 
@@ -190,8 +190,8 @@ public class ShadingProcessor extends Processor {
                   if (clDestImg_ != null) {
                      clDestImg_.close();
                   }
-                  clDestImg_ = gCLContext_.createBuffer(NativeTypeEnum.UnsignedShort,
-                       image.getWidth() * image.getHeight());
+                  clDestImg_ = gCLKE_.createCLBuffer(new long[] {image.getWidth(),image.getHeight()}, 
+                          NativeTypeEnum.UnsignedShort);
                }
             } else { //(image.getBytesPerPixel() == 1) 
                if (clImg_ == null || clImg_.getDimensions()[0] != width || 
@@ -200,8 +200,8 @@ public class ShadingProcessor extends Processor {
                   if (clImg_ != null) {
                      clImg_.close();
                   }
-                  clImg_ = gCLContext_.createBuffer(NativeTypeEnum.UnsignedByte,
-                       image.getWidth() * image.getHeight());
+                  clImg_ = gCLKE_.createCLBuffer(new long[] {image.getWidth(),image.getHeight()}, 
+                          NativeTypeEnum.UnsignedByte);
                }
                if (clDestImg_ == null || clDestImg_.getDimensions()[0] != width || 
                        clDestImg_.getDimensions()[1] != height || 
@@ -209,15 +209,16 @@ public class ShadingProcessor extends Processor {
                   if (clDestImg_ != null) {
                      clDestImg_.close();
                   }
-                  clDestImg_ = gCLContext_.createBuffer(NativeTypeEnum.UnsignedByte,
-                       image.getWidth() * image.getHeight());
+                  clDestImg_ = gCLKE_.createCLBuffer(new long[] {image.getWidth(),image.getHeight()}, 
+                          NativeTypeEnum.UnsignedByte);
                }
             }
 
 
             // copy image to the GPU
-            clImg_.readFrom(((DefaultImage) image).getPixelBuffer(), false);
-            // process with different kernels depending on availability of flatfield
+            clImg_.readFrom(((DefaultImage) image).getPixelBuffer(), new long[]{0, 0}, new long[]{0,0},
+                    new long[] {image.getWidth(), image.getHeight()}, true);
+            // process with different kernels depending on availability of  flatfield
             // and background:
             if (background != null && flatFieldImage == null) {
                clBackground = background.getCLBuffer(gCLContext_);
