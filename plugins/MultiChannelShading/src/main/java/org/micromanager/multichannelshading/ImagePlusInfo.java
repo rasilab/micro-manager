@@ -33,8 +33,8 @@ import java.nio.ShortBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import net.haesleinhuepf.clij.clearcl.ClearCLBuffer;
-import net.haesleinhuepf.clij.clearcl.ClearCLContext;
 import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
+import org.micromanager.clops.CLKernelExecutor;
 
 /**
  * Utility class that bundles an ImagePlus with the binning setting and the roi 
@@ -44,7 +44,7 @@ import net.haesleinhuepf.clij.coremem.enums.NativeTypeEnum;
 public class ImagePlusInfo extends ImagePlus{
    private final int binning_;
    private final Rectangle roi_;
-   private final Map<ClearCLContext, ClearCLBuffer> clBuffers_;
+   private final Map<CLKernelExecutor, ClearCLBuffer> clBuffers_;
     
    
    public ImagePlusInfo(ImagePlus ip, int binning, Rectangle roi) {
@@ -78,35 +78,35 @@ public class ImagePlusInfo extends ImagePlus{
     * GPU data are cached, i.e. if no copy on the GPU is available,
     * data will be copied there and cached for later use.
     * TODO: investigate garbage collection/removal
-    * @param cclContext - openCL Context where we want the pixel data
+    * @param clke key to GPU environment
     * @return - Pixel Data in the given openCL context
     */
-   public ClearCLBuffer getCLBuffer(ClearCLContext cclContext) {
-      if (!clBuffers_.containsKey(cclContext)) {
+   public ClearCLBuffer getCLBuffer(CLKernelExecutor clke) {
+      if (!clBuffers_.containsKey(clke)) {
          ClearCLBuffer clBuffer = null;
          if (super.getProcessor() instanceof ByteProcessor) {
-            clBuffer = cclContext.createBuffer(NativeTypeEnum.UnsignedByte, 
-                       super.getWidth() *  super.getHeight());
+            clBuffer = clke.createCLBuffer(new long[] {super.getWidth(),super.getHeight()}, 
+                    NativeTypeEnum.UnsignedByte);
             clBuffer.readFrom( ByteBuffer.wrap(
                  (byte[]) super.getProcessor().getPixels()), 
                  true); 
          } else if (super.getProcessor() instanceof ShortProcessor) {
-            clBuffer = cclContext.createBuffer(NativeTypeEnum.UnsignedShort, 
-                       super.getWidth() *  super.getHeight());
+            clBuffer = clke.createCLBuffer(new long[] {super.getWidth(),super.getHeight()}, 
+                          NativeTypeEnum.UnsignedShort);
             clBuffer.readFrom( ShortBuffer.wrap(
                  (short[]) super.getProcessor().getPixels()), 
                  true); 
          } else if (super.getProcessor() instanceof FloatProcessor) {
-            clBuffer = cclContext.createBuffer(NativeTypeEnum.Float, 
-                       super.getWidth() *  super.getHeight());
+            clBuffer = clke.createCLBuffer(new long[] {super.getWidth(),super.getHeight()}, 
+                          NativeTypeEnum.Float);
             clBuffer.readFrom( FloatBuffer.wrap(
                     (float[]) super.getProcessor().getPixels()), 
                     true);
          }
 
          // TODO: other pixel types...
-         clBuffers_.put(cclContext, clBuffer);
+         clBuffers_.put(clke, clBuffer);
       }
-      return clBuffers_.get(cclContext);
+      return clBuffers_.get(clke);
    }
 }

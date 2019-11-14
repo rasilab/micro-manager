@@ -216,20 +216,26 @@ public class ShadingProcessor extends Processor {
 
 
             // copy image to the GPU
+            // There is some voodoo going on.  This needs to be fixed or documented 
+            // upstream (in ClearCL)
+            int heightMultiplier = image.getBytesPerPixel();
+            
+         
             clImg_.readFrom(((DefaultImage) image).getPixelBuffer(), new long[]{0, 0}, new long[]{0,0},
-                    new long[] {image.getWidth(), image.getHeight()}, true);
+                    new long[] {image.getWidth(), heightMultiplier * image.getHeight()}, true);
+           
             // process with different kernels depending on availability of  flatfield
             // and background:
             if (background != null && flatFieldImage == null) {
-               clBackground = background.getCLBuffer(gCLContext_);
+               clBackground = background.getCLBuffer(gCLKE_);
                // need to use different kernels for differe types
-               Kernels.subtractImages(gCLKE_, clImg_, clBackground, clDestImg_);
+               Kernels.subtractImages(gCLKE_, clImg_, clBackground, clDestImg_);   
             } else if (background == null && flatFieldImage != null) {
-               clFlatField = flatFieldImage.getCLBuffer(gCLContext_);
+               clFlatField = flatFieldImage.getCLBuffer(gCLKE_);
                Kernels.multiplyImages(gCLKE_, clImg_, clFlatField, clDestImg_);
             } else if (background != null && flatFieldImage != null) {
-               clBackground = background.getCLBuffer(gCLContext_);
-               clFlatField = flatFieldImage.getCLBuffer(gCLContext_);               
+               clBackground = background.getCLBuffer(gCLKE_);
+               clFlatField = flatFieldImage.getCLBuffer(gCLKE_);               
                Kernels.subtractImages(gCLKE_, clImg_, clBackground, clDestImg_);               
                Kernels.multiplyImages(gCLKE_, clDestImg_, clFlatField, clDestImg_);
             }
