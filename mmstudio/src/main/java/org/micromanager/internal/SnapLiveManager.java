@@ -16,7 +16,6 @@ package org.micromanager.internal;
 
 import com.bulenkov.iconloader.IconLoader;
 import com.google.common.eventbus.Subscribe;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Insets;
@@ -588,8 +587,7 @@ public final class SnapLiveManager extends DataViewerListener
    /**
     * Display the provided image. Due to limitations of ImageJ, if the image's
     * parameters (width, height, or pixel type) change, we have to recreate
-    * the display and datastore. We also do this if the channel names change,
-    * as an inefficient way to force the channel colors to update.
+    * the display and datastore. 
     * @param image Image to be displayed
     */
    @Override
