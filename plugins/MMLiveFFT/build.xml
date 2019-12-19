@@ -1,0 +1,3 @@
+<project name="MMLiveFFT" default="jar">
+    <import file="../javapluginbuild.xml"/>
+</project>
