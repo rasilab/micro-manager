@@ -342,7 +342,7 @@ public final class ReportingUtils {
          Calendar c = Calendar.getInstance();
          final JOptionPane optionPane = new JOptionPane(c.getTime().toString() + " " + message, JOptionPane.WARNING_MESSAGE, JOptionPane.OK_CANCEL_OPTION);
          /* the false parameter is for not modal */
-         final JDialog dialog = new JDialog(owningFrame_, "μManager Warning: ", false);
+         final JDialog dialog = new JDialog(owningFrame_, "MicroManager Warning: ", false);
          optionPane.addPropertyChangeListener(
                  new PropertyChangeListener() {
 

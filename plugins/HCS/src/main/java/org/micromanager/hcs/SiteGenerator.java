@@ -82,10 +82,10 @@ public class SiteGenerator extends MMFrame implements ParentPlateGUI {
    private final String PLATE_FORMAT_ID = "plate_format_id";
    private final String SITE_SPACING_X  = "site_spacing"; //keep string for bac
    private final String SITE_SPACING_Y  = "site_spacing_y";
-   private final String SITE_OVERLAP    = "site_overlap"; //in µm
+   private final String SITE_OVERLAP    = "site_overlap"; //in microm
    private final String SITE_ROWS       = "site_rows";
    private final String SITE_COLS       = "site_cols";
-   private final String SITE_OFFSET     = "site_offset"; // in µm
+   private final String SITE_OFFSET     = "site_offset"; // in microm
 
    private final JLabel statusLabel_;
    private final JCheckBox chckbxThreePt_;

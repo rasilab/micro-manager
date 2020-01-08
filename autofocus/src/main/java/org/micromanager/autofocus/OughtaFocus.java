@@ -125,8 +125,8 @@ public class OughtaFocus extends AutofocusBase implements AutofocusPlugin, SciJa
    // tolerance.
    //
    // 1.0e-9 is a reasonable relative tolerance to use here, since it
-   // translates to 1 nm when the stage position is 1 m (1e6 µm). Thinking
-   // of piezo stages, a generous position of 1000 µm would give relative
+   // translates to 1 nm when the stage position is 1 m (1e6 microm). Thinking
+   // of piezo stages, a generous position of 1000 microm would give relative
    // tolerance of 1 pm, again small enough to be negligible.
    //
    // The machine epsilon for double is 2e-53, so we could use a much
@@ -498,7 +498,7 @@ public class OughtaFocus extends AutofocusBase implements AutofocusPlugin, SciJa
    // Volath's 1D autocorrelation
    // Volath  D., "The influence of the scene parameters and of noise on
    // the behavior of automatic focusing algorithms,"
-   // J. Microsc. 151, (2), 133 –146 (1988).
+   // J. Microsc. 151, (2), 133 S146 (1988).
    private double computeVolath(ImageProcessor proc) {
       int h = proc.getHeight();
       int w = proc.getWidth();
@@ -523,7 +523,7 @@ public class OughtaFocus extends AutofocusBase implements AutofocusPlugin, SciJa
    // Volath 5 - smooths out high-frequency (suppresses noise)
    // Volath  D., "The influence of the scene parameters and of noise on
    // the behavior of automatic focusing algorithms,"
-   // J. Microsc. 151, (2), 133 –146 (1988).
+   // J. Microsc. 151, (2), 133 S146 (1988).
    private double computeVolath5(ImageProcessor proc) {
       int h = proc.getHeight();
       int w = proc.getWidth();
